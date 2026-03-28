@@ -32,8 +32,8 @@ class DatabaseSeeder extends Seeder
             ->has(Post::factory(45))
             ->has(Comment::factory(120)->recycle($posts))
             ->create([
-                'email' => 'jairosarabia@gmail.com',
-                'password' => 'my32Forum847@'
+                'email' => 'admin@example.com',
+                'password' => env('SEED_USER_PASSWORD', 'password')
             ]);
     }
 }
