@@ -11,6 +11,11 @@ class Post extends Model
 {
     use HasFactory;
 
+    protected $fillable = [
+        'title',
+        'body',
+    ];
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
@@ -20,5 +25,4 @@ class Post extends Model
     {
         return $this->hasMany(Comment::class);
     }
-
 }
