@@ -8,6 +8,7 @@ use App\Models\User;
 // use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Database\Factories\PostFactory;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Hash;
 
 class DatabaseSeeder extends Seeder
 {
@@ -33,7 +34,7 @@ class DatabaseSeeder extends Seeder
             ->has(Comment::factory(120)->recycle($posts))
             ->create([
                 'email' => 'jairosarabia@gmail.com',
-                'password' => 'my32Forum847@'
+                'password' => Hash::make(env('SEEDER_PASSWORD', 'change-me-in-env')),
             ]);
     }
 }
