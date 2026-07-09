@@ -30,6 +30,15 @@ There are 3 Docker containers:
 - mysql (image MySQL 8.0.32): MySQL server for databases
 - mailpit (image Mailpit latest): email service to send and receive emails in local environment
 
+## Security notes
+
+Real secrets were previously committed in `.env.local`, `.env.testing` and `.env.example`. Even though these files have been removed or sanitized, the values remain in the git history and must be considered **compromised**:
+
+- The `APP_KEY` must be rotated: run `php artisan key:generate`.
+- The MySQL `DB_PASSWORD` must be changed on the database server and in your local `.env` files.
+
+Real environment files (`.env`, `.env.local`, `.env.testing`, etc.) must never be committed; only keep a sanitized `.env.example` in the repository.
+
 ## License
 
 The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
