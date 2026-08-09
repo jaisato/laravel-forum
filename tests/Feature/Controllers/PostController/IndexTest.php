@@ -12,6 +12,13 @@ it('should return correct component', function () {
         ->assertComponent('Posts/Index');
 });
 
+it('does not send props the page never reads', function () {
+    Post::factory(3)->create();
+
+    get(route('posts.index'))
+        ->assertInertia(fn (AssertableInertia $inertia) => $inertia->missing('post'));
+});
+
 it('passes posts to the view', function () {
 
     $posts = Post::factory(3)->create();
@@ -20,7 +27,7 @@ it('passes posts to the view', function () {
 
     get(route('posts.index'))
         ->assertInertia(
-            fn (AssertableInertia $inertia) => $inertia->hasResource('post', PostResource::make($posts->first()))
+            fn (AssertableInertia $inertia) => $inertia
                 ->hasPaginatedResource('posts', PostResource::collection($posts->reverse()))
         );
 });
