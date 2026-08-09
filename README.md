@@ -33,3 +33,20 @@ There are 3 Docker containers:
 ## License
 
 The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+
+## Security notice: rotate the previously committed credentials
+
+`.env.local`, `.env.testing` and `.env.example` were tracked in git with a real
+`APP_KEY` and database password. They have been untracked and `.gitignore` now
+covers every `.env.*` file except `.env.example`, but **the values remain in the
+git history** and must be treated as compromised:
+
+1. Generate a new application key: `php artisan key:generate`.
+   Note this invalidates existing sessions, signed URLs, and anything else
+   encrypted with the old key.
+2. Change the `forum_user` / `root` database passwords on every environment that
+   used them.
+3. Purge the values from history (`git filter-repo` or BFG) and force-push if
+   this repository is or ever was public.
+
+Copy `.env.example` to `.env` locally and fill in your own values.
