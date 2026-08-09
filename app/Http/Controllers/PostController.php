@@ -13,10 +13,7 @@ class PostController extends Controller
      */
     public function index()
     {
-        //ray()->showQueries();
-
         return inertia('Posts/Index', [
-            'post' => PostResource::make(Post::with('user')->first()),
             'posts' => PostResource::collection(Post::with('user')->latest()->latest('id')->paginate()),
         ]);
     }
