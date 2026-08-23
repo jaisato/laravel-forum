@@ -26,14 +26,21 @@ services:
     mysql:
         image: 'mysql/mysql-server:8.0.32'
         ports:
-            - '3307:3306'
+            # Bound to the loopback interface. Published as '3307:3306' the
+            # database answered on every interface of the host, so it was
+            # reachable from anything else on the network the developer happened
+            # to be on.
+            - '127.0.0.1:3307:3306'
         environment:
             MYSQL_ROOT_PASSWORD: '${DB_PASSWORD}'
             MYSQL_ROOT_HOST: '%'
             MYSQL_DATABASE: '${DB_DATABASE}'
             MYSQL_USER: '${DB_USERNAME}'
             MYSQL_PASSWORD: '${DB_PASSWORD}'
-            MYSQL_ALLOW_EMPTY_PASSWORD: 1
+            # MYSQL_ALLOW_EMPTY_PASSWORD used to be set here. Together with an
+            # empty DB_PASSWORD in .env.example, MYSQL_ROOT_HOST '%' and a
+            # published port, that started a MySQL whose root account had no
+            # password and accepted connections from anywhere.
         volumes:
             - 'sail-mysql:/var/lib/mysql'
             - './vendor/laravel/sail/database/mysql/create-testing-database.sh:/docker-entrypoint-initdb.d/10-create-testing-database.sh'
@@ -50,8 +57,10 @@ services:
     mailpit:
         image: 'axllent/mailpit:latest'
         ports:
-            - '${FORWARD_MAILPIT_PORT:-1025}:1025'
-            - '${FORWARD_MAILPIT_DASHBOARD_PORT:-8025}:8025'
+            # Loopback only: the dashboard shows every message the app sends,
+            # with no authentication in front of it.
+            - '127.0.0.1:${FORWARD_MAILPIT_PORT:-1025}:1025'
+            - '127.0.0.1:${FORWARD_MAILPIT_DASHBOARD_PORT:-8025}:8025'
         networks:
             - forum
 
