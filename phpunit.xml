@@ -5,9 +5,13 @@
          colors="true"
 >
     <testsuites>
-        <testsuite name="Unit">
-            <directory>tests/Unit</directory>
-        </testsuite>
+        <!-- There is no tests/Unit directory in this project - every test is a
+             Pest feature test under tests/Feature. PHPUnit 11 treats a testsuite
+             pointing at a missing directory as a fatal configuration error, not
+             an empty suite, so declaring it aborted the entire run before a
+             single test executed: both ./vendor/bin/phpunit and `php artisan
+             test` answered only 'Test directory "tests/Unit" not found'. The
+             suite is declared again the day a unit test is actually added. -->
         <testsuite name="Feature">
             <directory>tests/Feature</directory>
         </testsuite>
