@@ -18,6 +18,10 @@
         </include>
     </source>
     <php>
+        <!-- APP_ENV=testing is what makes Laravel load .env.testing in place of
+             .env, and that tracked file carries APP_KEY and the rest of the test
+             configuration. It has to be set here, before the app boots, or the
+             framework looks for a .env nobody has. -->
         <env name="APP_ENV" value="testing"/>
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
         <env name="BCRYPT_ROUNDS" value="4"/>

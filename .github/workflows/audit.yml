@@ -1,0 +1,58 @@
+name: Dependency audit
+
+# Known advisories against what the lockfiles pin. Runs with every push and pull
+# request like the rest of CI, and once a week on its own: an advisory published
+# against a version the lock already carries arrives without a commit, and only a
+# scheduled run turns red for it. That is exactly how league/commonmark 2.9.1 sat
+# here after the DoS advisory landed against it.
+#
+# GitHub switches scheduled workflows off in a repository with no commit for 60
+# days and emails the owner; the Actions tab turns it back on.
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  schedule:
+    - cron: "23 6 * * 1" # Mondays, 06:23 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: audit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  composer:
+    name: composer audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+          tools: composer:v2
+
+      # --locked reads composer.lock and installs nothing. An abandoned package
+      # is reported, not failed on: it is a maintenance signal, not an advisory.
+      - name: Audit the locked dependencies
+        run: composer audit --locked --abandoned=report
+
+  npm:
+    name: npm audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      # The front end is half this application; an advisory against the Vue or
+      # Vite tree matters as much as one against the PHP tree.
+      - name: Audit the locked dependencies
+        run: npm audit --audit-level=high

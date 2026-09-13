@@ -30,6 +30,24 @@ There are 3 Docker containers:
 - mysql (image MySQL 8.0.32): MySQL server for databases
 - mailpit (image Mailpit latest): email service to send and receive emails in local environment
 
+## Tests
+
+```bash
+composer install
+vendor/bin/pest
+```
+
+That is the whole procedure: no `.env` to create and no key to generate. The
+suite reads the tracked `.env.testing` (selected by `APP_ENV=testing` in
+`phpunit.xml`) and runs against an in-memory SQLite database, so it needs no
+database server and leaves nothing behind.
+
+CI runs `vendor/bin/pest --fail-on-warning`. Warnings are failures here for a
+reason: the suite's last two outages were a `tests/Unit` directory named in
+`phpunit.xml` but absent from the repository, which aborted PHPUnit before any
+test ran, and a missing environment file, which attached a PHP warning to every
+test while they all still reported green.
+
 ## License
 
 The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
@@ -50,3 +68,10 @@ git history** and must be treated as compromised:
    this repository is or ever was public.
 
 Copy `.env.example` to `.env` locally and fill in your own values.
+
+`.env.testing` is tracked again, but it is not the file that leaked: its
+`APP_KEY` was generated fresh and shares nothing with the compromised one, and
+every other value in it is a fixture — an in-memory database, array mail and
+cache drivers — that addresses no real service. Nothing in it is a credential,
+which is why it can live in the repository and let a clean clone run the suite.
+Deployed values stay in the untracked `.env`.
