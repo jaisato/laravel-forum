@@ -1,0 +1,73 @@
+name: CI
+
+# There was no CI here, and it showed: phpunit.xml declared a `tests/Unit`
+# directory that the repository does not contain, so PHPUnit aborted with exit
+# code 2 before running a single one of the Feature tests. Nothing was watching,
+# so a suite that ran nothing at all looked exactly like a suite that passed.
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  COMPOSER_NO_INTERACTION: '1'
+
+jobs:
+  test:
+    name: Tests (Pest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: dom, libxml, mbstring, pdo_sqlite, sqlite3
+          coverage: none
+          tools: composer:v2
+
+      - name: Validate composer.json and composer.lock
+        run: composer validate --strict
+
+      - name: Install dependencies
+        uses: ramsey/composer-install@v3
+        with:
+          composer-options: '--prefer-dist'
+
+      # No `cp .env.example .env` step and no `artisan key:generate`: the suite
+      # reads the tracked .env.testing, which phpunit.xml selects by setting
+      # APP_ENV=testing. A clean clone is expected to be enough.
+      #
+      # --fail-on-warning is the point of the job as much as the assertions are.
+      # A missing environment file surfaced as a PHP warning attached to every
+      # test while they all still reported green, so warnings are the shape this
+      # repository's breakage has actually taken.
+      - name: Run the test suite
+        run: vendor/bin/pest --fail-on-warning
+
+  assets:
+    name: Front-end build (Vite)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # The Vue pages are only ever exercised through Vite; nothing else in CI
+      # would notice a template that stopped compiling.
+      - name: Build
+        run: npm run build

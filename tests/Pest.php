@@ -16,6 +16,12 @@ uses(
     Illuminate\Foundation\Testing\RefreshDatabase::class,
 )->in('Feature');
 
+// Unit tests boot the application - resources and models reach for config and
+// for the container - but take no RefreshDatabase: they assert on models built
+// in memory and never touch a connection, so migrating a database per test
+// would only slow them down.
+uses(Tests\TestCase::class)->in('Unit');
+
 /*
 |--------------------------------------------------------------------------
 | Expectations
