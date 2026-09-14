@@ -25,7 +25,13 @@ declare(strict_types=1);
  * An APP_KEY already in the environment is left alone, so CI or a developer can
  * pin one when they want to (debugging something encryption-related, say).
  */
-if (getenv('APP_KEY') === false && ! isset($_ENV['APP_KEY'], $_SERVER['APP_KEY'])) {
+$existing = getenv('APP_KEY');
+
+if ($existing === false || $existing === '') {
+    $existing = $_ENV['APP_KEY'] ?? $_SERVER['APP_KEY'] ?? '';
+}
+
+if ($existing === '') {
     $key = 'base64:' . base64_encode(random_bytes(32));
 
     // All three, because Laravel's env() reads whichever the adapter offers
