@@ -42,14 +42,21 @@ jobs:
         with:
           composer-options: '--prefer-dist'
 
-      # No `cp .env.example .env` step and no `artisan key:generate`: the suite
-      # reads the tracked .env.testing, which phpunit.xml selects by setting
-      # APP_ENV=testing. A clean clone is expected to be enough.
+      # No `cp .env.example .env` step: the suite reads the tracked .env.testing,
+      # which phpunit.xml selects by setting APP_ENV=testing. The one value that
+      # file does not carry is APP_KEY - it shipped with a real generated key at
+      # first and GitGuardian flagged it, correctly: a valid Laravel key in the
+      # repository cannot be told apart from a production one by anything reading
+      # the file. `composer test` runs this same step for anyone working locally,
+      # so a clean clone still needs no setup.
       #
       # --fail-on-warning is the point of the job as much as the assertions are.
       # A missing environment file surfaced as a PHP warning attached to every
       # test while they all still reported green, so warnings are the shape this
       # repository's breakage has actually taken.
+      - name: Generate the test application key
+        run: php artisan key:generate --env=testing
+
       - name: Run the test suite
         run: vendor/bin/pest --fail-on-warning
 
@@ -63,6 +70,23 @@ jobs:
         with:
           node-version: '22'
           cache: npm
+
+      # resources/js/app.js imports Ziggy as '../../vendor/tightenco/ziggy'.
+      # That is a Composer package that happens to ship JavaScript, so the
+      # bundle cannot be built from npm alone: without vendor/ on disk Vite
+      # fails to resolve the import and the build dies after transforming 27
+      # modules. PHP is set up here only to run composer.
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+          tools: composer:v2
+
+      - name: Install PHP dependencies (Ziggy is one of them)
+        uses: ramsey/composer-install@v3
+        with:
+          composer-options: '--prefer-dist'
 
       - name: Install dependencies
         run: npm ci
