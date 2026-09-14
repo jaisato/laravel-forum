@@ -57,11 +57,7 @@
             "@php -r \"file_exists('database/database.sqlite') || touch('database/database.sqlite');\"",
             "@php artisan migrate --graceful --ansi"
         ],
-        "ensure-test-key": "@php -r \"if (!preg_match('/^APP_KEY=base64:/m', file_get_contents('.env.testing'))) { passthru(PHP_BINARY . ' artisan key:generate --env=testing --ansi'); }\"",
-        "test": [
-            "@ensure-test-key",
-            "@php vendor/bin/pest --fail-on-warning"
-        ]
+        "test": "@php vendor/bin/pest --fail-on-warning"
     },
     "extra": {
         "laravel": {

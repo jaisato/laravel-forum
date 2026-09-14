@@ -42,23 +42,18 @@ jobs:
         with:
           composer-options: '--prefer-dist'
 
-      # No `cp .env.example .env` step: the suite reads the tracked .env.testing,
-      # which phpunit.xml selects by setting APP_ENV=testing. The one value that
-      # file does not carry is APP_KEY - it shipped with a real generated key at
-      # first and GitGuardian flagged it, correctly: a valid Laravel key in the
-      # repository cannot be told apart from a production one by anything reading
-      # the file. `composer test` runs this same step for anyone working locally,
-      # so a clean clone still needs no setup.
+      # No `cp .env.example .env` and no key to generate. The suite reads the
+      # tracked .env.testing, which phpunit.xml selects by setting
+      # APP_ENV=testing, and tests/bootstrap.php mints a throwaway APP_KEY into
+      # the process environment before the framework boots. Nothing is written
+      # to disk, so this job cannot leave a key behind either.
       #
       # --fail-on-warning is the point of the job as much as the assertions are.
       # A missing environment file surfaced as a PHP warning attached to every
       # test while they all still reported green, so warnings are the shape this
       # repository's breakage has actually taken.
-      - name: Generate the test application key
-        run: php artisan key:generate --env=testing
-
       - name: Run the test suite
-        run: vendor/bin/pest --fail-on-warning
+        run: composer test
 
   assets:
     name: Front-end build (Vite)
