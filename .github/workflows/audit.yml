@@ -54,5 +54,12 @@ jobs:
 
       # The front end is half this application; an advisory against the Vue or
       # Vite tree matters as much as one against the PHP tree.
+      #
+      # No --audit-level. It was `high`, which npm documents as the minimum
+      # severity that exits non-zero - so a moderate advisory printed a warning
+      # and the job stayed green. That threshold would have slept through the
+      # very thing this branch fixes: the qs advisory in e710d86 is moderate.
+      # The composer job above has no threshold either, and there is no reason
+      # for the two halves of the application to be held to different bars.
       - name: Audit the locked dependencies
-        run: npm audit --audit-level=high
+        run: npm audit
