@@ -37,24 +37,16 @@ composer install
 composer test
 ```
 
-That is the whole procedure: no `.env` to create and no database server to
-start. The suite reads the tracked `.env.testing` (selected by `APP_ENV=testing`
-in `phpunit.xml`) and runs against an in-memory SQLite database, so it leaves
-nothing behind.
+That is the whole procedure: no `.env` to create, no key to generate and no
+database server to start. `vendor/bin/pest` works just as well — `composer test`
+only adds `--fail-on-warning`. The suite reads the tracked `.env.testing`
+(selected by `APP_ENV=testing` in `phpunit.xml`) and runs against an in-memory
+SQLite database, so it leaves nothing behind.
 
-Run it through `composer test` rather than calling `vendor/bin/pest` directly.
-`.env.testing` ships with an empty `APP_KEY` — a real one committed there is
-indistinguishable from a production key to anything reading the file — and
-`composer test` generates it on the first run before handing over to Pest.
-Calling Pest straight from a clean clone skips that step, and every test that
-boots the framework dies on `MissingAppKeyException`.
-
-Generating it once by hand does the same job if you prefer:
-
-```bash
-php artisan key:generate --env=testing
-vendor/bin/pest
-```
+`APP_KEY` is the one value `.env.testing` does not carry, and nothing writes it
+there. `tests/bootstrap.php` mints a throwaway key into the process environment
+before the framework boots, so each run gets its own and none of them outlive
+the process. Set `APP_KEY` yourself and it is left alone.
 
 CI runs `vendor/bin/pest --fail-on-warning`. Warnings are failures here for a
 reason: the suite's last two outages were a `tests/Unit` directory named in
@@ -85,14 +77,18 @@ Copy `.env.example` to `.env` locally and fill in your own values.
 
 `.env.testing` is tracked again, but it is not the file that leaked, and it no
 longer carries a key at all. Every value in it is a fixture — an in-memory
-database, array mail and cache drivers — that addresses no real service, and
-`APP_KEY` is left empty for `composer test` to fill in on the first run.
+database, array mail and cache drivers — that addresses no real service.
 
-It did briefly ship with a freshly generated key, on the argument that a test
-key encrypts only values that live and die inside one test run. GitGuardian
-flagged it and was right to: a valid Laravel key in the repository cannot be
-told apart from a production one by anything reading the file, and the argument
-holds only until somebody copies `.env.testing` to `.env`. Generating it locally
-costs one command and removes the question.
+It did briefly ship with a freshly generated `APP_KEY`, on the argument that a
+test key encrypts only values that live and die inside one test run.
+GitGuardian flagged it and was right to: a valid Laravel key in the repository
+cannot be told apart from a production one by anything reading the file, and
+the argument holds only until somebody copies `.env.testing` to `.env`.
+
+Generating one into that file on the first test run — the next attempt — was no
+better. It left every clean clone with a modified tracked file holding a real
+key, and git tracks modifications whatever `.gitignore` says, so `git commit -a`
+would have put it straight back. So the key is never written down at all: see
+`tests/bootstrap.php`.
 
 Deployed values stay in the untracked `.env`.
