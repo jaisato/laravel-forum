@@ -6,7 +6,14 @@ name: CI
 # so a suite that ran nothing at all looked exactly like a suite that passed.
 
 on:
+  # Pushes to the protected branches, and every pull request. Unfiltered `push`
+  # alongside `pull_request` ran this whole workflow twice for each commit on a
+  # branch with a PR open - the tests, the build, all of it - which is waste
+  # that grows with the matrix. A PR is what gets reviewed and merged, so that
+  # is where branch commits are covered; the push trigger guards the branches
+  # nothing opens a PR against.
   push:
+    branches: [main, master]
   pull_request:
 
 permissions:

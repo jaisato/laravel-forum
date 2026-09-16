@@ -9,8 +9,13 @@ name: Dependency audit
 # GitHub switches scheduled workflows off in a repository with no commit for 60
 # days and emails the owner; the Actions tab turns it back on.
 on:
+  # Every push, on every branch, not just the protected ones. The comment above
+  # said "every push" while the trigger filtered to main and master, so a
+  # lockfile change on a topic branch went unaudited until somebody opened a
+  # pull request for it. This job is one `audit` invocation and takes seconds,
+  # so running it twice on a branch that also has a PR open costs nothing worth
+  # protecting - unlike ci.yml, which is filtered for exactly that reason.
   push:
-    branches: [main, master]
   pull_request:
   schedule:
     - cron: "23 6 * * 1" # Mondays, 06:23 UTC
