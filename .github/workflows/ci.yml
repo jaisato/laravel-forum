@@ -1,0 +1,99 @@
+name: CI
+
+# There was no CI here, and it showed: phpunit.xml declared a `tests/Unit`
+# directory that the repository does not contain, so PHPUnit aborted with exit
+# code 2 before running a single one of the Feature tests. Nothing was watching,
+# so a suite that ran nothing at all looked exactly like a suite that passed.
+
+on:
+  # Pushes to the protected branches, and every pull request. Unfiltered `push`
+  # alongside `pull_request` ran this whole workflow twice for each commit on a
+  # branch with a PR open - the tests, the build, all of it - which is waste
+  # that grows with the matrix. A PR is what gets reviewed and merged, so that
+  # is where branch commits are covered; the push trigger guards the branches
+  # nothing opens a PR against.
+  push:
+    branches: [main, master]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  COMPOSER_NO_INTERACTION: '1'
+
+jobs:
+  test:
+    name: Tests (Pest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: dom, libxml, mbstring, pdo_sqlite, sqlite3
+          coverage: none
+          tools: composer:v2
+
+      - name: Validate composer.json and composer.lock
+        run: composer validate --strict
+
+      - name: Install dependencies
+        uses: ramsey/composer-install@v3
+        with:
+          composer-options: '--prefer-dist'
+
+      # No `cp .env.example .env` and no key to generate. The suite reads the
+      # tracked .env.testing, which phpunit.xml selects by setting
+      # APP_ENV=testing, and tests/bootstrap.php mints a throwaway APP_KEY into
+      # the process environment before the framework boots. Nothing is written
+      # to disk, so this job cannot leave a key behind either.
+      #
+      # --fail-on-warning is the point of the job as much as the assertions are.
+      # A missing environment file surfaced as a PHP warning attached to every
+      # test while they all still reported green, so warnings are the shape this
+      # repository's breakage has actually taken.
+      - name: Run the test suite
+        run: composer test
+
+  assets:
+    name: Front-end build (Vite)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      # resources/js/app.js imports Ziggy as '../../vendor/tightenco/ziggy'.
+      # That is a Composer package that happens to ship JavaScript, so the
+      # bundle cannot be built from npm alone: without vendor/ on disk Vite
+      # fails to resolve the import and the build dies after transforming 27
+      # modules. PHP is set up here only to run composer.
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+          tools: composer:v2
+
+      - name: Install PHP dependencies (Ziggy is one of them)
+        uses: ramsey/composer-install@v3
+        with:
+          composer-options: '--prefer-dist'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # The Vue pages are only ever exercised through Vite; nothing else in CI
+      # would notice a template that stopped compiling.
+      - name: Build
+        run: npm run build

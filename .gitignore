@@ -5,10 +5,13 @@
 /public/storage
 /storage/*.key
 /vendor
-# Ignore every environment file; .env.example is the only tracked one.
+# Ignore every environment file. The two exceptions hold no credentials:
+# .env.example is the template, and .env.testing configures the test suite,
+# whose values are fixtures that never address a real service.
 .env
 .env.*
 !.env.example
+!.env.testing
 .phpunit.result.cache
 Homestead.json
 Homestead.yaml
