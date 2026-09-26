@@ -1,17 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
-         bootstrap="vendor/autoload.php"
+         bootstrap="tests/bootstrap.php"
          colors="true"
 >
     <testsuites>
-        <!-- There is no tests/Unit directory in this project - every test is a
-             Pest feature test under tests/Feature. PHPUnit 11 treats a testsuite
-             pointing at a missing directory as a fatal configuration error, not
-             an empty suite, so declaring it aborted the entire run before a
-             single test executed: both ./vendor/bin/phpunit and `php artisan
-             test` answered only 'Test directory "tests/Unit" not found'. The
-             suite is declared again the day a unit test is actually added. -->
+        <testsuite name="Unit">
+            <directory>tests/Unit</directory>
+        </testsuite>
         <testsuite name="Feature">
             <directory>tests/Feature</directory>
         </testsuite>
@@ -22,6 +18,10 @@
         </include>
     </source>
     <php>
+        <!-- APP_ENV=testing is what makes Laravel load .env.testing in place of
+             .env, and that tracked file carries APP_KEY and the rest of the test
+             configuration. It has to be set here, before the app boots, or the
+             framework looks for a .env nobody has. -->
         <env name="APP_ENV" value="testing"/>
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
         <env name="BCRYPT_ROUNDS" value="4"/>
