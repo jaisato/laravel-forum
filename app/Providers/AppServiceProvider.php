@@ -38,6 +38,10 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         JsonResource::withoutWrapping();
-        Model::preventLazyLoading();
+        // Strict everywhere but production. Unconditionally it turned any
+        // missed eager load into a LazyLoadingViolationException, i.e. a 500 for
+        // the visitor, in production - where the right outcome for an N+1 is a
+        // slower page, not a broken one. Tests and local still fail loudly.
+        Model::preventLazyLoading(! $this->app->isProduction());
     }
 }
