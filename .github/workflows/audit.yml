@@ -66,5 +66,30 @@ jobs:
       # very thing this branch fixes: the qs advisory in e710d86 is moderate.
       # The composer job above has no threshold either, and there is no reason
       # for the two halves of the application to be held to different bars.
+      #
+      # Ya no es `npm audit` a secas, sino `npm audit --json` filtrado por una
+      # lista de excepciones (.github/npm-audit-allowlist.json, leída por
+      # .github/scripts/npm-audit-allowlist.mjs). El motivo es GHSA-vfj7-8cjw-p6xm,
+      # contra `braces <= 3.0.3`: no existe versión parcheada -3.0.3 es la última
+      # publicada- y entra únicamente por tailwindcss 3, así que la única salida
+      # que npm ofrece es `npm audit fix --force`, es decir, Tailwind 4. Eso es
+      # un cambio de versión mayor, no una actualización de seguridad, y aquí
+      # `braces` solo expande los globs de `content` de tailwind.config.js en
+      # el build: no le llega entrada de nadie. Decisión tomada: riesgo asumido
+      # y documentado, sin migrar por esto.
+      #
+      # Lo que NO se ha hecho es bajar el listón. No hay `continue-on-error`,
+      # ni `--audit-level`, ni `--omit=dev` (que silenciaría también axios, que
+      # es devDependency pero acaba en el navegador). La lista tolera un aviso
+      # concreto (GHSA) de un paquete concreto, con motivo y fecha, y el script
+      # falla con todo lo demás: otro paquete, otro GHSA del mismo `braces`, o
+      # ese mismo aviso el día que npm ofrezca un parche que no exija un mayor,
+      # momento en el que la entrada sobra y hay que actualizar. Las entradas
+      # transitivas (chokidar, micromatch, fast-glob, tailwindcss, typography)
+      # solo se toleran mientras su único origen sea un aviso tolerado.
+      #
+      # Añadir una excepción es editar el JSON, no este workflow ni el script;
+      # quitarla vuelve a exigir el aviso. El script no instala nada: igual
+      # que antes, `npm audit` trabaja sobre package-lock.json.
       - name: Audit the locked dependencies
-        run: npm audit
+        run: node .github/scripts/npm-audit-allowlist.mjs
