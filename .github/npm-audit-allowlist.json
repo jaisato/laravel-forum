@@ -1,0 +1,18 @@
+{
+    "_doc": [
+        "Avisos de `npm audit` tolerados a sabiendas. Los lee .github/scripts/npm-audit-allowlist.mjs,",
+        "que es lo que ejecuta el job `npm audit` de audit.yml en lugar de `npm audit` a secas.",
+        "Cada entrada tolera UN aviso (GHSA) de UN paquete, con motivo y fecha; cualquier otro aviso,",
+        "incluido uno nuevo del mismo paquete, sigue haciendo fallar el job. Si npm pasa a ofrecer un",
+        "parche no rompedor para un aviso tolerado, el script también falla: la entrada sobra y hay que",
+        "actualizar. Quitar una entrada es la forma de volver a exigir el aviso."
+    ],
+    "advisories": [
+        {
+            "id": "GHSA-vfj7-8cjw-p6xm",
+            "package": "braces",
+            "added": "2026-10-03",
+            "reason": "Sin versión parcheada: afecta a braces <= 3.0.3 y 3.0.3 es la última publicada (2024). Entra solo por tailwindcss 3 (chokidar y micromatch) y la única salida que ofrece npm es tailwindcss 4, un cambio de versión mayor que no se va a hacer por esto. En este proyecto braces solo expande los globs de `content` de tailwind.config.js, escritos por nosotros y evaluados en el build: no le llega entrada de usuario. Riesgo asumido."
+        }
+    ]
+}
