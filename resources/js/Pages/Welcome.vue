@@ -8,14 +8,6 @@ defineProps({
     canRegister: {
         type: Boolean,
     },
-    laravelVersion: {
-        type: String,
-        required: true,
-    },
-    phpVersion: {
-        type: String,
-        required: true,
-    },
 });
 
 function handleImageError() {
@@ -167,9 +159,6 @@ function handleImageError() {
                     </div>
                 </main>
 
-                <footer class="py-16 text-center text-sm text-black dark:text-white/70">
-                    Laravel v{{ laravelVersion }} (PHP v{{ phpVersion }})
-                </footer>
             </div>
         </div>
     </div>
