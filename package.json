@@ -16,7 +16,7 @@
         "postcss": "^8.4.32",
         "tailwindcss": "^3.4.0",
         "vite": "^7.3.6",
-        "vue": "^3.3.13"
+        "vue": "^3.5.43"
     },
     "dependencies": {
         "@heroicons/vue": "^2.1.3",
