@@ -1,6 +1,6 @@
 # Especificación de diseño y arquitectura
 
-> Estado: **propuesta para aprobación** · Fecha: 2026-10-22
+> Estado: **aprobada** por el propietario del proyecto · Fecha: 2026-10-22
 >
 > Este documento es la especificación de diseño de la reconstrucción del foro. Una vez
 > aprobado, sirve como documento de arquitectura del proyecto y se mantiene actualizado.
