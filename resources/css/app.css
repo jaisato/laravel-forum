@@ -4,6 +4,8 @@
 
 @import 'tw-animate-css';
 
+@plugin '@tailwindcss/typography';
+
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
 
@@ -171,4 +173,9 @@
     body {
         @apply bg-background text-foreground;
     }
+}
+
+/* Mentions rendered by App\Support\Markdown\MarkdownRenderer. */
+.prose a.mention {
+    @apply rounded bg-primary/10 px-1 font-medium text-primary no-underline hover:bg-primary/20;
 }

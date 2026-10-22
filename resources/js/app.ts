@@ -5,6 +5,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import AuthLayout from '@/layouts/AuthLayout.vue';
 import SettingsLayout from '@/layouts/settings/Layout.vue';
 import { initializeFlashToast } from '@/lib/flashToast';
+import { initializeLocaleSync } from '@/lib/locale';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
@@ -54,3 +55,6 @@ initializeTheme();
 
 // This will listen for flash toast data from the server...
 initializeFlashToast();
+
+// Reload the translations when a page arrives in another language...
+initializeLocaleSync();

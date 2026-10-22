@@ -5,7 +5,7 @@ import vue from '@vitejs/plugin-vue';
 import laravel from 'laravel-vite-plugin';
 import { defineConfig } from 'vite';
 
-export default defineConfig({
+export default defineConfig(({ isSsrBuild }) => ({
     plugins: [
         laravel({
             input: ['resources/css/app.css', 'resources/js/app.ts'],
@@ -28,9 +28,28 @@ export default defineConfig({
             command: process.env.WAYFINDER_COMMAND ?? 'php artisan wayfinder:generate',
         }),
     ],
+    build: {
+        rolldownOptions: {
+            output: isSsrBuild
+                ? {}
+                : {
+                      // Vue, Inertia and their helpers change far less often than
+                      // the forum: in a chunk of their own they stay cached in
+                      // browsers across deployments.
+                      codeSplitting: {
+                          groups: [
+                              {
+                                  name: 'vendor',
+                                  test: /node_modules[\\/](vue|@vue|@inertiajs|es-toolkit|laravel-precognition)[\\/]/,
+                              },
+                          ],
+                      },
+                  },
+        },
+    },
     server: {
         watch: {
             ignored: ['**/vendor/**', '**/storage/**', '**/.superpowers/**'],
         },
     },
-});
+}));
