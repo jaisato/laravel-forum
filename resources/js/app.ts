@@ -1,4 +1,5 @@
 import { createInertiaApp } from '@inertiajs/vue3';
+import { i18nVue } from 'laravel-vue-i18n';
 import { initializeTheme } from '@/composables/useAppearance';
 import AppLayout from '@/layouts/AppLayout.vue';
 import AuthLayout from '@/layouts/AuthLayout.vue';
@@ -21,7 +22,20 @@ void createInertiaApp({
                 return AppLayout;
         }
     },
-    withApp: (app) => {
+    withApp: (app, { page }) => {
+        app.use(i18nVue, {
+            lang: page.props.locale,
+            fallbackLang: 'en',
+            // Eager so translations are available synchronously during SSR.
+            resolve: (lang: string) => {
+                const files = import.meta.glob<{
+                    default: Record<string, string>;
+                }>('../../lang/*.json', { eager: true });
+
+                return files[`../../lang/${lang}.json`]?.default ?? {};
+            },
+        });
+
         app.directive('focus', {
             mounted: (el: HTMLElement, shouldFocus) => {
                 if (shouldFocus.value !== false) {
