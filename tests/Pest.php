@@ -2,6 +2,11 @@
 
 declare(strict_types=1);
 
+use App\Actions\Forum\CreateThread;
+use App\Actions\Forum\ReplyToThread;
+use App\Models\Category;
+use App\Models\Post;
+use App\Models\Thread;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Gate;
@@ -54,4 +59,29 @@ function forumUser(string $role): ?User
 function allows(?User $user, string $ability, mixed $arguments = []): bool
 {
     return Gate::forUser($user)->allows($ability, $arguments);
+}
+
+/**
+ * A thread created the way members create them (CreateThread), so its
+ * denormalised counters are right.
+ *
+ * @param  list<int>  $tagIds
+ */
+function forumThread(?User $author = null, ?Category $category = null, string $body = 'The opening post of this thread.', array $tagIds = []): Thread
+{
+    return app(CreateThread::class)->handle(
+        $author ?? User::factory()->create(),
+        $category ?? Category::factory()->create(),
+        'A thread about testing the forum',
+        $body,
+        $tagIds,
+    );
+}
+
+/**
+ * A reply written through ReplyToThread.
+ */
+function forumReply(Thread $thread, ?User $author = null, string $body = 'A reply to the thread.'): Post
+{
+    return app(ReplyToThread::class)->handle($thread, $author ?? User::factory()->create(), $body);
 }

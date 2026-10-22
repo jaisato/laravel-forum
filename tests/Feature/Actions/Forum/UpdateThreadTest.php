@@ -1,0 +1,58 @@
+<?php
+
+declare(strict_types=1);
+
+use App\Actions\Forum\UpdateThread;
+use App\Enums\ModerationActionType;
+use App\Events\ThreadUpdated;
+use App\Models\ModerationAction;
+use App\Models\Tag;
+use App\Models\User;
+use Illuminate\Support\Facades\Event;
+
+it('renames the thread but keeps its address', function () {
+    $thread = forumThread();
+    $slug = $thread->slug;
+
+    $updated = app(UpdateThread::class)->handle($thread, $thread->author, 'A much better title for the thread', []);
+
+    expect($updated->title)->toBe('A much better title for the thread')
+        ->and($updated->fresh()->slug)->toBe($slug);
+});
+
+it('moves the tag counters with the tags', function () {
+    [$kept, $dropped, $added] = Tag::factory()->count(3)->create();
+    $thread = forumThread(tagIds: [$kept->id, $dropped->id]);
+
+    app(UpdateThread::class)->handle($thread, $thread->author, $thread->title, [$kept->id, $added->id]);
+
+    expect($thread->tags()->pluck('tags.id')->sort()->values()->all())->toBe(collect([$kept->id, $added->id])->sort()->values()->all())
+        ->and($kept->fresh()->threads_count)->toBe(1)
+        ->and($dropped->fresh()->threads_count)->toBe(0)
+        ->and($added->fresh()->threads_count)->toBe(1);
+});
+
+it('logs edits made by staff on threads of others', function () {
+    $thread = forumThread();
+    $moderator = User::factory()->moderator()->create();
+    $title = $thread->title;
+
+    app(UpdateThread::class)->handle($thread, $moderator, 'Retitled by the moderators', []);
+    app(UpdateThread::class)->handle($thread, $thread->author, 'Retitled by the author', []);
+
+    $action = ModerationAction::query()->sole();
+
+    expect($action->action)->toBe(ModerationActionType::ThreadEdited)
+        ->and($action->moderator->is($moderator))->toBeTrue()
+        ->and($action->subject->is($thread))->toBeTrue()
+        ->and($action->meta)->toBe(['previous_title' => $title, 'title' => 'Retitled by the moderators']);
+});
+
+it('announces the change once committed', function () {
+    Event::fake([ThreadUpdated::class]);
+    $thread = forumThread();
+
+    app(UpdateThread::class)->handle($thread, $thread->author, 'A much better title for the thread', []);
+
+    Event::assertDispatched(ThreadUpdated::class, fn (ThreadUpdated $event): bool => $event->thread->is($thread));
+});

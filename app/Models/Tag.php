@@ -55,6 +55,22 @@ class Tag extends Model
         return $this->belongsToMany(Thread::class);
     }
 
+    /**
+     * The given ids that belong to existing tags, once each: tag ids come
+     * from forms and API clients.
+     *
+     * @param  array<int, int|string>  $ids
+     * @return list<int>
+     */
+    public static function existingIds(array $ids): array
+    {
+        $ids = array_values(array_unique(array_filter(array_map(intval(...), $ids))));
+
+        return $ids === []
+            ? []
+            : static::query()->whereKey($ids)->pluck('id')->map(fn (mixed $id): int => (int) $id)->values()->all();
+    }
+
     protected function slugSource(): string
     {
         return $this->name;
