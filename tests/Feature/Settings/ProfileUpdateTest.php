@@ -54,7 +54,8 @@ it('lets users delete their account', function () {
         ->assertRedirect(route('home'));
 
     assertGuest();
-    expect($user->fresh())->toBeNull();
+    // Accounts are soft deleted so the member's posts keep their author row.
+    expect($user->fresh()->trashed())->toBeTrue();
 });
 
 it('requires the correct password to delete the account', function () {

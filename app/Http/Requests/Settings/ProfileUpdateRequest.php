@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Requests\Settings;
 
 use App\Concerns\ProfileValidationRules;
@@ -17,6 +19,12 @@ class ProfileUpdateRequest extends FormRequest
      */
     public function rules(): array
     {
-        return $this->profileRules($this->user()->id);
+        $rules = $this->profileRules($this->user()->id);
+
+        // The username is editable but optional here, so forms that do not
+        // show it (and API clients) can update the rest of the profile.
+        $rules['username'] = ['sometimes', ...$rules['username']];
+
+        return $rules;
     }
 }

@@ -27,6 +27,37 @@ it('authenticates users with valid credentials', function () {
     assertAuthenticated();
 });
 
+it('authenticates users with their username, whatever the casing', function () {
+    User::factory()->create(['username' => 'ada_lovelace']);
+
+    post(route('login.store'), [
+        'email' => 'Ada_Lovelace',
+        'password' => 'password',
+    ])->assertRedirect(route('dashboard', absolute: false));
+
+    assertAuthenticated();
+});
+
+it('authenticates users whatever the casing of their email', function () {
+    User::factory()->create(['email' => 'ada@example.com']);
+
+    post(route('login.store'), [
+        'email' => 'ADA@Example.com',
+        'password' => 'password',
+    ])->assertRedirect(route('dashboard', absolute: false));
+
+    assertAuthenticated();
+});
+
+it('rejects an unknown username', function () {
+    post(route('login.store'), [
+        'email' => 'nobody_here',
+        'password' => 'password',
+    ])->assertSessionHasErrors('email');
+
+    assertGuest();
+});
+
 it('sends users with two-factor enabled to the challenge', function () {
     $this->skipUnlessFortifyHas(Features::twoFactorAuthentication());
 

@@ -1,4 +1,8 @@
 {
+    "Administrator": "Administrador",
+    "Member": "Miembro",
+    "Moderator": "Moderador",
     "Password updated.": "Contraseña actualizada.",
-    "Profile updated.": "Perfil actualizado."
+    "Profile updated.": "Perfil actualizado.",
+    "Your account is suspended, so you cannot post right now.": "Tu cuenta está suspendida, así que ahora mismo no puedes publicar."
 }
