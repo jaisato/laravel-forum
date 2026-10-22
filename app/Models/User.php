@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -92,6 +93,22 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
             'banned_until' => 'datetime',
             'last_seen_at' => 'datetime',
         ];
+    }
+
+    /**
+     * @return HasMany<Thread, $this>
+     */
+    public function threads(): HasMany
+    {
+        return $this->hasMany(Thread::class);
+    }
+
+    /**
+     * @return HasMany<Post, $this>
+     */
+    public function posts(): HasMany
+    {
+        return $this->hasMany(Post::class);
     }
 
     public function isAdmin(): bool

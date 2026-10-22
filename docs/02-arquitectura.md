@@ -363,7 +363,7 @@ erDiagram
     users ||--o{ posts : escribe
     categories ||--o{ threads : contiene
     threads ||--o{ posts : tiene
-    threads }o--o{ tags : "thread_tag"
+    threads }o--o{ tags : "tag_thread"
     posts ||--o{ reactions : recibe
     users ||--o{ reactions : da
     threads ||--o{ thread_subscriptions : ""
