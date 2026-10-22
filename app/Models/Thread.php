@@ -187,6 +187,38 @@ class Thread extends Model
     }
 
     /**
+     * Adds the viewer's read marker to every thread: last_read_post_id and
+     * last_read_at, both null for guests and for threads never read. A
+     * thread is unread while last_post_id is above last_read_post_id.
+     *
+     * @param  Builder<self>  $query
+     * @return Builder<self>
+     */
+    public function scopeWithReadState(Builder $query, ?User $viewer): Builder
+    {
+        if ($query->getQuery()->columns === null) {
+            $query->select($query->qualifyColumn('*'));
+        }
+
+        $query->withCasts(['last_read_post_id' => 'integer', 'last_read_at' => 'datetime']);
+
+        if ($viewer === null) {
+            return $query->selectRaw('null as last_read_post_id, null as last_read_at');
+        }
+
+        $marker = fn (string $column): Builder => ThreadRead::query()
+            ->select($column)
+            ->whereColumn('thread_reads.thread_id', $query->qualifyColumn('id'))
+            ->where('thread_reads.user_id', $viewer->id)
+            ->limit(1);
+
+        return $query->addSelect([
+            'last_read_post_id' => $marker('last_read_post_id'),
+            'last_read_at' => $marker('last_read_at'),
+        ]);
+    }
+
+    /**
      * The scopeVisibleTo() rule for a single loaded thread; deleted threads
      * are visible to staff only.
      */

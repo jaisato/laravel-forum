@@ -11,6 +11,7 @@ use App\Models\Post;
 use App\Models\Thread;
 use App\Models\User;
 use App\Services\ForumCounters;
+use App\Services\Reputation;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -22,6 +23,7 @@ final class DeletePost
     public function __construct(
         private readonly DeleteThread $deleteThread,
         private readonly ForumCounters $counters,
+        private readonly Reputation $reputation,
         private readonly RecordModerationAction $log,
     ) {}
 
@@ -58,8 +60,7 @@ final class DeletePost
             // loses the bonus the solution earned.
             if ((int) $thread->solution_post_id === $post->id) {
                 $thread->forceFill(['solution_post_id' => null])->save();
-                User::withTrashed()->whereKey($post->user_id)->toBase()
-                    ->decrement('reputation', (int) config('forum.reputation.solution'));
+                $this->reputation->solution($thread, $post, -1);
             }
 
             if ((int) $thread->last_post_id === $post->id) {

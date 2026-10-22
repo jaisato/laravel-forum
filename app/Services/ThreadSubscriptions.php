@@ -25,4 +25,20 @@ final class ThreadSubscriptions
             'updated_at' => $now,
         ]);
     }
+
+    public function unsubscribe(Thread $thread, User $user): void
+    {
+        ThreadSubscription::query()
+            ->where('thread_id', $thread->id)
+            ->where('user_id', $user->id)
+            ->delete();
+    }
+
+    public function isSubscribed(Thread $thread, User $user): bool
+    {
+        return ThreadSubscription::query()
+            ->where('thread_id', $thread->id)
+            ->where('user_id', $user->id)
+            ->exists();
+    }
 }
