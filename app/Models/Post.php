@@ -147,6 +147,26 @@ class Post extends Model
             || ($this->status === PostStatus::PendingReview && $viewer !== null && $this->isAuthoredBy($viewer));
     }
 
+    /**
+     * Visible to everyone: published and not deleted, in a thread that is
+     * published and not deleted either.
+     */
+    public function isPublic(): bool
+    {
+        return $this->isVisibleTo(null) && $this->thread?->isVisibleTo(null) === true;
+    }
+
+    /**
+     * Link to the post inside its thread; the thread page uses ?post= to
+     * open the page that holds it.
+     */
+    public function url(): string
+    {
+        $thread = $this->thread ?? Thread::withTrashed()->findOrFail($this->thread_id);
+
+        return $thread->url().'?post='.$this->id.'#post-'.$this->id;
+    }
+
     public function isAuthoredBy(User $user): bool
     {
         return (int) $this->user_id === $user->id;

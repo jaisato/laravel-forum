@@ -60,4 +60,9 @@ class Conversation extends Model
     {
         return $this->hasMany(Message::class);
     }
+
+    public function url(): string
+    {
+        return url('/messages/'.$this->id);
+    }
 }

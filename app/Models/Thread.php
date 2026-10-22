@@ -241,6 +241,11 @@ class Thread extends Model
         return (int) $this->user_id === $user->id;
     }
 
+    public function url(): string
+    {
+        return url('/t/'.$this->slug);
+    }
+
     public function isSolved(): bool
     {
         return $this->solution_post_id !== null;
