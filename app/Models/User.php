@@ -173,6 +173,18 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
     }
 
     /**
+     * Conversations with messages the user has not read yet; their own
+     * messages are always read, and conversations they left do not count.
+     */
+    public function unreadConversationsCount(): int
+    {
+        return $this->conversations()
+            ->wherePivotNull('left_at')
+            ->whereColumn('conversations.last_message_id', '>', 'conversation_participants.last_read_message_id')
+            ->count();
+    }
+
+    /**
      * Staff powers (moderation and the admin panel), lost while banned: an
      * administrator may ban a moderator.
      */

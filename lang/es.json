@@ -1,8 +1,10 @@
 {
+    "A conversation can have at most :max recipients.": "Una conversación puede tener como máximo :max destinatarios.",
     "Abuse or harassment": "Abuso o acoso",
     "Administrator": "Administrador",
     "AI": "IA",
     "Celebrate": "Celebro",
+    "Choose at least one member to write to.": "Elige al menos un miembro al que escribir.",
     "Dismissed": "Descartado",
     "Funny": "Divertido",
     "Hidden": "Oculto",
@@ -39,5 +41,6 @@
     "Thread unpinned": "Hilo desfijado",
     "User banned": "Usuario baneado",
     "User unbanned": "Usuario desbaneado",
+    "You cannot send private messages to :username.": "No puedes enviar mensajes privados a :username.",
     "Your account is suspended, so you cannot post right now.": "Tu cuenta está suspendida, así que ahora mismo no puedes publicar."
 }
