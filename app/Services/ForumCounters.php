@@ -64,6 +64,20 @@ final class ForumCounters
     }
 
     /**
+     * Moves what a visible thread contributes from one category to another.
+     */
+    public function moveThread(Thread $thread, int $fromCategoryId, int $toCategoryId): void
+    {
+        $posts = Post::query()
+            ->where('thread_id', $thread->id)
+            ->where('status', PostStatus::Published)
+            ->count();
+
+        Category::query()->whereKey($fromCategoryId)->toBase()->incrementEach(['threads_count' => -1, 'posts_count' => -$posts]);
+        Category::query()->whereKey($toCategoryId)->toBase()->incrementEach(['threads_count' => 1, 'posts_count' => $posts]);
+    }
+
+    /**
      * Adds or removes what a visible reply contributes.
      */
     public function applyReply(Post $post, Thread $thread, int $direction): void
