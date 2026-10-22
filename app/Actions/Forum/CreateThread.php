@@ -50,13 +50,13 @@ final class CreateThread
             ]);
             $post->setRelation('thread', $thread);
 
+            $thread->tags()->sync(Tag::existingIds($tagIds));
+
             $thread->forceFill([
                 'first_post_id' => $post->id,
                 'last_post_id' => $post->id,
                 'last_posted_at' => $post->created_at,
             ])->save();
-
-            $thread->tags()->sync(Tag::existingIds($tagIds));
 
             $this->counters->applyThread($thread, 1);
             $this->subscriptions->subscribe($thread, $author);

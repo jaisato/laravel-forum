@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Actions\Moderation;
 
 use App\Enums\ModerationActionType;
+use App\Events\ThreadUpdated;
 use App\Models\Category;
 use App\Models\Thread;
 use App\Models\User;
@@ -41,6 +42,8 @@ final class MoveThread
                 'from_category_id' => $from,
                 'to_category_id' => $category->id,
             ]);
+
+            ThreadUpdated::dispatch($thread);
         });
     }
 }

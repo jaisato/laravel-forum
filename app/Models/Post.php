@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\PostStatus;
+use App\Support\Markdown\MarkdownRenderer;
 use Carbon\CarbonImmutable;
 use Database\Factories\PostFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -14,6 +15,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Collection;
+use Laravel\Scout\Searchable;
 
 /**
  * @property int $id
@@ -33,7 +36,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Post extends Model
 {
     /** @use HasFactory<PostFactory> */
-    use HasFactory, SoftDeletes;
+    use HasFactory, Searchable, SoftDeletes;
 
     /**
      * The database defaults, so a model that was just saved behaves like a
@@ -153,7 +156,7 @@ class Post extends Model
      */
     public function isPublic(): bool
     {
-        return $this->isVisibleTo(null) && $this->thread?->isVisibleTo(null) === true;
+        return $this->isPublicIn($this->thread);
     }
 
     /**
@@ -165,6 +168,72 @@ class Post extends Model
         $thread = $this->thread ?? Thread::withTrashed()->findOrFail($this->thread_id);
 
         return $thread->url().'?post='.$this->id.'#post-'.$this->id;
+    }
+
+    /**
+     * Only public posts are searchable; posts of a hidden or deleted thread
+     * are not public either.
+     */
+    public function shouldBeSearchable(): bool
+    {
+        return $this->isPublicIn($this->threadForSearch());
+    }
+
+    /**
+     * Thread data is copied in so search engines can filter by category and
+     * tag without a join.
+     *
+     * @return array<string, mixed>
+     */
+    public function toSearchableArray(): array
+    {
+        $thread = $this->threadForSearch();
+
+        return [
+            'id' => $this->id,
+            'body' => app(MarkdownRenderer::class)->excerpt($this->body, 10000),
+            'thread_id' => $this->thread_id,
+            'thread_title' => $thread?->title,
+            'category_id' => $thread?->category_id,
+            'tag_ids' => $thread?->tags->modelKeys() ?? [],
+            'created_at' => $this->created_at?->getTimestamp(),
+        ];
+    }
+
+    /**
+     * Batches (imports, re-syncs, database searches) are eager loaded; a
+     * single saved model is left as it is (see threadForSearch()).
+     *
+     * @param  Collection<int, self>  $models
+     * @return Collection<int, self>
+     */
+    public function makeSearchableUsing(Collection $models): Collection
+    {
+        return $models->count() > 1 ? $models->loadMissing('thread.tags') : $models;
+    }
+
+    /**
+     * @param  Builder<self>  $query
+     * @return Builder<self>
+     */
+    protected function makeAllSearchableUsing(Builder $query): Builder
+    {
+        return $query->with('thread.tags');
+    }
+
+    private function isPublicIn(?Thread $thread): bool
+    {
+        return $this->isVisibleTo(null) && $thread?->isVisibleTo(null) === true;
+    }
+
+    /**
+     * The thread for indexing. When it is not loaded it is queried without
+     * being cached on the post: Scout indexes live instances right after a
+     * save, and a relation cached then would go stale for the request.
+     */
+    private function threadForSearch(): ?Thread
+    {
+        return $this->relationLoaded('thread') ? $this->thread : $this->thread()->with('tags')->first();
     }
 
     public function isAuthoredBy(User $user): bool

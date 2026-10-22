@@ -1,5 +1,8 @@
 <?php
 
+use App\Models\Post;
+use App\Models\Thread;
+
 return [
 
     /*
@@ -55,7 +58,7 @@ return [
     |
     */
 
-    'after_commit' => false,
+    'after_commit' => true,
 
     /*
     |--------------------------------------------------------------------------
@@ -139,16 +142,18 @@ return [
     'meilisearch' => [
         'host' => env('MEILISEARCH_HOST', 'http://localhost:7700'),
         'key' => env('MEILISEARCH_KEY'),
+        // Applied with `php artisan scout:sync-index-settings`.
         'index-settings' => [
-            // 'users' => [
-            //     'filterableAttributes' => ['id', 'name', 'email'],
-            //     'embedders' => [
-            //         'default' => [
-            //             'source' => 'userProvided',
-            //             'dimensions' => 1536,
-            //         ],
-            //     ],
-            // ],
+            Thread::class => [
+                'searchableAttributes' => ['title', 'body'],
+                'filterableAttributes' => ['category_id', 'tag_ids', 'is_solved'],
+                'sortableAttributes' => ['last_posted_at', 'created_at'],
+            ],
+            Post::class => [
+                'searchableAttributes' => ['body', 'thread_title'],
+                'filterableAttributes' => ['category_id', 'tag_ids', 'thread_id'],
+                'sortableAttributes' => ['created_at'],
+            ],
         ],
         'model-settings' => [
             // User::class => [

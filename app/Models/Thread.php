@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Enums\ThreadStatus;
 use App\Models\Concerns\HasUniqueSlug;
+use App\Support\Markdown\MarkdownRenderer;
 use Carbon\CarbonImmutable;
 use Database\Factories\ThreadFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -16,6 +17,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Collection;
+use Laravel\Scout\Searchable;
 
 /**
  * A discussion. Its body is the first post, so editing, reactions and
@@ -46,7 +49,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Thread extends Model
 {
     /** @use HasFactory<ThreadFactory> */
-    use HasFactory, HasUniqueSlug, SoftDeletes;
+    use HasFactory, HasUniqueSlug, Searchable, SoftDeletes;
 
     /**
      * The database defaults, so a model that was just saved behaves like a
@@ -244,6 +247,61 @@ class Thread extends Model
     public function url(): string
     {
         return url('/t/'.$this->slug);
+    }
+
+    /**
+     * Only public threads are searchable: Scout drops the others from the
+     * index as soon as they stop being public.
+     */
+    public function shouldBeSearchable(): bool
+    {
+        return $this->isVisibleTo(null);
+    }
+
+    /**
+     * Relations that are not loaded are queried without being cached on the
+     * model: Scout indexes live instances right after they are saved, and a
+     * relation cached then (say, before the opening post exists) would be
+     * stale for the rest of the request.
+     *
+     * @return array<string, mixed>
+     */
+    public function toSearchableArray(): array
+    {
+        $firstPost = $this->relationLoaded('firstPost') ? $this->firstPost : $this->firstPost()->first();
+        $tags = $this->relationLoaded('tags') ? $this->tags : $this->tags()->get();
+
+        return [
+            'id' => $this->id,
+            'title' => $this->title,
+            'body' => $firstPost === null ? '' : app(MarkdownRenderer::class)->excerpt($firstPost->body, 5000),
+            'category_id' => $this->category_id,
+            'tag_ids' => $tags->modelKeys(),
+            'is_solved' => $this->isSolved(),
+            'last_posted_at' => $this->last_posted_at?->getTimestamp(),
+            'created_at' => $this->created_at?->getTimestamp(),
+        ];
+    }
+
+    /**
+     * Batches (imports, re-syncs, database searches) are eager loaded; a
+     * single saved model is left as it is (see toSearchableArray()).
+     *
+     * @param  Collection<int, self>  $models
+     * @return Collection<int, self>
+     */
+    public function makeSearchableUsing(Collection $models): Collection
+    {
+        return $models->count() > 1 ? $models->loadMissing(['firstPost', 'tags']) : $models;
+    }
+
+    /**
+     * @param  Builder<self>  $query
+     * @return Builder<self>
+     */
+    protected function makeAllSearchableUsing(Builder $query): Builder
+    {
+        return $query->with(['firstPost', 'tags']);
     }
 
     public function isSolved(): bool
