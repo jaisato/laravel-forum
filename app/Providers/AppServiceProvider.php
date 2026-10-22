@@ -12,6 +12,7 @@ use App\Models\Reaction;
 use App\Models\Report;
 use App\Models\Tag;
 use App\Models\Thread;
+use App\Models\ThreadEmbedding;
 use App\Models\ThreadRead;
 use App\Models\ThreadSubscription;
 use App\Models\User;
@@ -85,6 +86,7 @@ class AppServiceProvider extends ServiceProvider
             'report' => Report::class,
             'tag' => Tag::class,
             'thread' => Thread::class,
+            'thread_embedding' => ThreadEmbedding::class,
             'thread_read' => ThreadRead::class,
             'thread_subscription' => ThreadSubscription::class,
             'user' => User::class,
