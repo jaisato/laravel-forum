@@ -35,6 +35,16 @@ class ConversationParticipant extends Pivot
     public $incrementing = true;
 
     /**
+     * The database defaults, so a model that was just saved behaves like a
+     * reloaded one.
+     *
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'last_read_message_id' => 0,
+    ];
+
+    /**
      * @return array<string, string>
      */
     protected function casts(): array

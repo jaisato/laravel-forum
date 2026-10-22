@@ -28,6 +28,16 @@ class Tag extends Model
     use HasFactory, HasUniqueSlug;
 
     /**
+     * The database defaults, so a model that was just saved behaves like a
+     * reloaded one.
+     *
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'threads_count' => 0,
+    ];
+
+    /**
      * @return array<string, string>
      */
     protected function casts(): array

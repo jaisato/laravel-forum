@@ -76,6 +76,19 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
     ];
 
     /**
+     * The database defaults, so a model that was just saved behaves like a
+     * reloaded one.
+     *
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'role' => Role::Member->value,
+        'reputation' => 0,
+        'threads_count' => 0,
+        'posts_count' => 0,
+    ];
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>
@@ -157,6 +170,28 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
     public function canParticipate(): bool
     {
         return $this->hasVerifiedEmail() && ! $this->isBanned();
+    }
+
+    /**
+     * Staff powers (moderation and the admin panel), lost while banned: an
+     * administrator may ban a moderator.
+     */
+    public function canModerate(): bool
+    {
+        return $this->isStaff() && ! $this->isBanned();
+    }
+
+    /**
+     * Administration powers: categories, tags, roles and Horizon.
+     */
+    public function canAdminister(): bool
+    {
+        return $this->isAdmin() && ! $this->isBanned();
+    }
+
+    public function acceptsPrivateMessages(): bool
+    {
+        return $this->preferences['allow_private_messages'];
     }
 
     public function wantsEmail(string $type): bool

@@ -49,6 +49,20 @@ class Thread extends Model
     use HasFactory, HasUniqueSlug, SoftDeletes;
 
     /**
+     * The database defaults, so a model that was just saved behaves like a
+     * reloaded one.
+     *
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'status' => ThreadStatus::Published->value,
+        'is_pinned' => false,
+        'is_locked' => false,
+        'replies_count' => 0,
+        'views_count' => 0,
+    ];
+
+    /**
      * @return array<string, string>
      */
     protected function casts(): array
@@ -170,6 +184,29 @@ class Thread extends Model
                     ->where('user_id', $viewer->id));
             }
         });
+    }
+
+    /**
+     * The scopeVisibleTo() rule for a single loaded thread; deleted threads
+     * are visible to staff only.
+     */
+    public function isVisibleTo(?User $viewer): bool
+    {
+        if ($viewer?->isStaff()) {
+            return true;
+        }
+
+        if ($this->trashed()) {
+            return false;
+        }
+
+        return $this->status === ThreadStatus::Published
+            || ($this->status === ThreadStatus::PendingReview && $viewer !== null && $this->isAuthoredBy($viewer));
+    }
+
+    public function isAuthoredBy(User $user): bool
+    {
+        return (int) $this->user_id === $user->id;
     }
 
     public function isSolved(): bool

@@ -21,6 +21,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 
@@ -41,6 +42,7 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->configureDefaults();
         $this->configureModels();
+        $this->configureAuthorization();
     }
 
     /**
@@ -94,5 +96,19 @@ class AppServiceProvider extends ServiceProvider
 
         Model::preventLazyLoading(! app()->isProduction());
         Model::preventSilentlyDiscardingAttributes(! app()->isProduction());
+    }
+
+    /**
+     * Gates that are not about a model. Model abilities live in app/Policies
+     * and viewHorizon in HorizonServiceProvider.
+     */
+    protected function configureAuthorization(): void
+    {
+        // Moderators get the moderation resources, administrators all of it.
+        Gate::define('access-admin', fn (User $user): bool => $user->canModerate());
+
+        // The API is public, so is its documentation (Scramble only opens it
+        // in the local environment by default).
+        Gate::define('viewApiDocs', fn (?User $user = null): bool => true);
     }
 }

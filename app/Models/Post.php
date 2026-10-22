@@ -36,6 +36,16 @@ class Post extends Model
     use HasFactory, SoftDeletes;
 
     /**
+     * The database defaults, so a model that was just saved behaves like a
+     * reloaded one.
+     *
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'status' => PostStatus::Published->value,
+    ];
+
+    /**
      * @return array<string, string>
      */
     protected function casts(): array
@@ -116,6 +126,30 @@ class Post extends Model
                     ->where('user_id', $viewer->id));
             }
         });
+    }
+
+    /**
+     * The scopeVisibleTo() rule for a single loaded post; deleted posts are
+     * visible to staff only. Whether the thread itself is visible is checked
+     * separately (see PostPolicy::view()).
+     */
+    public function isVisibleTo(?User $viewer): bool
+    {
+        if ($viewer?->isStaff()) {
+            return true;
+        }
+
+        if ($this->trashed()) {
+            return false;
+        }
+
+        return $this->status === PostStatus::Published
+            || ($this->status === PostStatus::PendingReview && $viewer !== null && $this->isAuthoredBy($viewer));
+    }
+
+    public function isAuthoredBy(User $user): bool
+    {
+        return (int) $this->user_id === $user->id;
     }
 
     /**

@@ -34,6 +34,20 @@ class Category extends Model
     use HasFactory, HasUniqueSlug;
 
     /**
+     * The database defaults, so a model that was just saved behaves like a
+     * reloaded one.
+     *
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'color' => '#6366f1',
+        'position' => 0,
+        'is_locked' => false,
+        'threads_count' => 0,
+        'posts_count' => 0,
+    ];
+
+    /**
      * @return array<string, string>
      */
     protected function casts(): array

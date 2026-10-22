@@ -38,6 +38,17 @@ class Report extends Model
     use HasFactory;
 
     /**
+     * The database defaults, so a model that was just saved behaves like a
+     * reloaded one.
+     *
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'source' => ReportSource::User->value,
+        'status' => ReportStatus::Open->value,
+    ];
+
+    /**
      * @return array<string, string>
      */
     protected function casts(): array
