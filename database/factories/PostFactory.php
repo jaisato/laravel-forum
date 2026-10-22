@@ -8,6 +8,7 @@ use App\Enums\PostStatus;
 use App\Models\Post;
 use App\Models\Thread;
 use App\Models\User;
+use Database\Factories\Concerns\FillsBodyHtml;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -15,6 +16,8 @@ use Illuminate\Database\Eloquent\Factories\Factory;
  */
 class PostFactory extends Factory
 {
+    use FillsBodyHtml;
+
     /**
      * @return array<string, mixed>
      */
@@ -26,20 +29,6 @@ class PostFactory extends Factory
             'body' => fake()->paragraphs(2, true),
             'status' => PostStatus::Published,
         ];
-    }
-
-    /**
-     * Keep body_html consistent with whatever body a test passes in.
-     */
-    public function configure(): static
-    {
-        return $this->afterMaking(function (Post $post): void {
-            if (blank($post->body_html)) {
-                $post->body_html = collect(preg_split("/\n{2,}/", $post->body) ?: [])
-                    ->map(fn (string $paragraph): string => '<p>'.e(trim($paragraph)).'</p>')
-                    ->implode("\n");
-            }
-        });
     }
 
     public function pending(): static

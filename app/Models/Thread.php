@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Enums\ThreadStatus;
 use App\Models\Concerns\HasUniqueSlug;
+use Carbon\CarbonImmutable;
 use Database\Factories\ThreadFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
@@ -15,7 +16,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Carbon;
 
 /**
  * A discussion. Its body is the first post, so editing, reactions and
@@ -32,15 +32,15 @@ use Illuminate\Support\Carbon;
  * @property int|null $first_post_id
  * @property int|null $last_post_id
  * @property int|null $solution_post_id
- * @property Carbon|null $last_posted_at
+ * @property CarbonImmutable|null $last_posted_at
  * @property int $replies_count
  * @property int $views_count
  * @property string|null $ai_summary
- * @property Carbon|null $ai_summary_generated_at
+ * @property CarbonImmutable|null $ai_summary_generated_at
  * @property int|null $ai_summary_replies_count
- * @property Carbon|null $created_at
- * @property Carbon|null $updated_at
- * @property Carbon|null $deleted_at
+ * @property CarbonImmutable|null $created_at
+ * @property CarbonImmutable|null $updated_at
+ * @property CarbonImmutable|null $deleted_at
  */
 #[Fillable(['category_id', 'user_id', 'title'])]
 class Thread extends Model
@@ -119,6 +119,33 @@ class Thread extends Model
     public function tags(): BelongsToMany
     {
         return $this->belongsToMany(Tag::class);
+    }
+
+    /**
+     * @return HasMany<ThreadSubscription, $this>
+     */
+    public function subscriptions(): HasMany
+    {
+        return $this->hasMany(ThreadSubscription::class);
+    }
+
+    /**
+     * Members following the thread. Erased accounts drop out through the
+     * user soft delete scope, so they are never notified.
+     *
+     * @return BelongsToMany<User, $this>
+     */
+    public function subscribers(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'thread_subscriptions')->withTimestamps();
+    }
+
+    /**
+     * @return HasMany<ThreadRead, $this>
+     */
+    public function reads(): HasMany
+    {
+        return $this->hasMany(ThreadRead::class);
     }
 
     /**

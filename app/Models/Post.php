@@ -5,14 +5,15 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\PostStatus;
+use Carbon\CarbonImmutable;
 use Database\Factories\PostFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
@@ -22,11 +23,11 @@ use Illuminate\Support\Carbon;
  * @property string $body
  * @property string $body_html
  * @property PostStatus $status
- * @property Carbon|null $edited_at
+ * @property CarbonImmutable|null $edited_at
  * @property int|null $edited_by_id
- * @property Carbon|null $created_at
- * @property Carbon|null $updated_at
- * @property Carbon|null $deleted_at
+ * @property CarbonImmutable|null $created_at
+ * @property CarbonImmutable|null $updated_at
+ * @property CarbonImmutable|null $deleted_at
  */
 #[Fillable(['thread_id', 'user_id', 'reply_to_id', 'body', 'body_html'])]
 class Post extends Model
@@ -75,6 +76,22 @@ class Post extends Model
     public function replyTo(): BelongsTo
     {
         return $this->belongsTo(self::class, 'reply_to_id');
+    }
+
+    /**
+     * @return HasMany<Reaction, $this>
+     */
+    public function reactions(): HasMany
+    {
+        return $this->hasMany(Reaction::class);
+    }
+
+    /**
+     * @return HasMany<Report, $this>
+     */
+    public function reports(): HasMany
+    {
+        return $this->hasMany(Report::class);
     }
 
     /**

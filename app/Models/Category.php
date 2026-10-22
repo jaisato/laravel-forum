@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Models\Concerns\HasUniqueSlug;
+use Carbon\CarbonImmutable;
 use Database\Factories\CategoryFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
@@ -24,8 +24,8 @@ use Illuminate\Support\Carbon;
  * @property bool $is_locked
  * @property int $threads_count
  * @property int $posts_count
- * @property Carbon|null $created_at
- * @property Carbon|null $updated_at
+ * @property CarbonImmutable|null $created_at
+ * @property CarbonImmutable|null $updated_at
  */
 #[Fillable(['name', 'description', 'color', 'icon', 'position', 'is_locked'])]
 class Category extends Model

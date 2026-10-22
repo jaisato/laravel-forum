@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\Role;
+use Carbon\CarbonImmutable;
 use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -12,11 +13,11 @@ use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Laravel\Fortify\Contracts\PasskeyUser;
@@ -29,7 +30,7 @@ use Laravel\Sanctum\HasApiTokens;
  * @property string $name
  * @property string $username
  * @property string $email
- * @property Carbon|null $email_verified_at
+ * @property CarbonImmutable|null $email_verified_at
  * @property string $password
  * @property Role $role
  * @property int $reputation
@@ -42,17 +43,17 @@ use Laravel\Sanctum\HasApiTokens;
  * @property string|null $website
  * @property string|null $locale
  * @property array<string, bool> $preferences
- * @property Carbon|null $banned_at
- * @property Carbon|null $banned_until
+ * @property CarbonImmutable|null $banned_at
+ * @property CarbonImmutable|null $banned_until
  * @property string|null $ban_reason
- * @property Carbon|null $last_seen_at
+ * @property CarbonImmutable|null $last_seen_at
  * @property string|null $two_factor_secret
  * @property string|null $two_factor_recovery_codes
- * @property Carbon|null $two_factor_confirmed_at
+ * @property CarbonImmutable|null $two_factor_confirmed_at
  * @property string|null $remember_token
- * @property Carbon|null $created_at
- * @property Carbon|null $updated_at
- * @property Carbon|null $deleted_at
+ * @property CarbonImmutable|null $created_at
+ * @property CarbonImmutable|null $updated_at
+ * @property CarbonImmutable|null $deleted_at
  */
 #[Fillable(['name', 'username', 'email', 'password', 'locale', 'bio', 'location', 'website', 'preferences'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
@@ -109,6 +110,20 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
     public function posts(): HasMany
     {
         return $this->hasMany(Post::class);
+    }
+
+    /**
+     * Private conversations the user takes part in, including the ones they
+     * left (see the pivot's left_at).
+     *
+     * @return BelongsToMany<Conversation, $this, ConversationParticipant>
+     */
+    public function conversations(): BelongsToMany
+    {
+        return $this->belongsToMany(Conversation::class, 'conversation_participants')
+            ->using(ConversationParticipant::class)
+            ->withPivot(['id', 'last_read_message_id', 'last_read_at', 'left_at'])
+            ->withTimestamps();
     }
 
     public function isAdmin(): bool

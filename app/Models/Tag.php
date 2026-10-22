@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Models\Concerns\HasUniqueSlug;
+use Carbon\CarbonImmutable;
 use Database\Factories\TagFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
@@ -18,8 +18,8 @@ use Illuminate\Support\Carbon;
  * @property string $slug
  * @property string|null $color
  * @property int $threads_count
- * @property Carbon|null $created_at
- * @property Carbon|null $updated_at
+ * @property CarbonImmutable|null $created_at
+ * @property CarbonImmutable|null $updated_at
  */
 #[Fillable(['name', 'color'])]
 class Tag extends Model
