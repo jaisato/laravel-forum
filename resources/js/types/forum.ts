@@ -53,6 +53,21 @@ export type Category = {
 
 export type CategorySummary = Pick<Category, 'id' | 'name' | 'slug' | 'color'>;
 
+/**
+ * The latest public thread of a category (home page cards).
+ */
+export type LatestThread = {
+    id: number;
+    title: string;
+    slug: string;
+    last_posted_at: string | null;
+    last_poster: UserSummary | null;
+};
+
+export type CategoryWithLatestThread = Category & {
+    latest_thread: LatestThread | null;
+};
+
 export type Tag = {
     id: number;
     name: string;
@@ -81,6 +96,32 @@ export type ThreadSummary = {
     last_poster: UserSummary | null;
     category: CategorySummary;
     tags: TagSummary[];
+};
+
+export type ThreadSort = 'activity' | 'newest' | 'replies' | 'views';
+
+export type ThreadFilter =
+    'all' | 'unanswered' | 'solved' | 'unsolved' | 'following' | 'mine';
+
+export type ListingFilters = {
+    sort: ThreadSort;
+    filter: ThreadFilter;
+};
+
+/**
+ * What a thread listing is narrowed to: nothing (all threads), a category
+ * or a tag.
+ */
+export type ListingContext =
+    { type: 'category'; category: Category } | { type: 'tag'; tag: Tag } | null;
+
+export type ForumStats = {
+    members: number;
+    threads: number;
+    posts: number;
+    newest_member: UserSummary | null;
+    online: UserSummary[];
+    online_count: number;
 };
 
 export type ThreadAbilities = {

@@ -32,7 +32,7 @@ function registrationData(array $overrides = []): array
 
 it('registers new users', function () {
     post(route('register.store'), registrationData())
-        ->assertRedirect(route('dashboard', absolute: false));
+        ->assertRedirect(route('home', absolute: false));
 
     assertAuthenticated();
 });

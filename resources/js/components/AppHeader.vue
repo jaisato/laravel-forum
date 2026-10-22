@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link, usePage } from '@inertiajs/vue3';
-import { House, Menu } from '@lucide/vue';
+import { House, Menu, MessagesSquare } from '@lucide/vue';
 import { computed } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
 import Breadcrumbs from '@/components/Breadcrumbs.vue';
@@ -22,6 +22,7 @@ import {
 import UserMenuContent from '@/components/UserMenuContent.vue';
 import { useCurrentUrl } from '@/composables/useCurrentUrl';
 import { home, login, register } from '@/routes';
+import { index as threadsIndex } from '@/routes/threads';
 import type { BreadcrumbItem, NavItem } from '@/types';
 
 const props = withDefaults(defineProps<{ breadcrumbs?: BreadcrumbItem[] }>(), {
@@ -32,7 +33,10 @@ const page = usePage();
 const user = computed(() => page.props.auth.user);
 const { isCurrentUrl } = useCurrentUrl();
 
-const mainNavItems: NavItem[] = [{ title: 'Home', href: home(), icon: House }];
+const mainNavItems: NavItem[] = [
+    { title: 'Home', href: home(), icon: House },
+    { title: 'Threads', href: threadsIndex(), icon: MessagesSquare },
+];
 </script>
 
 <template>

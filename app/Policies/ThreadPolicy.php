@@ -8,6 +8,7 @@ use App\Enums\ThreadStatus;
 use App\Models\Category;
 use App\Models\Thread;
 use App\Models\User;
+use Illuminate\Auth\Access\Response;
 
 /**
  * Thread permissions (spec §5). A locked thread is read-only for everyone
@@ -15,9 +16,13 @@ use App\Models\User;
  */
 class ThreadPolicy
 {
-    public function view(?User $user, Thread $thread): bool
+    /**
+     * Threads the viewer may not see answer 404, so their existence does not
+     * leak (Review Focus 2).
+     */
+    public function view(?User $user, Thread $thread): Response
     {
-        return $thread->isVisibleTo($user);
+        return $thread->isVisibleTo($user) ? Response::allow() : Response::denyAsNotFound();
     }
 
     public function create(User $user, Category $category): bool

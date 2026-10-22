@@ -41,7 +41,7 @@ it('verifies the email with a valid signed link', function () {
 
     actingAs($user)
         ->get(verificationUrlFor($user->id, $user->email))
-        ->assertRedirect(route('dashboard', absolute: false).'?verified=1');
+        ->assertRedirect(route('home', absolute: false).'?verified=1');
 
     Event::assertDispatched(Verified::class);
     expect($user->fresh()->hasVerifiedEmail())->toBeTrue();
@@ -73,7 +73,7 @@ it('redirects verified users away from the verification prompt', function () {
 
     actingAs($user)
         ->get(route('verification.notice'))
-        ->assertRedirect(route('dashboard', absolute: false));
+        ->assertRedirect(route('home', absolute: false));
 
     Event::assertNotDispatched(Verified::class);
 });
@@ -84,7 +84,7 @@ it('does not fire the verified event twice', function () {
 
     actingAs($user)
         ->get(verificationUrlFor($user->id, $user->email))
-        ->assertRedirect(route('dashboard', absolute: false).'?verified=1');
+        ->assertRedirect(route('home', absolute: false).'?verified=1');
 
     Event::assertNotDispatched(Verified::class);
     expect($user->fresh()->hasVerifiedEmail())->toBeTrue();

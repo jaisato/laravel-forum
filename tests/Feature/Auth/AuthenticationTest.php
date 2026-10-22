@@ -22,7 +22,7 @@ it('authenticates users with valid credentials', function () {
     post(route('login.store'), [
         'email' => $user->email,
         'password' => 'password',
-    ])->assertRedirect(route('dashboard', absolute: false));
+    ])->assertRedirect(route('home', absolute: false));
 
     assertAuthenticated();
 });
@@ -33,7 +33,7 @@ it('authenticates users with their username, whatever the casing', function () {
     post(route('login.store'), [
         'email' => 'Ada_Lovelace',
         'password' => 'password',
-    ])->assertRedirect(route('dashboard', absolute: false));
+    ])->assertRedirect(route('home', absolute: false));
 
     assertAuthenticated();
 });
@@ -44,7 +44,7 @@ it('authenticates users whatever the casing of their email', function () {
     post(route('login.store'), [
         'email' => 'ADA@Example.com',
         'password' => 'password',
-    ])->assertRedirect(route('dashboard', absolute: false));
+    ])->assertRedirect(route('home', absolute: false));
 
     assertAuthenticated();
 });

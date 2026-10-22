@@ -221,6 +221,21 @@ class User extends Authenticatable implements HasLocalePreference, MustVerifyEma
     }
 
     /**
+     * The SQL side of canParticipate(): verified members who are not banned
+     * right now (a temporary ban lapses on its own).
+     *
+     * @param  Builder<self>  $query
+     * @return Builder<self>
+     */
+    public function scopeInGoodStanding(Builder $query): Builder
+    {
+        return $query->whereNotNull('email_verified_at')
+            ->where(fn (Builder $query) => $query
+                ->whereNull('banned_at')
+                ->orWhere('banned_until', '<=', now()));
+    }
+
+    /**
      * @param  Builder<self>  $query
      * @return Builder<self>
      */

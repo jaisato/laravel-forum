@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\ThreadStatus;
 use App\Models\Concerns\HasUniqueSlug;
 use Carbon\CarbonImmutable;
 use Database\Factories\CategoryFactory;
@@ -12,6 +13,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
  * @property int $id
@@ -66,6 +68,20 @@ class Category extends Model
     public function threads(): HasMany
     {
         return $this->hasMany(Thread::class);
+    }
+
+    /**
+     * The public thread with the most recent activity, for the category
+     * cards of the home page.
+     *
+     * @return HasOne<Thread, $this>
+     */
+    public function latestThread(): HasOne
+    {
+        return $this->hasOne(Thread::class)->ofMany(
+            ['last_posted_at' => 'max', 'id' => 'max'],
+            fn (Builder $query) => $query->where('status', ThreadStatus::Published),
+        );
     }
 
     /**

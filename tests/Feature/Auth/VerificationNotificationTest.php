@@ -29,7 +29,7 @@ it('does not send a verification notification to verified users', function () {
 
     actingAs(User::factory()->create())
         ->post(route('verification.send'))
-        ->assertRedirect(route('dashboard', absolute: false));
+        ->assertRedirect(route('home', absolute: false));
 
     Notification::assertNothingSent();
 });
