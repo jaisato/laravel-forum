@@ -86,6 +86,11 @@ class User extends Authenticatable implements FilamentUser, HasLocalePreference,
     public const array TOKEN_ABILITIES = ['read', 'write', 'messages'];
 
     /**
+     * API token abilities only staff may grant (tokenAbilities()).
+     */
+    public const array STAFF_TOKEN_ABILITIES = ['moderate'];
+
+    /**
      * The database defaults, so a model that was just saved behaves like a
      * reloaded one.
      *
@@ -186,6 +191,18 @@ class User extends Authenticatable implements FilamentUser, HasLocalePreference,
     }
 
     /**
+     * The member a login names: an email address or, without "@", a
+     * username, in any case. The login form and the API token endpoint take
+     * either in the same field.
+     */
+    public static function findByLogin(string $login): ?self
+    {
+        $login = Str::lower(trim($login));
+
+        return self::query()->where(str_contains($login, '@') ? 'email' : 'username', $login)->first();
+    }
+
+    /**
      * The member as stored now. Actions authorised at the start of a request
      * check their rules again on this under lock: a moderator may have
      * banned the member while the request ran.
@@ -258,7 +275,7 @@ class User extends Authenticatable implements FilamentUser, HasLocalePreference,
      */
     public function tokenAbilities(): array
     {
-        return [...self::TOKEN_ABILITIES, ...($this->canModerate() ? ['moderate'] : [])];
+        return [...self::TOKEN_ABILITIES, ...($this->canModerate() ? self::STAFF_TOKEN_ABILITIES : [])];
     }
 
     public function acceptsPrivateMessages(): bool

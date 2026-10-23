@@ -57,6 +57,17 @@ página describe lo que ya funciona.
   error propias (404, 403, 429, 500 y mantenimiento).
 - Interfaz en español e inglés con selector de idioma.
 
+**API REST v1** (`/api/v1`)
+
+- Tokens de Sanctum con permisos (`read`, `write`, `messages` y, para el
+  *staff*, `moderate`): desde los ajustes o con `POST /api/v1/auth/token`
+  (email o nombre de usuario, contraseña y el código de la verificación en dos
+  pasos si está activada); `DELETE` revoca el token con el que se llama.
+- `GET`/`PATCH /api/v1/me`: el perfil propio, el único sitio donde la API
+  muestra un email (que solo se cambia desde la web).
+- Límites: 120 peticiones por minuto por miembro, 60 por dirección para los
+  invitados y cinco intentos por minuto al pedir un token.
+
 ## Stack
 
 | Capa | Tecnologías |

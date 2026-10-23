@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Concerns;
 
 use App\Models\User;
+use App\Support\Locale;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\In;
 use Illuminate\Validation\Rules\NotIn;
 use Illuminate\Validation\Rules\Unique;
 
@@ -31,6 +33,24 @@ trait ProfileValidationRules
             'name' => $this->nameRules(),
             'username' => $this->usernameRules($userId),
             'email' => $this->emailRules($userId),
+        ];
+    }
+
+    /**
+     * What members tell about themselves on their public profile, and the
+     * language of their interface and their emails.
+     *
+     * @return array<string, list<string|In>>
+     */
+    protected function aboutRules(): array
+    {
+        return [
+            'bio' => ['nullable', 'string', 'max:'.(int) config('forum.profiles.bio_max')],
+            'location' => ['nullable', 'string', 'max:'.(int) config('forum.profiles.location_max')],
+            // Profiles link it: web addresses only.
+            'website' => ['nullable', 'string', 'max:255', 'url:http,https'],
+            // Null: the language of the browser or the session.
+            'locale' => ['nullable', 'string', Rule::in(Locale::supported())],
         ];
     }
 

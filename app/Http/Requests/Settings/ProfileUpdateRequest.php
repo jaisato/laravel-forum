@@ -5,11 +5,9 @@ declare(strict_types=1);
 namespace App\Http\Requests\Settings;
 
 use App\Concerns\ProfileValidationRules;
-use App\Support\Locale;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 
 class ProfileUpdateRequest extends FormRequest
 {
@@ -42,12 +40,7 @@ class ProfileUpdateRequest extends FormRequest
 
         return [
             ...$rules,
-            'bio' => ['nullable', 'string', 'max:'.(int) config('forum.profiles.bio_max')],
-            'location' => ['nullable', 'string', 'max:'.(int) config('forum.profiles.location_max')],
-            // Profiles link it: web addresses only.
-            'website' => ['nullable', 'string', 'max:255', 'url:http,https'],
-            // Null: the language of the browser or the session.
-            'locale' => ['nullable', 'string', Rule::in(Locale::supported())],
+            ...$this->aboutRules(),
             // Bounded in bytes and in pixels: a small file can still decode
             // into a huge bitmap.
             'avatar' => [
