@@ -2,9 +2,35 @@
 
 namespace App\Providers;
 
+use App\Models\Category;
+use App\Models\Conversation;
+use App\Models\ConversationParticipant;
+use App\Models\Message;
+use App\Models\ModerationAction;
+use App\Models\Post;
+use App\Models\Reaction;
+use App\Models\Report;
+use App\Models\Tag;
+use App\Models\Thread;
+use App\Models\ThreadEmbedding;
+use App\Models\ThreadRead;
+use App\Models\ThreadSubscription;
+use App\Models\User;
+use App\Notifications\Channels\ForumDatabaseChannel;
+use Carbon\CarbonImmutable;
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Http\Request;
+use Illuminate\Notifications\Channels\DatabaseChannel;
+use Illuminate\Support\Facades\Date;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Validation\Rules\Password;
+use Inertia\Inertia;
+use Symfony\Component\HttpFoundation\Response;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -13,23 +39,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        // Telescope is a require-dev package, so a production install
-        // (`composer install --no-dev`) does not ship
-        // Laravel\Telescope\TelescopeApplicationServiceProvider - the class
-        // App\Providers\TelescopeServiceProvider extends. Listing that provider
-        // unconditionally in bootstrap/providers.php therefore took down every
-        // request and every artisan command on a deployed build, with a
-        // class-not-found error raised while the container was still booting.
-        //
-        // Registering it here instead is what Laravel documents for a
-        // development-only install. The class_exists() check is the load-bearing
-        // half: environment() alone still breaks a local checkout installed with
-        // --no-dev, and it is what makes the app boot on any install where the
-        // package is simply not there.
-        if ($this->app->environment('local') && class_exists(\Laravel\Telescope\Telescope::class)) {
-            $this->app->register(\Laravel\Telescope\TelescopeServiceProvider::class);
-            $this->app->register(TelescopeServiceProvider::class);
-        }
+        $this->app->bind(DatabaseChannel::class, ForumDatabaseChannel::class);
     }
 
     /**
@@ -37,11 +47,103 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        JsonResource::withoutWrapping();
-        // Strict everywhere but production. Unconditionally it turned any
-        // missed eager load into a LazyLoadingViolationException, i.e. a 500 for
-        // the visitor, in production - where the right outcome for an N+1 is a
-        // slower page, not a broken one. Tests and local still fail loudly.
-        Model::preventLazyLoading(! $this->app->isProduction());
+        $this->configureDefaults();
+        $this->configureModels();
+        $this->configureAuthorization();
+        $this->configureRateLimiting();
+    }
+
+    /**
+     * Configure default behaviors for production-ready applications.
+     */
+    protected function configureDefaults(): void
+    {
+        Date::use(CarbonImmutable::class);
+
+        DB::prohibitDestructiveCommands(
+            app()->isProduction(),
+        );
+
+        Password::defaults(fn (): ?Password => app()->isProduction()
+            ? Password::min(12)
+                ->mixedCase()
+                ->letters()
+                ->numbers()
+                ->symbols()
+                ->uncompromised()
+            : null,
+        );
+    }
+
+    /**
+     * Configure Eloquent: stable polymorphic aliases everywhere, and strict
+     * mode outside production so N+1 queries and dropped attributes fail
+     * loudly in development and tests.
+     */
+    protected function configureModels(): void
+    {
+        // Polymorphic columns (moderation log, notifications, API tokens)
+        // store these aliases instead of class names, so renaming or moving
+        // a model never orphans existing rows.
+        Relation::enforceMorphMap([
+            'category' => Category::class,
+            'conversation' => Conversation::class,
+            'conversation_participant' => ConversationParticipant::class,
+            'message' => Message::class,
+            'moderation_action' => ModerationAction::class,
+            'post' => Post::class,
+            'reaction' => Reaction::class,
+            'report' => Report::class,
+            'tag' => Tag::class,
+            'thread' => Thread::class,
+            'thread_embedding' => ThreadEmbedding::class,
+            'thread_read' => ThreadRead::class,
+            'thread_subscription' => ThreadSubscription::class,
+            'user' => User::class,
+        ]);
+
+        Model::preventLazyLoading(! app()->isProduction());
+        Model::preventSilentlyDiscardingAttributes(! app()->isProduction());
+    }
+
+    /**
+     * Gates that are not about a model. Model abilities live in app/Policies
+     * and viewHorizon in HorizonServiceProvider.
+     */
+    protected function configureAuthorization(): void
+    {
+        // Moderators get the moderation resources, administrators all of it.
+        Gate::define('access-admin', fn (User $user): bool => $user->canModerate());
+
+        // The API is public, so is its documentation (Scramble only opens it
+        // in the local environment by default).
+        Gate::define('viewApiDocs', fn (?User $user = null): bool => true);
+    }
+
+    /**
+     * The forum's named rate limiters (forum-threads, forum-replies,
+     * forum-reactions, forum-reports, forum-messages), shared by the web and
+     * the API and counted per member. A web form that hits one goes back with
+     * a toast; an API client gets the usual 429.
+     */
+    protected function configureRateLimiting(): void
+    {
+        foreach (config('forum.rate_limits') as $name => $limit) {
+            if (! isset($limit['attempts'], $limit['minutes'])) {
+                continue;
+            }
+
+            RateLimiter::for("forum-{$name}", fn (Request $request): Limit => Limit::perMinutes((int) $limit['minutes'], (int) $limit['attempts'])
+                ->by((string) ($request->user()?->getAuthIdentifier() ?? $request->ip()))
+                ->response(function (Request $request, array $headers): Response {
+                    if ($request->expectsJson()) {
+                        return response()->json(['message' => __('Too many attempts. Please wait a moment.')], 429, $headers);
+                    }
+
+                    Inertia::flash('toast', ['type' => 'error', 'message' => __('Too many attempts. Please wait a moment.')]);
+
+                    return back()->withHeaders($headers);
+                }));
+        }
     }
 }

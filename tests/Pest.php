@@ -1,54 +1,87 @@
 <?php
 
-/*
-|--------------------------------------------------------------------------
-| Test Case
-|--------------------------------------------------------------------------
-|
-| The closure you provide to your test functions is always bound to a specific PHPUnit test
-| case class. By default, that class is "PHPUnit\Framework\TestCase". Of course, you may
-| need to change it using the "uses()" function to bind a different classes or traits.
-|
-*/
+declare(strict_types=1);
 
-uses(
-    Tests\TestCase::class,
-    Illuminate\Foundation\Testing\RefreshDatabase::class,
-)->in('Feature');
-
-// Unit tests boot the application - resources and models reach for config and
-// for the container - but take no RefreshDatabase: they assert on models built
-// in memory and never touch a connection, so migrating a database per test
-// would only slow them down.
-uses(Tests\TestCase::class)->in('Unit');
+use App\Actions\Forum\CreateThread;
+use App\Actions\Forum\ReplyToThread;
+use App\Models\Category;
+use App\Models\Post;
+use App\Models\Thread;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Gate;
+use Tests\TestCase;
 
 /*
 |--------------------------------------------------------------------------
-| Expectations
+| Test case binding
 |--------------------------------------------------------------------------
 |
-| When you're writing tests, you often need to check that values meet certain conditions. The
-| "expect()" function gives you access to a set of "expectations" methods that you can use
-| to assert different things. Of course, you may extend the Expectation API at any time.
+| Feature tests boot the application against a fresh database for every
+| test. Unit tests boot the application too (models and resources reach for
+| config and the container) but never touch a connection, so they skip the
+| per-test migration cost.
 |
 */
 
-expect()->extend('toBeOne', function () {
-    return $this->toBe(1);
-});
+pest()->extend(TestCase::class)
+    ->use(RefreshDatabase::class)
+    ->in('Feature');
+
+pest()->extend(TestCase::class)->in('Unit');
 
 /*
 |--------------------------------------------------------------------------
-| Functions
+| Helpers
 |--------------------------------------------------------------------------
-|
-| While Pest is very powerful out-of-the-box, you may have some testing code specific to your
-| project that you don't want to repeat in every file. Here you can also expose helpers as
-| global functions to help you to reduce the number of lines of code in your test files.
-|
 */
 
-function something()
+/**
+ * A user playing one of the roles of the permissions matrix (spec §5).
+ * "guest" is no user at all.
+ */
+function forumUser(string $role): ?User
 {
-    // ..
+    return match ($role) {
+        'guest' => null,
+        'unverified' => User::factory()->unverified()->create(),
+        'banned' => User::factory()->banned()->create(),
+        'member' => User::factory()->create(),
+        'moderator' => User::factory()->moderator()->create(),
+        'banned moderator' => User::factory()->moderator()->banned()->create(),
+        'admin' => User::factory()->admin()->create(),
+    };
+}
+
+/**
+ * Whether the gate lets the given user (or a guest) perform the ability.
+ */
+function allows(?User $user, string $ability, mixed $arguments = []): bool
+{
+    return Gate::forUser($user)->allows($ability, $arguments);
+}
+
+/**
+ * A thread created the way members create them (CreateThread), so its
+ * denormalised counters are right.
+ *
+ * @param  list<int>  $tagIds
+ */
+function forumThread(?User $author = null, ?Category $category = null, string $body = 'The opening post of this thread.', array $tagIds = []): Thread
+{
+    return app(CreateThread::class)->handle(
+        $author ?? User::factory()->create(),
+        $category ?? Category::factory()->create(),
+        'A thread about testing the forum',
+        $body,
+        $tagIds,
+    );
+}
+
+/**
+ * A reply written through ReplyToThread.
+ */
+function forumReply(Thread $thread, ?User $author = null, string $body = 'A reply to the thread.'): Post
+{
+    return app(ReplyToThread::class)->handle($thread, $author ?? User::factory()->create(), $body);
 }

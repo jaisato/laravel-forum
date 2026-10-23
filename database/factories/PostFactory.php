@@ -1,27 +1,43 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Database\Factories;
 
+use App\Enums\PostStatus;
+use App\Models\Post;
+use App\Models\Thread;
 use App\Models\User;
+use Database\Factories\Concerns\FillsBodyHtml;
 use Illuminate\Database\Eloquent\Factories\Factory;
-use Illuminate\Support\Collection;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Post>
+ * @extends Factory<Post>
  */
 class PostFactory extends Factory
 {
+    use FillsBodyHtml;
+
     /**
-     * Define the model's default state.
-     *
      * @return array<string, mixed>
      */
     public function definition(): array
     {
         return [
+            'thread_id' => Thread::factory(),
             'user_id' => User::factory(),
-            'title' => str($this->faker->sentence)->beforeLast('.')->title(),
-            'body' => Collection::times(4, fn() => $this->faker->realText(1250))->join(PHP_EOL . PHP_EOL),
+            'body' => fake()->paragraphs(2, true),
+            'status' => PostStatus::Published,
         ];
+    }
+
+    public function pending(): static
+    {
+        return $this->state(['status' => PostStatus::PendingReview]);
+    }
+
+    public function hidden(): static
+    {
+        return $this->state(['status' => PostStatus::Hidden]);
     }
 }

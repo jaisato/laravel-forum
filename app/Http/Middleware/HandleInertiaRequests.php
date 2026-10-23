@@ -1,7 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Middleware;
 
+use App\Ai\ForumAi;
+use App\Http\Resources\CurrentUserResource;
+use App\Support\Locale;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -16,6 +21,8 @@ class HandleInertiaRequests extends Middleware
      */
     protected $rootView = 'app';
 
+    public function __construct(private readonly ForumAi $ai) {}
+
     /**
      * Determines the current asset version.
      *
@@ -27,7 +34,8 @@ class HandleInertiaRequests extends Middleware
     }
 
     /**
-     * Define the props that are shared by default.
+     * Props every page receives. One-off messages (toasts, a new API token)
+     * travel as Inertia flash data instead (Inertia::flash()).
      *
      * @see https://inertiajs.com/shared-data
      *
@@ -35,8 +43,23 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
-        return array_merge(parent::share($request), [
-            //
-        ]);
+        return [
+            ...parent::share($request),
+            'name' => config('app.name'),
+            'auth' => [
+                'user' => fn (): ?array => $request->user() === null
+                    ? null
+                    : (new CurrentUserResource($request->user()))->resolve($request),
+            ],
+            'features' => [
+                'ai' => [
+                    'summaries' => $this->ai->enabled('summaries'),
+                    'similar' => $this->ai->enabled('similar'),
+                    'tags' => $this->ai->enabled('tags'),
+                ],
+            ],
+            'locale' => app()->getLocale(),
+            'locales' => Locale::supported(),
+        ];
     }
 }

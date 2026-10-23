@@ -1,16 +1,19 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Fortify;
 
+use App\Concerns\PasswordValidationRules;
+use App\Concerns\ProfileValidationRules;
 use App\Models\User;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Laravel\Fortify\Contracts\CreatesNewUsers;
-use Laravel\Jetstream\Jetstream;
 
-class CreateNewUser implements CreatesNewUsers
+final class CreateNewUser implements CreatesNewUsers
 {
-    use PasswordValidationRules;
+    use PasswordValidationRules, ProfileValidationRules;
 
     /**
      * Validate and create a newly registered user.
@@ -19,17 +22,21 @@ class CreateNewUser implements CreatesNewUsers
      */
     public function create(array $input): User
     {
+        // As stored (see the User mutators), so the unique rules compare like
+        // for like; Fortify only lowercases the email of its own form.
+        $input['username'] = Str::lower(trim((string) ($input['username'] ?? '')));
+        $input['email'] = Str::lower(trim((string) ($input['email'] ?? '')));
+
         Validator::make($input, [
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
+            ...$this->profileRules(),
             'password' => $this->passwordRules(),
-            'terms' => Jetstream::hasTermsAndPrivacyPolicyFeature() ? ['accepted', 'required'] : '',
         ])->validate();
 
         return User::create([
             'name' => $input['name'],
+            'username' => $input['username'],
             'email' => $input['email'],
-            'password' => Hash::make($input['password']),
+            'password' => $input['password'],
         ]);
     }
 }

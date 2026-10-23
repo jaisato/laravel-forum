@@ -14,13 +14,27 @@ return new class extends Migration
         Schema::create('users', function (Blueprint $table) {
             $table->id();
             $table->string('name');
+            $table->string('username', 30)->unique();
             $table->string('email')->unique();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
+            $table->string('role', 20)->default('member')->index();
+            $table->integer('reputation')->default(0);
+            $table->unsignedInteger('threads_count')->default(0);
+            $table->unsignedInteger('posts_count')->default(0);
+            $table->string('avatar_path')->nullable();
+            $table->string('bio', 500)->nullable();
+            $table->string('location', 80)->nullable();
+            $table->string('website')->nullable();
+            $table->string('locale', 5)->nullable();
+            $table->json('preferences')->nullable();
+            $table->timestamp('banned_at')->nullable();
+            $table->timestamp('banned_until')->nullable();
+            $table->string('ban_reason', 500)->nullable();
+            $table->timestamp('last_seen_at')->nullable()->index();
             $table->rememberToken();
-            $table->foreignId('current_team_id')->nullable();
-            $table->string('profile_photo_path', 2048)->nullable();
             $table->timestamps();
+            $table->softDeletes();
         });
 
         Schema::create('password_reset_tokens', function (Blueprint $table) {

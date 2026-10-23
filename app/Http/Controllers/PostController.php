@@ -1,69 +1,81 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers;
 
-use App\Http\Resources\PostResource;
+use App\Actions\Forum\DeletePost;
+use App\Actions\Forum\ReplyToThread;
+use App\Actions\Forum\UpdatePost;
+use App\Http\Controllers\Concerns\FlashesToasts;
+use App\Http\Requests\StorePostRequest;
+use App\Http\Requests\UpdatePostRequest;
+use App\Models\Category;
 use App\Models\Post;
+use App\Models\Thread;
+use App\Models\User;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 
-class PostController extends Controller
+final class PostController extends Controller
 {
+    use FlashesToasts;
+
     /**
-     * Display a listing of the resource.
+     * Opens the thread at the new reply.
      */
-    public function index()
+    public function store(StorePostRequest $request, Thread $thread, ReplyToThread $replyToThread): RedirectResponse
     {
-        return inertia('Posts/Index', [
-            'posts' => PostResource::collection(Post::with('user')->latest()->latest('id')->paginate()),
-        ]);
+        /** @var User $author */
+        $author = $request->user();
+        $replyTo = $request->filled('reply_to_id')
+            ? Post::query()->find((int) $request->validated('reply_to_id'))
+            : null;
+
+        $post = $replyToThread->handle($thread, $author, (string) $request->validated('body'), $replyTo);
+
+        $this->toast('Reply posted.');
+
+        return to_route('threads.show', [$thread, 'post' => $post->id]);
+    }
+
+    public function update(UpdatePostRequest $request, Post $post, UpdatePost $updatePost): RedirectResponse
+    {
+        /** @var User $editor */
+        $editor = $request->user();
+
+        $updatePost->handle($post, $editor, (string) $request->validated('body'));
+
+        $this->toast('Post updated.');
+
+        return back();
     }
 
     /**
-     * Show the form for creating a new resource.
+     * Deleting the opening post deletes the thread: the member goes back to
+     * its category.
      */
-    public function create()
+    public function destroy(Request $request, Post $post, DeletePost $deletePost): RedirectResponse
     {
-        //
-    }
+        Gate::authorize('delete', $post);
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
-    {
-        //
-    }
+        /** @var User $actor */
+        $actor = $request->user();
+        $isFirst = $post->isFirst();
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(Post $post)
-    {
-        $post->load('user');
-        return inertia('Posts/Show', ['post' => PostResource::make($post)]);
-    }
+        $deletePost->handle($post, $actor);
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Post $post)
-    {
-        //
-    }
+        if (! $isFirst) {
+            $this->toast('Post deleted.');
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, Post $post)
-    {
-        //
-    }
+            return back();
+        }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Post $post)
-    {
-        //
+        $this->toast('Thread deleted.');
+
+        $category = Category::query()->findOrFail(Thread::withTrashed()->whereKey($post->thread_id)->value('category_id'));
+
+        return to_route('categories.show', $category);
     }
 }

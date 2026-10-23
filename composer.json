@@ -1,33 +1,42 @@
 {
-    "name": "laravel/laravel",
+    "$schema": "https://getcomposer.org/schema.json",
+    "name": "jaisato/laravel-forum",
     "type": "project",
-    "description": "The skeleton application for the Laravel framework.",
+    "description": "Bilingual community forum built with Laravel 13, Inertia 3 + Vue 3, a versioned REST API and AI-assisted moderation.",
     "keywords": [
         "laravel",
-        "framework"
+        "forum",
+        "inertia",
+        "vue",
+        "ai"
     ],
     "license": "MIT",
     "require": {
-        "php": "^8.2",
-        "inertiajs/inertia-laravel": "^2.0",
-        "laravel/framework": "^12.60",
-        "laravel/jetstream": "^5.3",
-        "laravel/sanctum": "^4.0",
-        "laravel/tinker": "^2.9",
-        "tightenco/ziggy": "^2.0"
+        "php": "^8.4",
+        "dedoc/scramble": "^0.13.49",
+        "filament/filament": "^5.10",
+        "http-interop/http-factory-guzzle": "^1.2",
+        "inertiajs/inertia-laravel": "^3.5",
+        "intervention/image": "^4.4",
+        "laravel/ai": "^1.3",
+        "laravel/fortify": "^1.41",
+        "laravel/framework": "^13.38",
+        "laravel/horizon": "^5.50",
+        "laravel/sanctum": "^4.3",
+        "laravel/scout": "^11.9",
+        "laravel/tinker": "^3.0",
+        "laravel/wayfinder": "^0.1.23",
+        "league/commonmark": "^2.10",
+        "meilisearch/meilisearch-php": "^1.17"
     },
     "require-dev": {
-        "fakerphp/faker": "^1.23",
-        "laravel/pint": "^1.13",
-        "laravel/sail": "^1.26",
-        "laravel/telescope": "^5.0",
+        "fakerphp/faker": "^1.24",
+        "larastan/larastan": "^3.13",
+        "laravel/pint": "^1.32",
         "mockery/mockery": "^1.6",
-        "nunomaduro/collision": "^8.0",
-        "pestphp/pest": "^3.0",
-        "pestphp/pest-plugin-laravel": "^3.0",
-        "phpunit/phpunit": "^11.0",
-        "spatie/laravel-ignition": "^2.4",
-        "spatie/laravel-ray": "^1.33"
+        "nunomaduro/collision": "^8.9",
+        "pestphp/pest": "^5.3",
+        "pestphp/pest-plugin-laravel": "^5.0"
     },
     "autoload": {
         "psr-4": {
@@ -42,9 +51,43 @@
         }
     },
     "scripts": {
+        "setup": [
+            "composer install",
+            "@php -r \"file_exists('.env') || copy('.env.example', '.env');\"",
+            "@php artisan key:generate",
+            "@php artisan migrate --force",
+            "npm install",
+            "npm run build"
+        ],
+        "lint": [
+            "pint --parallel"
+        ],
+        "lint:check": [
+            "pint --parallel --test"
+        ],
+        "analyse": [
+            "Composer\\Config::disableProcessTimeout",
+            "phpstan analyse --memory-limit=2G"
+        ],
+        "test": [
+            "Composer\\Config::disableProcessTimeout",
+            "@php artisan config:clear --ansi",
+            "pest --parallel --fail-on-warning"
+        ],
+        "test:coverage": [
+            "Composer\\Config::disableProcessTimeout",
+            "@php artisan config:clear --ansi",
+            "pest --parallel --fail-on-warning --coverage --min=95"
+        ],
+        "ci": [
+            "@lint:check",
+            "@analyse",
+            "@test"
+        ],
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
-            "@php artisan package:discover --ansi"
+            "@php artisan package:discover --ansi",
+            "@php artisan filament:upgrade --ansi"
         ],
         "post-update-cmd": [
             "@php artisan vendor:publish --tag=laravel-assets --ansi --force"
@@ -54,16 +97,15 @@
         ],
         "post-create-project-cmd": [
             "@php artisan key:generate --ansi",
-            "@php -r \"file_exists('database/database.sqlite') || touch('database/database.sqlite');\"",
             "@php artisan migrate --graceful --ansi"
         ],
-        "test": "@php vendor/bin/pest --fail-on-warning"
+        "pre-package-uninstall": [
+            "Illuminate\\Foundation\\ComposerScripts::prePackageUninstall"
+        ]
     },
     "extra": {
         "laravel": {
-            "dont-discover": [
-                "laravel/telescope"
-            ]
+            "dont-discover": []
         }
     },
     "config": {
@@ -75,7 +117,7 @@
             "php-http/discovery": true
         },
         "platform": {
-            "php": "8.3"
+            "php": "8.4.1"
         }
     },
     "minimum-stability": "stable",

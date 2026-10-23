@@ -3,6 +3,7 @@
          xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
          bootstrap="tests/bootstrap.php"
          colors="true"
+         cacheDirectory=".phpunit.cache"
 >
     <testsuites>
         <testsuite name="Unit">
@@ -11,6 +12,9 @@
         <testsuite name="Feature">
             <directory>tests/Feature</directory>
         </testsuite>
+        <testsuite name="Arch">
+            <directory>tests/Arch</directory>
+        </testsuite>
     </testsuites>
     <source>
         <include>
@@ -18,23 +22,24 @@
         </include>
     </source>
     <php>
-        <!-- APP_ENV=testing is what makes Laravel load .env.testing in place of
-             .env, and that tracked file carries APP_KEY and the rest of the test
-             configuration. It has to be set here, before the app boots, or the
-             framework looks for a .env nobody has. -->
+        <!-- APP_ENV=testing makes Laravel load the tracked .env.testing instead
+             of .env; tests/bootstrap.php mints a throwaway APP_KEY per run. -->
         <env name="APP_ENV" value="testing"/>
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
         <env name="BCRYPT_ROUNDS" value="4"/>
+        <env name="BROADCAST_CONNECTION" value="null"/>
         <env name="CACHE_STORE" value="array"/>
-        <!-- Tests run against an in-memory SQLite database so the suite needs
-             no database server and leaves nothing behind. Override
-             DB_CONNECTION/DB_DATABASE to run them against MySQL. -->
-        <env name="DB_CONNECTION" value="sqlite"/>
-        <env name="DB_DATABASE" value=":memory:"/>
+        <!-- SQLite in memory by default: no database server needed. CI and
+             `make test-pgsql` override DB_* to run the suite on PostgreSQL. -->
+        <env name="DB_CONNECTION" value="sqlite" force="false"/>
+        <env name="DB_DATABASE" value=":memory:" force="false"/>
+        <env name="DB_URL" value=""/>
         <env name="MAIL_MAILER" value="array"/>
-        <env name="PULSE_ENABLED" value="false"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>
+        <env name="SCOUT_DRIVER" value="collection"/>
+        <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
+        <env name="NIGHTWATCH_ENABLED" value="false"/>
     </php>
 </phpunit>

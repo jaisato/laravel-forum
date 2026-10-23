@@ -1,23 +1,46 @@
 /.phpunit.cache
+/bootstrap/ssr
+/coverage
 /node_modules
 /public/build
+/public/fonts-manifest.dev.json
 /public/hot
 /public/storage
+/public/css/filament
+/public/fonts/filament
+/public/js/filament
+/public/vendor
 /storage/*.key
+/storage/pail
+/resources/js/actions
+/resources/js/routes
+/resources/js/wayfinder
 /vendor
-# Ignore every environment file. The two exceptions hold no credentials:
-# .env.example is the template, and .env.testing configures the test suite,
-# whose values are fixtures that never address a real service.
+
+# Every environment file stays out of git. The two exceptions hold no
+# credentials: .env.example is the template and .env.testing configures the
+# test suite with fixtures that never address a real service.
 .env
 .env.*
 !.env.example
+!.env.production.example
 !.env.testing
+
+.DS_Store
+.phpactor.json
 .phpunit.result.cache
 Homestead.json
 Homestead.yaml
-auth.json
 npm-debug.log
 yarn-error.log
+/auth.json
 /.fleet
 /.idea
+/.nova
 /.vscode
+/.zed
+/.agents
+/.claude
+/.cursor
+/.junie
+/.mcp.json

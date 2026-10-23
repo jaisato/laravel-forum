@@ -32,7 +32,7 @@ if ($existing === false || $existing === '') {
 }
 
 if ($existing === '') {
-    $key = 'base64:' . base64_encode(random_bytes(32));
+    $key = 'base64:'.base64_encode(random_bytes(32));
 
     // All three, because Laravel's env() reads whichever the adapter offers
     // rather than one canonical source.
@@ -41,4 +41,4 @@ if ($existing === '') {
     $_SERVER['APP_KEY'] = $key;
 }
 
-require __DIR__ . '/../vendor/autoload.php';
+require __DIR__.'/../vendor/autoload.php';
