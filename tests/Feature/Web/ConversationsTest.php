@@ -132,6 +132,22 @@ describe('a conversation', function () {
                 ->has('messages.data', 2));
     });
 
+    it('marks read only as far as the page the member opened', function () {
+        config(['forum.pagination.messages' => 2]);
+        [$alice, $bob] = User::factory()->count(2)->create();
+        $conversation = conversationFrom($alice, $bob);
+        app(SendMessage::class)->handle($conversation, $alice, '¿Sigues ahí?');
+        app(SendMessage::class)->handle($conversation, $alice, 'Ya está resuelto.');
+
+        $this->actingAs($bob)->get(route('conversations.show', [$conversation, 'page' => 1]))->assertOk();
+
+        expect($bob->unreadConversationsCount())->toBe(1);
+
+        $this->actingAs($bob)->get(route('conversations.show', $conversation))->assertOk();
+
+        expect($bob->unreadConversationsCount())->toBe(0);
+    });
+
     it('does not exist for anyone but its participants', function (Closure $stranger) {
         [$alice, $bob] = User::factory()->count(2)->create();
         $conversation = conversationFrom($alice, $bob);

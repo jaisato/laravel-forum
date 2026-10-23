@@ -100,7 +100,13 @@ final class ConversationController extends Controller
             ->orderBy('id')
             ->paginate($perPage, page: $page);
 
-        $markRead->handle($conversation, $member);
+        // Read as far as the page shown: an older page opened on purpose
+        // leaves the newer messages unread.
+        $lastShown = $messages->getCollection()->last();
+
+        if ($lastShown !== null) {
+            $markRead->handle($conversation, $member, $lastShown->id);
+        }
 
         $conversation->load(['participants' => MemberConversations::activeParticipants(...)]);
 
