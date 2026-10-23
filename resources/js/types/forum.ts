@@ -254,15 +254,69 @@ export type NotificationType =
     | 'post_moderated'
     | 'new_private_message';
 
+/**
+ * A notification of the signed in member. One about a post they may no
+ * longer see comes without its excerpt, actor and address.
+ */
 export type ForumNotification = {
     id: string;
     type: NotificationType;
     title: string;
     excerpt: string | null;
-    url: string;
+    /** A path on this forum; null when it no longer leads anywhere. */
+    url: string | null;
     actor: { username: string; avatar_url: string | null } | null;
     read_at: string | null;
     created_at: string;
+};
+
+/**
+ * A member's public profile (page users/Show).
+ */
+export type UserProfile = UserSummary & {
+    bio: string | null;
+    location: string | null;
+    /** Only web (http and https) addresses reach the page. */
+    website: string | null;
+    reputation: number;
+    threads_count: number;
+    posts_count: number;
+    created_at: string;
+    last_seen_at: string | null;
+};
+
+export type ProfileTab = 'threads' | 'posts';
+
+/**
+ * A post away from its thread page: a member's replies, a search result.
+ */
+export type PostSummary = {
+    id: number;
+    excerpt: string;
+    status: ContentStatus;
+    created_at: string;
+    author: UserSummary | null;
+    thread: { id: number; title: string; slug: string };
+};
+
+export type SearchType = 'threads' | 'posts';
+
+/**
+ * What the search page looks for, as the server understood it.
+ */
+export type SearchFilters = {
+    q: string;
+    type: SearchType;
+    /** A category slug. */
+    category: string | null;
+    /** A tag slug. */
+    tag: string | null;
+};
+
+/** A category or a tag to narrow a search to. */
+export type SearchScopeOption = {
+    name: string;
+    slug: string;
 };
 
 export type Message = {

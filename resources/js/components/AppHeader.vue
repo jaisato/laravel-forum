@@ -4,7 +4,9 @@ import { House, Menu, MessagesSquare } from '@lucide/vue';
 import { computed } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
 import Breadcrumbs from '@/components/Breadcrumbs.vue';
+import HeaderSearch from '@/components/forum/HeaderSearch.vue';
 import LocaleSwitcher from '@/components/forum/LocaleSwitcher.vue';
+import NotificationBell from '@/components/forum/NotificationBell.vue';
 import UserAvatar from '@/components/forum/UserAvatar.vue';
 import { Button } from '@/components/ui/button';
 import {
@@ -21,7 +23,9 @@ import {
 } from '@/components/ui/sheet';
 import UserMenuContent from '@/components/UserMenuContent.vue';
 import { useCurrentUrl } from '@/composables/useCurrentUrl';
+import { useUnreadNotifications } from '@/composables/useUnreadNotifications';
 import { home, login, register } from '@/routes';
+import { index as notificationsIndex } from '@/routes/notifications';
 import { index as threadsIndex } from '@/routes/threads';
 import type { BreadcrumbItem, NavItem } from '@/types';
 
@@ -32,6 +36,7 @@ const props = withDefaults(defineProps<{ breadcrumbs?: BreadcrumbItem[] }>(), {
 const page = usePage();
 const user = computed(() => page.props.auth.user);
 const { isCurrentUrl } = useCurrentUrl();
+const { count: unreadNotifications } = useUnreadNotifications();
 
 const mainNavItems: NavItem[] = [
     { title: 'Home', href: home(), icon: House },
@@ -115,7 +120,15 @@ const mainNavItems: NavItem[] = [
             </nav>
 
             <div class="ml-auto flex items-center gap-2">
+                <HeaderSearch />
+
                 <LocaleSwitcher class="hidden sm:inline-flex" />
+
+                <NotificationBell
+                    v-if="user"
+                    :href="notificationsIndex.url()"
+                    :count="unreadNotifications"
+                />
 
                 <DropdownMenu v-if="user">
                     <DropdownMenuTrigger :as-child="true">

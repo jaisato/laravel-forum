@@ -446,12 +446,26 @@ describe('PostCard', () => {
         const wrapper = card({ edited_at: '2026-10-22T11:00:00+00:00' });
 
         expect(wrapper.attributes('id')).toBe('post-9');
-        expect(wrapper.text()).toContain('Luis Pérez');
+        expect(wrapper.get('[data-test="post-author"]').text()).toBe(
+            'Luis Pérez',
+        );
+        expect(
+            wrapper.get('[data-test="post-author"]').attributes('href'),
+        ).toBe('/u/luis');
         expect(wrapper.text()).toContain('Moderator');
         expect(wrapper.text()).toContain('2 hours ago');
         expect(wrapper.get('[data-test="edited"]').text()).toBe('edited');
         expect(wrapper.get('[data-test="post-body"]').html()).toContain(
             '<code>queue:work</code>',
+        );
+    });
+
+    it('credits erased accounts to «Deleted user», without a link', () => {
+        const wrapper = card({ author: null });
+
+        expect(wrapper.find('a[data-test="post-author"]').exists()).toBe(false);
+        expect(wrapper.get('[data-test="post-author"]').text()).toBe(
+            'Deleted user',
         );
     });
 

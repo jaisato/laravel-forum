@@ -27,13 +27,23 @@ página describe lo que ya funciona.
   de etiqueta.
 - Listado de hilos con filtros (sin respuesta, resueltos, sin resolver, los que
   sigues…).
+- Creación de hilos con categoría y hasta cinco etiquetas, hilos parecidos
+  sugeridos mientras se escribe el título y borrador guardado en el navegador;
+  edición del título y las etiquetas.
 - Página de hilo: respuestas en Markdown con vista previa (renderizado seguro
   en el servidor), citas, reacciones, menciones `@usuario`, solución marcada,
   seguimiento del hilo y salto al primer mensaje sin leer.
+- Perfiles públicos (`/u/usuario`) con biografía, reputación y pestañas de
+  hilos y respuestas.
+- Búsqueda de hilos y mensajes con filtros por categoría y etiqueta; solo
+  encuentra contenido público.
 - Reportes de mensajes y moderación en el propio hilo: fijar, cerrar, mover,
   ocultar, aprobar y restaurar.
-- Notificaciones por email (en cola y según las preferencias de cada miembro):
-  respuestas en hilos seguidos, menciones, soluciones aceptadas y moderación.
+- Notificaciones en la web (campana con contador que se actualiza sola y página
+  para abrirlas o marcarlas como leídas) y por email (en cola y según las
+  preferencias de cada miembro): respuestas en hilos seguidos, menciones,
+  soluciones aceptadas y moderación. Una notificación sobre un mensaje que se
+  oculta o se borra después deja de mostrar su contenido.
 - Límites de frecuencia por miembro al publicar, reaccionar y reportar.
 - Interfaz en español e inglés con selector de idioma.
 

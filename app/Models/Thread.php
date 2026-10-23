@@ -67,6 +67,12 @@ class Thread extends Model
     ];
 
     /**
+     * Characters of the opening post read for a listing's excerpt: enough
+     * Markdown for a short summary without loading whole posts.
+     */
+    private const int EXCERPT_SOURCE_LENGTH = 600;
+
+    /**
      * @return array<string, string>
      */
     protected function casts(): array
@@ -221,6 +227,20 @@ class Thread extends Model
             'last_read_post_id' => $marker('last_read_post_id'),
             'last_read_at' => $marker('last_read_at'),
         ]);
+    }
+
+    /**
+     * Adds excerpt_source, the start of the opening post, from which
+     * ThreadResource makes the excerpt of a listing.
+     *
+     * @param  Builder<self>  $query
+     * @return Builder<self>
+     */
+    public function scopeWithExcerptSource(Builder $query): Builder
+    {
+        return $query->addSelect(['excerpt_source' => Post::query()
+            ->selectRaw('substr(body, 1, '.self::EXCERPT_SOURCE_LENGTH.')')
+            ->whereColumn('posts.id', $query->qualifyColumn('first_post_id'))]);
     }
 
     /**

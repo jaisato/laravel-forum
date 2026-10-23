@@ -9,9 +9,11 @@ use Illuminate\Notifications\Channels\DatabaseChannel;
 use Illuminate\Notifications\Notification;
 
 /**
- * Stores who caused each forum notification in its own column, so erasing
- * an account finds the notifications it caused for others (DeleteAccount)
- * with an indexed query instead of searching the JSON payloads.
+ * Stores who caused each forum notification and the post it is about in
+ * their own columns: erasing an account finds the notifications it caused
+ * for others (DeleteAccount) with an indexed query instead of searching the
+ * JSON payloads, and a notification about a post that is no longer public
+ * stops showing it (UserNotification::isWithheldFrom()).
  */
 final class ForumDatabaseChannel extends DatabaseChannel
 {
@@ -23,6 +25,7 @@ final class ForumDatabaseChannel extends DatabaseChannel
         return [
             ...parent::buildPayload($notifiable, $notification),
             'actor_id' => $notification instanceof ForumNotification ? $notification->actorId() : null,
+            'post_id' => $notification instanceof ForumNotification ? $notification->postId() : null,
         ];
     }
 }

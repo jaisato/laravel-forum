@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Queries;
 
 use App\Models\Category;
-use App\Models\Post;
 use App\Models\Thread;
 use App\Models\ThreadSubscription;
 use App\Models\User;
@@ -35,12 +34,6 @@ final class ThreadListing
     public const array PERSONAL_FILTERS = ['following', 'mine'];
 
     /**
-     * Characters of the opening post read for the excerpt: enough Markdown
-     * for a short summary without loading whole posts into every listing.
-     */
-    private const int EXCERPT_SOURCE_LENGTH = 600;
-
-    /**
      * @param  array{sort?: string, filter?: string, category?: string, tag?: string}  $filters
      * @return LengthAwarePaginator<int, Thread>
      */
@@ -59,6 +52,17 @@ final class ThreadListing
     }
 
     /**
+     * The threads a member started, newest first (their profile).
+     *
+     * @return LengthAwarePaginator<int, Thread>
+     */
+    public function byAuthor(User $author, ?User $viewer): LengthAwarePaginator
+    {
+        return $this->query(['sort' => 'newest', 'author' => $author->id], $viewer)
+            ->paginate((int) config('forum.pagination.threads'));
+    }
+
+    /**
      * The threads with the most recent activity.
      *
      * @return Collection<int, Thread>
@@ -69,7 +73,7 @@ final class ThreadListing
     }
 
     /**
-     * @param  array{sort?: string, filter?: string, category?: string, tag?: string}  $filters
+     * @param  array{sort?: string, filter?: string, category?: string, tag?: string, author?: int}  $filters
      * @return Builder<Thread>
      */
     private function query(array $filters, ?User $viewer): Builder
@@ -77,9 +81,7 @@ final class ThreadListing
         $query = Thread::query()
             ->visibleTo($viewer)
             ->withReadState($viewer)
-            ->addSelect(['excerpt_source' => Post::query()
-                ->selectRaw('substr(body, 1, '.self::EXCERPT_SOURCE_LENGTH.')')
-                ->whereColumn('posts.id', 'threads.first_post_id')])
+            ->withExcerptSource()
             ->with([
                 'author',
                 'category',
@@ -97,6 +99,10 @@ final class ThreadListing
 
         if (($filters['tag'] ?? null) !== null) {
             $query->whereHas('tags', fn (Builder $query) => $query->where('tags.slug', $filters['tag']));
+        }
+
+        if (($filters['author'] ?? null) !== null) {
+            $query->where('threads.user_id', $filters['author']);
         }
 
         $this->filter($query, $filters['filter'] ?? self::DEFAULT_FILTER, $viewer);

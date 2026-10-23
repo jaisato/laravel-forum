@@ -22,6 +22,11 @@ abstract class PostNotification extends ForumNotification
         return $this->post->fresh()?->isPublic() === true;
     }
 
+    public function postId(): int
+    {
+        return $this->post->id;
+    }
+
     protected function thread(): Thread
     {
         return $this->post->thread ?? Thread::withTrashed()->findOrFail($this->post->thread_id);

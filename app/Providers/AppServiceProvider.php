@@ -16,6 +16,7 @@ use App\Models\ThreadEmbedding;
 use App\Models\ThreadRead;
 use App\Models\ThreadSubscription;
 use App\Models\User;
+use App\Models\UserNotification;
 use App\Notifications\Channels\ForumDatabaseChannel;
 use App\Services\Ai\KeywordSimilarThreadFinder;
 use App\Services\Ai\SimilarThreadFinder;
@@ -103,6 +104,7 @@ class AppServiceProvider extends ServiceProvider
             'thread_read' => ThreadRead::class,
             'thread_subscription' => ThreadSubscription::class,
             'user' => User::class,
+            'notification' => UserNotification::class,
         ]);
 
         Model::preventLazyLoading(! app()->isProduction());

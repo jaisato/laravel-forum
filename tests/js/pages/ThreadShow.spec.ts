@@ -182,6 +182,27 @@ describe('threads/Show', () => {
         expect(wrapper.find('[data-test="ai-summary"]').exists()).toBe(false);
     });
 
+    it('links the author of the thread to their profile', () => {
+        const wrapper = show({
+            thread: thread({
+                author: {
+                    id: 3,
+                    name: 'Luis Pérez',
+                    username: 'luis',
+                    avatar_url: null,
+                    role: 'member',
+                },
+            }),
+        });
+
+        expect(
+            wrapper.get('[data-test="thread-author"]').attributes('href'),
+        ).toBe('/u/luis');
+        expect(show().find('a[data-test="thread-author"]').exists()).toBe(
+            false,
+        );
+    });
+
     it('shows the summary once it arrives', () => {
         const wrapper = show({
             summary: { html: '<p>Usa Queue::fake().</p>', generated_at: null },

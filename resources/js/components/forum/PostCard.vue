@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useForm } from '@inertiajs/vue3';
+import { Link, useForm } from '@inertiajs/vue3';
 import { CircleCheck } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import MarkdownContent from '@/components/forum/MarkdownContent.vue';
@@ -11,6 +11,7 @@ import RoleBadge from '@/components/forum/RoleBadge.vue';
 import UserAvatar from '@/components/forum/UserAvatar.vue';
 import { Button } from '@/components/ui/button';
 import { update } from '@/routes/posts';
+import { show as showUser } from '@/routes/users';
 import type { Post } from '@/types/forum';
 
 const props = defineProps<{
@@ -74,8 +75,15 @@ function save(): void {
             class="flex flex-wrap items-center gap-x-2 gap-y-1 border-b px-4 py-2 text-sm"
         >
             <UserAvatar :user="post.author" size="sm" />
-            <span class="font-medium">{{
-                post.author?.name ?? $t('Deleted user')
+            <Link
+                v-if="post.author"
+                :href="showUser.url(post.author.username)"
+                data-test="post-author"
+                class="font-medium hover:underline"
+                >{{ post.author.name }}</Link
+            >
+            <span v-else data-test="post-author" class="font-medium">{{
+                $t('Deleted user')
             }}</span>
             <RoleBadge v-if="post.author" :role="post.author.role" />
             <span class="text-muted-foreground" aria-hidden="true">·</span>

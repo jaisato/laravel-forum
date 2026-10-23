@@ -8,6 +8,7 @@ use App\Models\Post;
 use App\Models\Thread;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Pagination\LengthAwarePaginator as Paginator;
 use Laravel\Scout\Builder as SearchBuilder;
 
 /**
@@ -30,19 +31,22 @@ final class ForumSearch
         $categoryId = $filters['category'] ?? null;
         $tagId = $filters['tag'] ?? null;
 
-        $search = $this->filtersInDatabase()
+        /** @var LengthAwarePaginator<int, Thread> $results */
+        $results = ($this->filtersInDatabase()
             ? Thread::search($query, function (Builder $threads) use ($categoryId, $tagId): Builder {
                 /** @var Builder<Thread> $threads */
                 return $this->constrainThreads($threads, $categoryId, $tagId);
             })
-            : $this->withEngineFilters(Thread::search($query), $categoryId, $tagId);
-
-        return $search
+            : $this->withEngineFilters(Thread::search($query), $categoryId, $tagId))
             ->query(function (Builder $threads): Builder {
                 /** @var Builder<Thread> $threads */
-                return $threads->visibleTo(null)->with(['category', 'author', 'tags']);
+                return $threads->visibleTo(null)
+                    ->withExcerptSource()
+                    ->with(['category', 'author', 'tags', 'lastPost.author']);
             })
             ->paginate($perPage);
+
+        return $this->withoutEngineQuery($results);
     }
 
     /**
@@ -54,7 +58,8 @@ final class ForumSearch
         $categoryId = $filters['category'] ?? null;
         $tagId = $filters['tag'] ?? null;
 
-        $search = $this->filtersInDatabase()
+        /** @var LengthAwarePaginator<int, Post> $results */
+        $results = ($this->filtersInDatabase()
             ? Post::search($query, fn (Builder $posts) => $posts->whereHas(
                 'thread',
                 function (Builder $threads) use ($categoryId, $tagId): Builder {
@@ -62,9 +67,7 @@ final class ForumSearch
                     return $this->constrainThreads($threads, $categoryId, $tagId);
                 },
             ))
-            : $this->withEngineFilters(Post::search($query), $categoryId, $tagId);
-
-        return $search
+            : $this->withEngineFilters(Post::search($query), $categoryId, $tagId))
             ->query(function (Builder $posts): Builder {
                 /** @var Builder<Post> $posts */
                 return $posts
@@ -76,6 +79,28 @@ final class ForumSearch
                     ->with(['thread', 'author']);
             })
             ->paginate($perPage);
+
+        return $this->withoutEngineQuery($results);
+    }
+
+    /**
+     * The same page without the ?query= Scout adds to its links: callers
+     * append the parameters of their own search (SearchController).
+     *
+     * @template TModel of Thread|Post
+     *
+     * @param  LengthAwarePaginator<int, TModel>  $results
+     * @return LengthAwarePaginator<int, TModel>
+     */
+    private function withoutEngineQuery(LengthAwarePaginator $results): LengthAwarePaginator
+    {
+        return new Paginator(
+            $results->items(),
+            $results->total(),
+            $results->perPage(),
+            $results->currentPage(),
+            ['path' => Paginator::resolveCurrentPath()],
+        );
     }
 
     private function filtersInDatabase(): bool

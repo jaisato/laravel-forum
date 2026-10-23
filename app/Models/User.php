@@ -18,6 +18,7 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -141,6 +142,17 @@ class User extends Authenticatable implements FilamentUser, HasLocalePreference,
             ->using(ConversationParticipant::class)
             ->withPivot(['id', 'last_read_message_id', 'last_read_at', 'left_at'])
             ->withTimestamps();
+    }
+
+    /**
+     * The member's notifications, newest first, as UserNotification models
+     * (the database channel stores new ones through this relation too).
+     *
+     * @return MorphMany<UserNotification, $this>
+     */
+    public function notifications(): MorphMany
+    {
+        return $this->morphMany(UserNotification::class, 'notifiable')->latest();
     }
 
     public function isAdmin(): bool

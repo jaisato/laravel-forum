@@ -20,6 +20,7 @@ import { formatCount } from '@/lib/format';
 import { login, register } from '@/routes';
 import { show as showCategory } from '@/routes/categories';
 import { show as showTag } from '@/routes/tags';
+import { show as showUser } from '@/routes/users';
 import { notice as verificationNotice } from '@/routes/verification';
 import type {
     AiSummary,
@@ -152,7 +153,14 @@ watch(() => props.focus, scrollToFocus);
                 class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground"
             >
                 <UserAvatar :user="thread.author" size="sm" />
-                {{ thread.author?.name ?? $t('Deleted user') }}
+                <Link
+                    v-if="thread.author"
+                    :href="showUser.url(thread.author.username)"
+                    data-test="thread-author"
+                    class="text-foreground hover:underline"
+                    >{{ thread.author.name }}</Link
+                >
+                <template v-else>{{ $t('Deleted user') }}</template>
                 <span aria-hidden="true">·</span>
                 <RelativeTime :datetime="thread.created_at" />
                 <span aria-hidden="true">·</span>

@@ -6,13 +6,16 @@ use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\MarkdownPreviewController;
 use App\Http\Controllers\Moderation\PostModerationController;
 use App\Http\Controllers\Moderation\ThreadModerationController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PostController;
 use App\Http\Controllers\PostReactionController;
 use App\Http\Controllers\PostReportController;
+use App\Http\Controllers\SearchController;
 use App\Http\Controllers\TagController;
 use App\Http\Controllers\ThreadController;
 use App\Http\Controllers\ThreadSolutionController;
 use App\Http\Controllers\ThreadSubscriptionController;
+use App\Http\Controllers\UserProfileController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
@@ -23,12 +26,24 @@ Route::get('threads', [ThreadController::class, 'index'])->name('threads.index')
 Route::get('t/{thread:slug}', [ThreadController::class, 'show'])->withTrashed()->name('threads.show');
 Route::get('c/{category:slug}', [CategoryController::class, 'show'])->name('categories.show');
 Route::get('tags/{tag:slug}', [TagController::class, 'show'])->name('tags.show');
+Route::get('u/{user:username}', [UserProfileController::class, 'show'])->name('users.show');
+// Every search reaches the search engine.
+Route::get('search', SearchController::class)->middleware('throttle:60,1')->name('search');
 
 Route::post('locale', [LocaleController::class, 'update'])->name('locale.update');
 
 // Permissions are checked by the policies (verified and not banned to take
 // part), so the routes only ask for a signed in member.
 Route::middleware('auth')->group(function () {
+    Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::get('notifications/unread', [NotificationController::class, 'unread'])->name('notifications.unread');
+    Route::post('notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.read-all');
+    // Notification ids are UUIDs: anything else is not found before it
+    // reaches a uuid column (PostgreSQL rejects other values).
+    Route::post('notifications/{notification}/read', [NotificationController::class, 'read'])
+        ->whereUuid('notification')
+        ->name('notifications.read');
+
     Route::post('markdown/preview', MarkdownPreviewController::class)
         ->middleware('throttle:60,1')
         ->name('markdown.preview');
