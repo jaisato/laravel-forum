@@ -166,12 +166,11 @@ final class ThreadController extends Controller
      */
     private function moveTargets(): array
     {
-        return Category::query()
+        return array_values(Category::query()
             ->ordered()
             ->get(['id', 'name'])
             ->map(fn (Category $category): array => ['id' => $category->id, 'name' => $category->name])
-            ->values()
-            ->all();
+            ->all());
     }
 
     /**
