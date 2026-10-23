@@ -6,7 +6,7 @@ namespace App\Console\Commands;
 
 use App\Enums\PostStatus;
 use App\Enums\ThreadStatus;
-use Illuminate\Console\Attributes\AsCommand;
+use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 
@@ -19,7 +19,7 @@ use Illuminate\Support\Facades\DB;
  * Each statement only touches rows whose value is wrong, so the command
  * reports what it fixed. Portable SQL: PostgreSQL and SQLite 3.39+.
  */
-#[AsCommand(name: 'forum:recount', description: 'Recompute the denormalised forum counters and reputation')]
+#[Description('Recompute the denormalised forum counters and reputation')]
 final class RecountForum extends Command
 {
     protected $signature = 'forum:recount';

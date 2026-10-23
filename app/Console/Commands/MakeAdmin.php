@@ -8,7 +8,7 @@ use App\Actions\Moderation\RecordModerationAction;
 use App\Enums\ModerationActionType;
 use App\Enums\Role;
 use App\Models\User;
-use Illuminate\Console\Attributes\AsCommand;
+use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -17,14 +17,15 @@ use Illuminate\Support\Str;
  * Promotes an existing account to administrator: how the first admin of a
  * fresh installation is made. The change is logged as done by the system.
  */
-#[AsCommand(name: 'forum:make-admin', description: 'Give an existing user the administrator role')]
+#[Description('Give an existing user the administrator role')]
 final class MakeAdmin extends Command
 {
     protected $signature = 'forum:make-admin {email : Email address of an existing account}';
 
     public function handle(RecordModerationAction $log): int
     {
-        $email = Str::lower(trim((string) $this->argument('email')));
+        $argument = $this->argument('email');
+        $email = Str::lower(trim(is_string($argument) ? $argument : ''));
         $user = User::query()->where('email', $email)->first();
 
         if ($user === null) {
