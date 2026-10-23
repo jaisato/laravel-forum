@@ -109,14 +109,15 @@ class Post extends Model
 
     /**
      * Posts a viewer may see: everyone sees published ones, authors also see
-     * their own posts awaiting review, staff see every status.
+     * their own posts awaiting review, staff see every status (not while
+     * banned: a ban takes the staff powers away).
      *
      * @param  Builder<self>  $query
      * @return Builder<self>
      */
     public function scopeVisibleTo(Builder $query, ?User $viewer): Builder
     {
-        if ($viewer?->isStaff()) {
+        if ($viewer?->canModerate()) {
             return $query;
         }
 
@@ -138,7 +139,7 @@ class Post extends Model
      */
     public function isVisibleTo(?User $viewer): bool
     {
-        if ($viewer?->isStaff()) {
+        if ($viewer?->canModerate()) {
             return true;
         }
 

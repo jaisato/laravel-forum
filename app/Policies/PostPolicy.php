@@ -17,7 +17,7 @@ class PostPolicy
 {
     public function view(?User $user, Post $post): bool
     {
-        if ($user?->isStaff()) {
+        if ($user?->canModerate()) {
             return true;
         }
 

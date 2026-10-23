@@ -151,7 +151,9 @@ it('keeps hidden, pending and deleted threads out of members\' listings', functi
         ->and(listingIds(viewer: $author))->toEqualCanonicalizing([$public->id, $pending->id])
         // Staff see every status; deleted threads stay in the moderation tools.
         ->and(listingIds(viewer: User::factory()->moderator()->create()))
-        ->toEqualCanonicalizing([$public->id, $hidden->id, $pending->id]);
+        ->toEqualCanonicalizing([$public->id, $hidden->id, $pending->id])
+        // A ban takes those staff powers away.
+        ->and(listingIds(viewer: forumUser('banned moderator')))->toBe([$public->id]);
 });
 
 it('paginates with the configured page size', function () {

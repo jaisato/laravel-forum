@@ -167,14 +167,15 @@ class Thread extends Model
 
     /**
      * Threads a viewer may see: everyone sees published ones, authors also
-     * see their own threads awaiting review, staff see every status.
+     * see their own threads awaiting review, staff see every status (not
+     * while banned: a ban takes the staff powers away).
      *
      * @param  Builder<self>  $query
      * @return Builder<self>
      */
     public function scopeVisibleTo(Builder $query, ?User $viewer): Builder
     {
-        if ($viewer?->isStaff()) {
+        if ($viewer?->canModerate()) {
             return $query;
         }
 
@@ -227,7 +228,7 @@ class Thread extends Model
      */
     public function isVisibleTo(?User $viewer): bool
     {
-        if ($viewer?->isStaff()) {
+        if ($viewer?->canModerate()) {
             return true;
         }
 

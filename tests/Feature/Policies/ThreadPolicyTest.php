@@ -17,6 +17,8 @@ it('shows threads awaiting review only to their author and staff', function (str
 })->with([
     ['guest', false],
     ['member', false],
+    // A ban takes the staff powers away, reading included.
+    ['banned moderator', false],
     ['moderator', true],
     ['admin', true],
 ]);
@@ -41,6 +43,7 @@ it('shows hidden and deleted threads only to staff', function (string $role, boo
     ['guest', false],
     ['author', false],
     ['member', false],
+    ['banned moderator', false],
     ['moderator', true],
     ['admin', true],
 ]);

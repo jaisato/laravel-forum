@@ -33,6 +33,18 @@ it('shows hidden and deleted posts to staff only', function () {
         ->and(allows($moderator, 'view', $deleted))->toBeTrue();
 });
 
+it('stops showing hidden posts to a banned moderator', function () {
+    $hidden = Post::factory()->hidden()->create();
+    $pending = Post::factory()->pending()->create();
+    $bannedModerator = forumUser('banned moderator');
+
+    expect(allows($bannedModerator, 'view', $hidden))->toBeFalse()
+        ->and(allows($bannedModerator, 'view', $pending))->toBeFalse()
+        ->and(Post::query()->visibleTo($bannedModerator)->pluck('id')->all())
+        ->not->toContain($hidden->id)
+        ->not->toContain($pending->id);
+});
+
 it('does not leak the posts of a thread nobody else may read', function () {
     $post = Post::factory()->for(Thread::factory()->hidden())->create();
 
