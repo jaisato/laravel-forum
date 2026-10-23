@@ -94,7 +94,7 @@ flowchart LR
 | `meilisearch` | `getmeili/meilisearch:v1.24` | `127.0.0.1:7700` | Búsqueda de hilos y mensajes |
 | `mailpit` | `axllent/mailpit:v1.27` | `127.0.0.1:8025` | Recoge todos los correos y los muestra en su web |
 | `ssr` (perfil `ssr`) | `laravel-forum/dev` | — | El bundle SSR de producción (ver la [sección 5](#5-frontend-vite-wayfinder-y-ssr)) |
-| `ollama` (perfil `ai`) | `ollama/ollama:0.12.6` | — | Modelos locales para las funciones de IA, desactivadas por defecto |
+| `ollama` (perfil `ai`) | `ollama/ollama:0.12.6` | — | Modelos locales para las funciones de IA, desactivadas por defecto ([06-ia.md](06-ia.md#10-modelos-locales-con-ollama)) |
 
 Los puertos solo se publican en `127.0.0.1`. Los datos viven en volúmenes con
 nombre (`postgres`, `redis`, `meilisearch`, `ollama`): sobreviven a

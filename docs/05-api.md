@@ -120,6 +120,7 @@ se le reconozca.
 | Reaccionar | 60 por minuto | Por miembro |
 | Reportar | 10 por hora | Por miembro |
 | Mensajes privados | 10 por minuto | Por miembro |
+| Pedir un resumen de IA | 5 por hora | Por miembro |
 
 Los de participación son los mismos que en la web y se comparten con ella
 (`config/forum.php`, `rate_limits`). Cada respuesta lleva `X-RateLimit-Limit`
@@ -146,6 +147,8 @@ responde `429` con `Retry-After`.
 | `GET /threads` | Hilos con `sort` (`activity`, `newest`, `replies`, `views`), `filter` (`all`, `unanswered`, `solved`, `unsolved` y, con token, `following` y `mine`), `category` y `tag` |
 | `GET /threads/{id}` | Un hilo (cuenta la visita) y, en `meta.subscribed`, si el miembro lo sigue |
 | `GET /threads/{id}/posts` | Sus mensajes, del primero al último; con token, los marca como leídos |
+| `GET /threads/{id}/similar` | Hasta 5 hilos relacionados: por significado si la IA está activa sobre PostgreSQL, por palabras si no ([06-ia.md](06-ia.md)) |
+| `GET /threads/{id}/summary` | El resumen de IA guardado (`summary_html`, `generated_at` y `stale`); `404` si los resúmenes están apagados o el hilo no tiene |
 | `GET /posts/{id}` | Un mensaje suelto (el de una notificación, por ejemplo) |
 | `GET /users/{username}` | Un perfil público, con sus pestañas en `/threads` y `/posts` |
 | `GET /search/threads?q=` y `/search/posts?q=` | Búsqueda, con `category` y `tag` opcionales; solo encuentra contenido público |
@@ -162,6 +165,7 @@ responde `429` con `Retry-After`.
 | `PUT`/`DELETE /posts/{id}/reactions/{tipo}` | Reacciona o retira la reacción (`like`, `love`, `laugh`, `insightful`, `celebrate`); responde el resumen de reacciones |
 | `PUT`/`DELETE /threads/{id}/solution` | Marca (`post_id`) o desmarca la solución; responde el hilo |
 | `PUT`/`DELETE /threads/{id}/subscription` | Sigue o deja de seguir el hilo → `204` |
+| `POST /threads/{id}/summary` | Pide el resumen de IA: `202` mientras se escribe, `200` con él si el guardado está al día; `404` donde no hay resumen posible (IA apagada, menos de 5 respuestas) |
 | `POST /posts/{id}/reports` | Reporta un mensaje (`reason`: `spam`, `abuse`, `off_topic`, `illegal`, `other`; `details`) → `202` |
 
 ### Notificaciones (`read`)

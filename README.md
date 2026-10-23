@@ -77,14 +77,35 @@ página describe lo que ya funciona.
   aprobar y restaurar mensajes, y la cola de reportes.
 - Documentación OpenAPI 3.1 generada desde el código en `/docs/api` (y
   `/docs/api.json`); la guía está en [docs/05-api.md](docs/05-api.md).
+- Resúmenes de IA (`GET`/`POST /api/v1/threads/{id}/summary`) e hilos
+  relacionados (`GET /api/v1/threads/{id}/similar`).
 - Límites: 120 peticiones por minuto por miembro, 60 por dirección para los
   invitados y cinco intentos por minuto al pedir un token.
+
+**Inteligencia artificial** (opcional, con laravel/ai)
+
+- Viene apagada: sin claves de ningún proveedor, el foro funciona entero y
+  no hace peticiones fuera. Se activa con `FORUM_AI_ENABLED=true` y cada
+  función tiene además su propio interruptor.
+- Moderación automática de los mensajes nuevos y editados: avisa al *staff*
+  de lo dudoso y retiene para revisión lo claramente dañino. Nunca borra ni
+  banea.
+- Resúmenes TL;DR de los hilos con cinco respuestas o más, a petición de los
+  miembros y con el aviso de que los escribe una IA.
+- Hilos similares por significado (*embeddings* en pgvector), con la
+  búsqueda por palabras como respaldo.
+- Sugerencia de etiquetas al abrir un hilo, siempre entre las que ya
+  existen.
+- Anthropic (texto) y OpenAI (*embeddings*) por defecto, cualquier proveedor
+  de laravel/ai o modelos locales con Ollama (`docker compose --profile ai
+  up -d ollama`). Proveedores, costes, privacidad y protección frente a la
+  inyección de instrucciones en [docs/06-ia.md](docs/06-ia.md).
 
 ## Stack
 
 | Capa | Tecnologías |
 |---|---|
-| Backend | PHP 8.4, Laravel 13, Fortify (autenticación), Sanctum, Scout, Horizon, Wayfinder |
+| Backend | PHP 8.4, Laravel 13, Fortify (autenticación), Sanctum, Scout, Horizon, Wayfinder, laravel/ai |
 | Frontend | Inertia 3, Vue 3.5 + TypeScript, Vite 8, Tailwind CSS 4, shadcn-vue (Reka UI), laravel-vue-i18n |
 | Datos | PostgreSQL 18 con pgvector, Redis 8 (caché, sesiones y colas), Meilisearch |
 | Calidad | Pest, Larastan (nivel 7), Pint, Vitest, ESLint, Prettier, vue-tsc |
@@ -176,6 +197,8 @@ Todos los pasos (requisitos, actualizaciones, copias de seguridad y ajustes) en
 - [04 · Despliegue](docs/04-despliegue.md): producción con `compose.prod.yaml`.
 - [05 · API](docs/05-api.md): autenticación, permisos, convenciones, límites y
   rutas de la API REST v1.
+- [06 · IA](docs/06-ia.md): las funciones de IA, cómo activarlas, proveedores,
+  costes, privacidad y modelos locales con Ollama.
 
 ## Aviso de seguridad: credenciales en el historial
 
