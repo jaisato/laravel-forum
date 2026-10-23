@@ -119,3 +119,17 @@ it('announces every message once committed', function () {
     Event::assertDispatchedTimes(MessageSent::class, 2);
     Event::assertDispatched(MessageSent::class, fn (MessageSent $event): bool => $event->message->is($reply));
 });
+
+it('never moves a read marker backwards', function () {
+    [$alice, $bob] = User::factory()->count(2)->create();
+    $conversation = startConversation($alice, $bob);
+    $older = $conversation->fresh()->last_message_id;
+    $newer = app(SendMessage::class)->handle($conversation, $bob, 'Mi respuesta');
+
+    // A "mark as read" that looked at the conversation before Bob's own
+    // message was committed finishes after it.
+    Conversation::query()->whereKey($conversation->id)->update(['last_message_id' => $older]);
+    app(MarkConversationRead::class)->handle($conversation, $bob);
+
+    expect($bob->conversations()->sole()->pivot->last_read_message_id)->toBe($newer->id);
+});

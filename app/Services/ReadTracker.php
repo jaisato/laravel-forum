@@ -16,20 +16,25 @@ use Carbon\CarbonInterface;
 final class ReadTracker
 {
     /**
-     * Marks the thread as read up to its newest post.
+     * Marks the thread as read up to its newest post. The marker only moves
+     * forward: a request that loaded the thread earlier may finish after one
+     * that read further (the member's own reply, another tab).
      */
     public function markRead(Thread $thread, User $user): void
     {
-        ThreadRead::query()->upsert(
-            [
-                'thread_id' => $thread->id,
-                'user_id' => $user->id,
-                'last_read_post_id' => (int) $thread->last_post_id,
-                'last_read_at' => now(),
-            ],
-            uniqueBy: ['thread_id', 'user_id'],
-            update: ['last_read_post_id', 'last_read_at'],
-        );
+        $lastPostId = (int) $thread->last_post_id;
+        $marker = [
+            'last_read_post_id' => $lastPostId,
+            'last_read_at' => now(),
+        ];
+
+        ThreadRead::query()->insertOrIgnore(['thread_id' => $thread->id, 'user_id' => $user->id, ...$marker]);
+
+        ThreadRead::query()
+            ->where('thread_id', $thread->id)
+            ->where('user_id', $user->id)
+            ->where('last_read_post_id', '<=', $lastPostId)
+            ->update($marker);
     }
 
     public function lastReadAt(Thread $thread, User $user): ?CarbonInterface

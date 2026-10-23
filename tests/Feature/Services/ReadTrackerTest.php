@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Models\Post;
 use App\Models\Thread;
+use App\Models\ThreadRead;
 use App\Models\User;
 use App\Services\ReadTracker;
 use Carbon\CarbonImmutable;
@@ -62,4 +63,18 @@ it('adds the read state of a member to thread listings', function () {
         ->and($threads[$unread->id]->last_read_at)->toBeNull()
         ->and($asGuest[$read->id]->last_read_at)->toBeNull()
         ->and($threads[$read->id]->title)->toBe($read->title);
+});
+
+it('never moves the read marker backwards', function () {
+    $member = User::factory()->create();
+    $thread = forumThread();
+    // A page request loaded the thread before the member's reply…
+    $stale = $thread->fresh();
+    $reply = forumReply($thread, $member);
+
+    // …and marks it read after the reply already did.
+    app(ReadTracker::class)->markRead($stale, $member);
+
+    expect(ThreadRead::query()->where('thread_id', $thread->id)->where('user_id', $member->id)->value('last_read_post_id'))
+        ->toBe($reply->id);
 });
