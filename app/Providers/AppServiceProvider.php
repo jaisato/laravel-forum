@@ -17,13 +17,18 @@ use App\Models\ThreadRead;
 use App\Models\ThreadSubscription;
 use App\Models\User;
 use Carbon\CarbonImmutable;
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
+use Inertia\Inertia;
+use Symfony\Component\HttpFoundation\Response;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -43,6 +48,7 @@ class AppServiceProvider extends ServiceProvider
         $this->configureDefaults();
         $this->configureModels();
         $this->configureAuthorization();
+        $this->configureRateLimiting();
     }
 
     /**
@@ -110,5 +116,32 @@ class AppServiceProvider extends ServiceProvider
         // The API is public, so is its documentation (Scramble only opens it
         // in the local environment by default).
         Gate::define('viewApiDocs', fn (?User $user = null): bool => true);
+    }
+
+    /**
+     * The forum's named rate limiters (forum-threads, forum-replies,
+     * forum-reactions, forum-reports, forum-messages), shared by the web and
+     * the API and counted per member. A web form that hits one goes back with
+     * a toast; an API client gets the usual 429.
+     */
+    protected function configureRateLimiting(): void
+    {
+        foreach (config('forum.rate_limits') as $name => $limit) {
+            if (! isset($limit['attempts'], $limit['minutes'])) {
+                continue;
+            }
+
+            RateLimiter::for("forum-{$name}", fn (Request $request): Limit => Limit::perMinutes((int) $limit['minutes'], (int) $limit['attempts'])
+                ->by((string) ($request->user()?->getAuthIdentifier() ?? $request->ip()))
+                ->response(function (Request $request, array $headers): Response {
+                    if ($request->expectsJson()) {
+                        return response()->json(['message' => __('Too many attempts. Please wait a moment.')], 429, $headers);
+                    }
+
+                    Inertia::flash('toast', ['type' => 'error', 'message' => __('Too many attempts. Please wait a moment.')]);
+
+                    return back()->withHeaders($headers);
+                }));
+        }
     }
 }

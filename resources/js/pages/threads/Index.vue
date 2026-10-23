@@ -46,7 +46,7 @@ const filterOptions = computed(() => {
     // Personal filters need somebody to be personal about.
     if (page.props.auth.user) {
         options.push(
-            { value: 'following', label: 'Following' },
+            { value: 'following', label: 'Threads I follow' },
             { value: 'mine', label: 'My threads' },
         );
     }

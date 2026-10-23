@@ -124,28 +124,42 @@ export type ForumStats = {
     online_count: number;
 };
 
+/**
+ * What the viewer may do with the thread on its page (prop `can`).
+ */
 export type ThreadAbilities = {
     reply: boolean;
     update: boolean;
     delete: boolean;
+    restore: boolean;
     pin: boolean;
     lock: boolean;
     move: boolean;
-    markSolution: boolean;
+    mark_solution: boolean;
     subscribe: boolean;
-    summarize: boolean;
 };
 
 export type AiSummary = {
     html: string;
-    generated_at: string;
+    generated_at: string | null;
 };
 
+/**
+ * The thread of its own page.
+ */
 export type Thread = ThreadSummary & {
     solution_post_id: number | null;
-    is_subscribed: boolean;
-    ai_summary: AiSummary | null;
-    can: ThreadAbilities;
+    is_deleted: boolean;
+};
+
+export type MoveTarget = {
+    id: number;
+    name: string;
+};
+
+export type PageMeta = {
+    title: string;
+    description: string;
 };
 
 export type ReactionSummary = {
@@ -163,6 +177,7 @@ export type PostAbilities = {
     report: boolean;
     hide: boolean;
     approve: boolean;
+    mark_solution: boolean;
 };
 
 export type Post = {

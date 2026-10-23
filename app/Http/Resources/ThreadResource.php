@@ -22,6 +22,19 @@ final class ThreadResource extends JsonResource
 {
     private const int EXCERPT_LENGTH = 200;
 
+    private bool $detailed = false;
+
+    /**
+     * Adds what the thread page needs beyond a listing: the solution and
+     * whether the thread is deleted (staff only ever see that).
+     */
+    public function detailed(): static
+    {
+        $this->detailed = true;
+
+        return $this;
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -58,6 +71,8 @@ final class ThreadResource extends JsonResource
                 'slug' => $tag->slug,
                 'color' => $tag->color,
             ])->values()->all(),
+            'solution_post_id' => $this->when($this->detailed, $thread->solution_post_id),
+            'is_deleted' => $this->when($this->detailed, $thread->trashed()),
         ];
     }
 

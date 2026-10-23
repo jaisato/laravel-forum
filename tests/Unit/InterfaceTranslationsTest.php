@@ -60,7 +60,7 @@ it('translates every string of the Vue interface into Spanish', function () {
 it('translates every string of the application into Spanish', function () {
     $keys = [
         ...literalTranslationKeys(app_path(), ['php'], <<<'REGEX'
-            /(?:\b__|\btrans|\btrans_choice)\(\s*'((?:[^'\\]|\\.)*)'/
+            /(?:\b__|\btrans|\btrans_choice|->toast)\(\s*'((?:[^'\\]|\\.)*)'/
             REGEX),
         ...literalTranslationKeys(resource_path('views'), ['php'], <<<'REGEX'
             /(?:\b__|\btrans|\btrans_choice|@lang)\(\s*'((?:[^'\\]|\\.)*)'/

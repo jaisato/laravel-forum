@@ -16,13 +16,14 @@ use Carbon\CarbonInterface;
 final class ReadTracker
 {
     /**
-     * Marks the thread as read up to its newest post. The marker only moves
-     * forward: a request that loaded the thread earlier may finish after one
-     * that read further (the member's own reply, another tab).
+     * Marks the thread as read up to its newest post, or up to the given
+     * post (the last one of the page the member is reading). The marker only
+     * moves forward: a request that loaded the thread earlier may finish after
+     * one that read further (the member's own reply, another tab).
      */
-    public function markRead(Thread $thread, User $user): void
+    public function markRead(Thread $thread, User $user, ?int $upToPostId = null): void
     {
-        $lastPostId = (int) $thread->last_post_id;
+        $lastPostId = $upToPostId ?? (int) $thread->last_post_id;
         $marker = [
             'last_read_post_id' => $lastPostId,
             'last_read_at' => now(),

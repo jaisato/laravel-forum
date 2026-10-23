@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\PostStatus;
+use App\Enums\ReactionType;
 use App\Support\Markdown\MarkdownRenderer;
 use Carbon\CarbonImmutable;
 use Database\Factories\PostFactory;
@@ -131,6 +132,29 @@ class Post extends Model
                     ->where('user_id', $viewer->id));
             }
         });
+    }
+
+    /**
+     * Adds, for every reaction type, how many reactions the post has
+     * ({type}_reactions_count) and whether the viewer gave one
+     * ({type}_reacted), with one subquery each instead of loading reactions.
+     *
+     * @param  Builder<self>  $query
+     * @return Builder<self>
+     */
+    public function scopeWithReactionSummary(Builder $query, ?User $viewer): Builder
+    {
+        foreach (ReactionType::cases() as $type) {
+            $query->withCount(["reactions as {$type->value}_reactions_count" => fn (Builder $reactions) => $reactions->where('type', $type)]);
+
+            if ($viewer !== null) {
+                $query->withExists(["reactions as {$type->value}_reacted" => fn (Builder $reactions) => $reactions
+                    ->where('type', $type)
+                    ->where('user_id', $viewer->id)]);
+            }
+        }
+
+        return $query;
     }
 
     /**
