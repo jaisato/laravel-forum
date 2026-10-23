@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace App\Policies;
 
-use App\Enums\PostStatus;
-use App\Enums\ThreadStatus;
 use App\Models\Post;
 use App\Models\User;
 
@@ -64,23 +62,11 @@ class PostPolicy
 
     public function react(User $user, Post $post): bool
     {
-        return $this->mayEngageWith($user, $post) && $post->thread?->is_locked === false;
+        return $post->mayBeReactedToBy($user);
     }
 
     public function report(User $user, Post $post): bool
     {
-        return $this->mayEngageWith($user, $post);
-    }
-
-    private function mayEngageWith(User $user, Post $post): bool
-    {
-        return $user->canParticipate()
-            && ! $post->isAuthoredBy($user)
-            && $post->status === PostStatus::Published
-            && ! $post->trashed()
-            && $post->thread?->status === ThreadStatus::Published
-            // The relation may hold a deleted thread (the thread page loads
-            // them for staff); the routes would not find it.
-            && ! $post->thread->trashed();
+        return $post->mayBeReportedBy($user);
     }
 }

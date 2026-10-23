@@ -10,7 +10,9 @@ use App\Enums\ReportStatus;
 use App\Events\PostReported;
 use App\Models\Post;
 use App\Models\Report;
+use App\Models\Thread;
 use App\Models\User;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
@@ -24,12 +26,24 @@ final class ReportPost
 {
     public function handle(Post $post, User $reporter, ReportReason $reason, ?string $details = null): Report
     {
-        return $this->file($post, $reporter->id, [
-            'reporter_id' => $reporter->id,
-            'source' => ReportSource::User,
-            'reason' => $reason,
-            'details' => $details,
-        ]);
+        return DB::transaction(function () use ($post, $reporter, $reason, $details): Report {
+            // The request was authorised on the copies it loaded: a moderator
+            // may have hidden the post or the thread since.
+            $thread = Thread::withTrashed()->whereKey($post->thread_id)->sharedLock()->firstOrFail();
+            $stored = Post::withTrashed()->whereKey($post->id)->sharedLock()->firstOrFail();
+            $stored->setRelation('thread', $thread);
+
+            if (! $stored->mayBeReportedBy($reporter)) {
+                throw new AuthorizationException(__('This post can no longer be reported.'));
+            }
+
+            return $this->file($stored, $reporter->id, [
+                'reporter_id' => $reporter->id,
+                'source' => ReportSource::User,
+                'reason' => $reason,
+                'details' => $details,
+            ]);
+        });
     }
 
     /**

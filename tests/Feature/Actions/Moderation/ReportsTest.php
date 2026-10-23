@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Actions\Moderation\DismissReport;
+use App\Actions\Moderation\HidePost;
 use App\Actions\Moderation\ReportPost;
 use App\Actions\Moderation\ResolveReport;
 use App\Enums\ModerationActionType;
@@ -15,6 +16,7 @@ use App\Models\ModerationAction;
 use App\Models\Post;
 use App\Models\Report;
 use App\Models\User;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
@@ -157,4 +159,14 @@ it('locks every open report of the post in id order before closing them', functi
     $lock = collect($queries)->first(fn (string $sql): bool => str_starts_with($sql, 'select') && str_contains($sql, 'from "reports"'));
 
     expect($lock)->toContain('"post_id" = ?')->toContain('order by "id" asc');
+});
+
+it('refuses a report once the post was hidden after the request was authorised', function () {
+    $reply = forumReply(forumThread());
+    $authorised = Post::query()->findOrFail($reply->id);
+    app(HidePost::class)->handle($reply, User::factory()->moderator()->create());
+
+    expect(fn () => app(ReportPost::class)->handle($authorised, User::factory()->create(), ReportReason::Spam))
+        ->toThrow(AuthorizationException::class);
+    expect($reply->reports()->count())->toBe(0);
 });

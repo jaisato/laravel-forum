@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Enums\PostStatus;
 use App\Enums\ReactionType;
+use App\Enums\ThreadStatus;
 use App\Support\Markdown\MarkdownRenderer;
 use Carbon\CarbonImmutable;
 use Database\Factories\PostFactory;
@@ -260,6 +261,33 @@ class Post extends Model
     private function threadForSearch(): ?Thread
     {
         return $this->relationLoaded('thread') ? $this->thread : $this->thread()->with('tags')->first();
+    }
+
+    /**
+     * Whether the user may report the post (PostPolicy::report, and
+     * ReportPost again under lock): members who may take part, on a post of
+     * someone else that everybody can see, in a published thread.
+     */
+    public function mayBeReportedBy(User $user): bool
+    {
+        return $user->canParticipate()
+            && ! $this->isAuthoredBy($user)
+            && $this->status === PostStatus::Published
+            && ! $this->trashed()
+            && $this->thread?->status === ThreadStatus::Published
+            // The relation may hold a deleted thread (the thread page loads
+            // them for staff); the routes would not find it.
+            && ! $this->thread->trashed();
+    }
+
+    /**
+     * Whether the user may react to the post (PostPolicy::react, and
+     * ReactToPost again under lock): as for reports, while the thread is not
+     * locked.
+     */
+    public function mayBeReactedToBy(User $user): bool
+    {
+        return $this->mayBeReportedBy($user) && $this->thread?->is_locked === false;
     }
 
     /**

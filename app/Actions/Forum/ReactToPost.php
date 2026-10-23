@@ -8,8 +8,10 @@ use App\Enums\ReactionType;
 use App\Events\ReactionAdded;
 use App\Models\Post;
 use App\Models\Reaction;
+use App\Models\Thread;
 use App\Models\User;
 use App\Services\Reputation;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -72,12 +74,26 @@ final class ReactToPost
      */
     public function toggle(Post $post, User $user, ReactionType $type): bool
     {
-        if ($this->remove($post, $user, $type)) {
-            return false;
-        }
+        return DB::transaction(function () use ($post, $user, $type): bool {
+            // The request was authorised on the copies it loaded: a moderator
+            // may have hidden the post or locked the thread since. Thread
+            // first, then post, as every action; the thread only shared, so
+            // reactions in one thread do not wait for each other.
+            $thread = Thread::withTrashed()->whereKey($post->thread_id)->sharedLock()->firstOrFail();
+            $stored = Post::withTrashed()->whereKey($post->id)->lockForUpdate()->firstOrFail();
+            $stored->setRelation('thread', $thread);
 
-        $this->add($post, $user, $type);
+            if (! $stored->mayBeReactedToBy($user)) {
+                throw new AuthorizationException(__('This post no longer accepts reactions.'));
+            }
 
-        return true;
+            if ($this->remove($stored, $user, $type)) {
+                return false;
+            }
+
+            $this->add($stored, $user, $type);
+
+            return true;
+        });
     }
 }

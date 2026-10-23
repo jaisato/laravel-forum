@@ -3,10 +3,13 @@
 declare(strict_types=1);
 
 use App\Actions\Forum\ReactToPost;
+use App\Actions\Moderation\LockThread;
 use App\Enums\ReactionType;
 use App\Events\ReactionAdded;
 use App\Models\Post;
+use App\Models\Reaction;
 use App\Models\User;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\Event;
 
 function reactions(): ReactToPost
@@ -77,4 +80,15 @@ it('announces only reactions that were really added', function () {
     Event::assertDispatched(ReactionAdded::class, fn (ReactionAdded $event): bool => $event->post->is($post)
         && $event->user->is($member)
         && $event->type === ReactionType::Laugh);
+});
+
+it('refuses the reaction once the thread was locked after the request was authorised', function () {
+    $reply = forumReply(forumThread());
+    // The copy the request authorised the reaction on, before a moderator locked the thread.
+    $authorised = Post::query()->findOrFail($reply->id);
+    app(LockThread::class)->handle($reply->thread, User::factory()->moderator()->create());
+
+    expect(fn () => app(ReactToPost::class)->toggle($authorised, User::factory()->create(), ReactionType::Like))
+        ->toThrow(AuthorizationException::class);
+    expect(Reaction::query()->count())->toBe(0);
 });
