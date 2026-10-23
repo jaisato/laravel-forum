@@ -69,3 +69,37 @@ it('changes the role of a user, logging where it came from', function () {
         ->action->toBe(ModerationActionType::UserRoleChanged)
         ->meta->toBe(['from' => 'member', 'to' => 'moderator']);
 });
+
+it('lifts a ban once when two moderators lift it at the same time', function () {
+    $member = User::factory()->banned()->create();
+    $moderator = User::factory()->moderator()->create();
+    $first = User::query()->findOrFail($member->id);
+    $second = User::query()->findOrFail($member->id);
+
+    app(UnbanUser::class)->handle($first, $moderator);
+    app(UnbanUser::class)->handle($second, $moderator);
+
+    expect($member->fresh()->isBanned())->toBeFalse()
+        ->and(ModerationAction::query()->sole()->action)->toBe(ModerationActionType::UserUnbanned)
+        ->and($second->banned_at)->toBeNull();
+});
+
+it('logs the role a user really had when two admins change it at once', function () {
+    $member = User::factory()->create();
+    $admin = User::factory()->admin()->create();
+    // Both admins opened the member while they were still a member.
+    $first = User::query()->findOrFail($member->id);
+    $second = User::query()->findOrFail($member->id);
+    $third = User::query()->findOrFail($member->id);
+
+    app(ChangeUserRole::class)->handle($first, $admin, Role::Moderator);
+    app(ChangeUserRole::class)->handle($second, $admin, Role::Moderator);
+    app(ChangeUserRole::class)->handle($third, $admin, Role::Admin);
+
+    expect($member->fresh()->role)->toBe(Role::Admin)
+        ->and($third->role)->toBe(Role::Admin)
+        ->and(ModerationAction::query()->oldest('id')->pluck('meta')->all())->toBe([
+            ['from' => 'member', 'to' => 'moderator'],
+            ['from' => 'moderator', 'to' => 'admin'],
+        ]);
+});

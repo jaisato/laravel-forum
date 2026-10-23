@@ -15,19 +15,22 @@ final class ChangeUserRole
 
     public function handle(User $target, User $admin, Role $role): void
     {
-        $from = $target->role;
+        DB::transaction(function () use ($target, $admin, $role): void {
+            // The role the user has now, read under lock: another admin may
+            // have changed it since this one loaded the user.
+            $stored = User::withTrashed()->whereKey($target->id)->lockForUpdate()->firstOrFail();
+            $from = $stored->role;
 
-        if ($from === $role) {
-            return;
-        }
+            if ($from !== $role) {
+                $stored->forceFill(['role' => $role])->save();
 
-        DB::transaction(function () use ($target, $admin, $role, $from): void {
-            $target->forceFill(['role' => $role])->save();
+                $this->log->handle($admin, ModerationActionType::UserRoleChanged, $stored, meta: [
+                    'from' => $from->value,
+                    'to' => $role->value,
+                ]);
+            }
 
-            $this->log->handle($admin, ModerationActionType::UserRoleChanged, $target, meta: [
-                'from' => $from->value,
-                'to' => $role->value,
-            ]);
+            $target->setRawAttributes($stored->getAttributes(), sync: true);
         });
     }
 }

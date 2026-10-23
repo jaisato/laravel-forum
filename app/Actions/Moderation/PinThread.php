@@ -18,14 +18,18 @@ final class PinThread
 
     public function handle(Thread $thread, User $moderator, bool $pinned = true): void
     {
-        if ($thread->is_pinned === $pinned) {
-            return;
-        }
-
         DB::transaction(function () use ($thread, $moderator, $pinned): void {
-            $thread->forceFill(['is_pinned' => $pinned])->save();
+            // Decide on the stored row, locked: the copy the request loaded
+            // may be stale (a double click, another moderator).
+            $stored = Thread::withTrashed()->whereKey($thread->id)->lockForUpdate()->firstOrFail();
 
-            $this->log->handle($moderator, $pinned ? ModerationActionType::ThreadPinned : ModerationActionType::ThreadUnpinned, $thread);
+            if ($stored->is_pinned !== $pinned) {
+                $stored->forceFill(['is_pinned' => $pinned])->save();
+
+                $this->log->handle($moderator, $pinned ? ModerationActionType::ThreadPinned : ModerationActionType::ThreadUnpinned, $stored);
+            }
+
+            $thread->setRawAttributes($stored->getAttributes(), sync: true);
         });
     }
 }

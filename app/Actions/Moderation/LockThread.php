@@ -18,14 +18,18 @@ final class LockThread
 
     public function handle(Thread $thread, User $moderator, bool $locked = true): void
     {
-        if ($thread->is_locked === $locked) {
-            return;
-        }
-
         DB::transaction(function () use ($thread, $moderator, $locked): void {
-            $thread->forceFill(['is_locked' => $locked])->save();
+            // Decide on the stored row, locked: the copy the request loaded
+            // may be stale (a double click, another moderator).
+            $stored = Thread::withTrashed()->whereKey($thread->id)->lockForUpdate()->firstOrFail();
 
-            $this->log->handle($moderator, $locked ? ModerationActionType::ThreadLocked : ModerationActionType::ThreadUnlocked, $thread);
+            if ($stored->is_locked !== $locked) {
+                $stored->forceFill(['is_locked' => $locked])->save();
+
+                $this->log->handle($moderator, $locked ? ModerationActionType::ThreadLocked : ModerationActionType::ThreadUnlocked, $stored);
+            }
+
+            $thread->setRawAttributes($stored->getAttributes(), sync: true);
         });
     }
 }

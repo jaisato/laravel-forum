@@ -17,18 +17,22 @@ final class UnbanUser
 
     public function handle(User $target, User $moderator): void
     {
-        if ($target->banned_at === null) {
-            return;
-        }
-
         DB::transaction(function () use ($target, $moderator): void {
-            $target->forceFill([
-                'banned_at' => null,
-                'banned_until' => null,
-                'ban_reason' => null,
-            ])->save();
+            // Decide on the stored row, locked: two moderators (or a double
+            // click) may lift the same ban at once.
+            $stored = User::withTrashed()->whereKey($target->id)->lockForUpdate()->firstOrFail();
 
-            $this->log->handle($moderator, ModerationActionType::UserUnbanned, $target);
+            if ($stored->banned_at !== null) {
+                $stored->forceFill([
+                    'banned_at' => null,
+                    'banned_until' => null,
+                    'ban_reason' => null,
+                ])->save();
+
+                $this->log->handle($moderator, ModerationActionType::UserUnbanned, $stored);
+            }
+
+            $target->setRawAttributes($stored->getAttributes(), sync: true);
         });
     }
 }
