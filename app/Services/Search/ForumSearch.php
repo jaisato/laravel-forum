@@ -8,6 +8,7 @@ use App\Models\Post;
 use App\Models\Thread;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Pagination\LengthAwarePaginator as Paginator;
 use Laravel\Scout\Builder as SearchBuilder;
 
 /**
@@ -16,8 +17,9 @@ use Laravel\Scout\Builder as SearchBuilder;
  * Meilisearch filters on its indexed attributes, so pages and totals are
  * exact. The collection driver (local without Meilisearch, tests) searches
  * the database, where the filters are SQL. Either way, results are loaded
- * with visibleTo(null): an index that lags behind never shows anything that
- * is no longer public.
+ * with visibleTo(null) and without the deleted ones (Scout loads the hits of
+ * soft-deleting models with withTrashed()): an index that lags behind never
+ * shows anything that is no longer public.
  */
 final class ForumSearch
 {
@@ -30,19 +32,23 @@ final class ForumSearch
         $categoryId = $filters['category'] ?? null;
         $tagId = $filters['tag'] ?? null;
 
-        $search = $this->filtersInDatabase()
+        /** @var LengthAwarePaginator<int, Thread> $results */
+        $results = ($this->filtersInDatabase()
             ? Thread::search($query, function (Builder $threads) use ($categoryId, $tagId): Builder {
                 /** @var Builder<Thread> $threads */
                 return $this->constrainThreads($threads, $categoryId, $tagId);
             })
-            : $this->withEngineFilters(Thread::search($query), $categoryId, $tagId);
-
-        return $search
+            : $this->withEngineFilters(Thread::search($query), $categoryId, $tagId))
             ->query(function (Builder $threads): Builder {
                 /** @var Builder<Thread> $threads */
-                return $threads->visibleTo(null)->with(['category', 'author', 'tags']);
+                return $threads->withoutTrashed()
+                    ->visibleTo(null)
+                    ->withExcerptSource()
+                    ->with(['category', 'author', 'tags', 'lastPost.author']);
             })
             ->paginate($perPage);
+
+        return $this->withoutEngineQuery($results);
     }
 
     /**
@@ -54,7 +60,8 @@ final class ForumSearch
         $categoryId = $filters['category'] ?? null;
         $tagId = $filters['tag'] ?? null;
 
-        $search = $this->filtersInDatabase()
+        /** @var LengthAwarePaginator<int, Post> $results */
+        $results = ($this->filtersInDatabase()
             ? Post::search($query, fn (Builder $posts) => $posts->whereHas(
                 'thread',
                 function (Builder $threads) use ($categoryId, $tagId): Builder {
@@ -62,12 +69,11 @@ final class ForumSearch
                     return $this->constrainThreads($threads, $categoryId, $tagId);
                 },
             ))
-            : $this->withEngineFilters(Post::search($query), $categoryId, $tagId);
-
-        return $search
+            : $this->withEngineFilters(Post::search($query), $categoryId, $tagId))
             ->query(function (Builder $posts): Builder {
                 /** @var Builder<Post> $posts */
                 return $posts
+                    ->withoutTrashed()
                     ->visibleTo(null)
                     ->whereHas('thread', function (Builder $threads): Builder {
                         /** @var Builder<Thread> $threads */
@@ -76,6 +82,28 @@ final class ForumSearch
                     ->with(['thread', 'author']);
             })
             ->paginate($perPage);
+
+        return $this->withoutEngineQuery($results);
+    }
+
+    /**
+     * The same page without the ?query= Scout adds to its links: callers
+     * append the parameters of their own search (SearchController).
+     *
+     * @template TModel of Thread|Post
+     *
+     * @param  LengthAwarePaginator<int, TModel>  $results
+     * @return LengthAwarePaginator<int, TModel>
+     */
+    private function withoutEngineQuery(LengthAwarePaginator $results): LengthAwarePaginator
+    {
+        return new Paginator(
+            $results->items(),
+            $results->total(),
+            $results->perPage(),
+            $results->currentPage(),
+            ['path' => Paginator::resolveCurrentPath()],
+        );
     }
 
     private function filtersInDatabase(): bool

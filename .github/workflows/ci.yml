@@ -1,20 +1,21 @@
 name: CI
 
-# There was no CI here, and it showed: phpunit.xml declared a `tests/Unit`
-# directory that the repository does not contain, so PHPUnit aborted with exit
-# code 2 before running a single one of the Feature tests. Nothing was watching,
-# so a suite that ran nothing at all looked exactly like a suite that passed.
+# What a pull request must pass before it is merged (docs/07-testing-y-ci.md,
+# spec §13): style and static analysis, the PHP suite on PostgreSQL with the
+# coverage threshold and on SQLite with the next PHP, the front end's lint,
+# types and tests, the Vite builds, and the Docker images with a smoke test of
+# the production stack.
+#
+# Every action is pinned to a commit (the comment names its release) and the
+# token can only read the repository.
 
 on:
-  # Pushes to the protected branches, and every pull request. Unfiltered `push`
-  # alongside `pull_request` ran this whole workflow twice for each commit on a
-  # branch with a PR open - the tests, the build, all of it - which is waste
-  # that grows with the matrix. A PR is what gets reviewed and merged, so that
-  # is where branch commits are covered; the push trigger guards the branches
-  # nothing opens a PR against.
+  # Pull requests run it for their branch; pushes only for main, so a branch
+  # with a pull request open does not run everything twice.
   push:
-    branches: [main, master]
+    branches: [main]
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -25,79 +26,272 @@ concurrency:
 
 env:
   COMPOSER_NO_INTERACTION: '1'
+  NODE_VERSION: '24'
+  PHP_EXTENSIONS: bcmath, exif, gd, intl, pcntl, pdo_pgsql, pdo_sqlite, zip
 
 jobs:
-  test:
-    name: Tests (Pest)
-    runs-on: ubuntu-latest
+  php-lint:
+    name: PHP · Pint y Larastan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      - name: Set up PHP
-        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
         with:
           php-version: '8.4'
-          extensions: dom, libxml, mbstring, pdo_sqlite, sqlite3
+          extensions: ${{ env.PHP_EXTENSIONS }}
           coverage: none
           tools: composer:v2
 
       - name: Validate composer.json and composer.lock
         run: composer validate --strict
 
-      - name: Install dependencies
-        uses: ramsey/composer-install@a8d0d959dab41457692a5e2041bd9b757a119e3f # 3.2.1
-        with:
-          composer-options: '--prefer-dist'
+      - uses: ramsey/composer-install@65e4f84970763564f46a70b8a54b90d033b3bdda # 4.0.0
 
-      # No `cp .env.example .env` and no key to generate. The suite reads the
-      # tracked .env.testing, which phpunit.xml selects by setting
-      # APP_ENV=testing, and tests/bootstrap.php mints a throwaway APP_KEY into
-      # the process environment before the framework boots. Nothing is written
-      # to disk, so this job cannot leave a key behind either.
-      #
-      # --fail-on-warning is the point of the job as much as the assertions are.
-      # A missing environment file surfaced as a PHP warning attached to every
-      # test while they all still reported green, so warnings are the shape this
-      # repository's breakage has actually taken.
-      - name: Run the test suite
-        run: composer test
+      - name: Pint
+        run: vendor/bin/pint --test
 
-  assets:
-    name: Front-end build (Vite)
-    runs-on: ubuntu-latest
+      - name: Larastan
+        run: vendor/bin/phpstan analyse --no-progress --memory-limit=2G --error-format=github
+
+  php-tests:
+    name: PHP ${{ matrix.php }} · ${{ matrix.database == 'pgsql' && 'PostgreSQL + cobertura' || 'SQLite' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # The coverage and its threshold are measured here, where the
+          # pgvector tests run too (spec §11).
+          - php: '8.4'
+            database: pgsql
+          # The next PHP, on the in-memory database the suite uses locally.
+          - php: '8.5'
+            database: sqlite
+    services:
+      postgres:
+        # An empty image skips the service on the SQLite leg.
+        image: ${{ matrix.database == 'pgsql' && 'pgvector/pgvector:pg18' || '' }}
+        env:
+          POSTGRES_DB: forum_testing
+          POSTGRES_USER: forum
+          POSTGRES_PASSWORD: forum
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U forum -d forum_testing"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
         with:
-          node-version: '22'
-          cache: npm
+          php-version: ${{ matrix.php }}
+          extensions: ${{ env.PHP_EXTENSIONS }}
+          coverage: ${{ matrix.database == 'pgsql' && 'pcov' || 'none' }}
+          tools: composer:v2
 
-      # resources/js/app.js imports Ziggy as '../../vendor/tightenco/ziggy'.
-      # That is a Composer package that happens to ship JavaScript, so the
-      # bundle cannot be built from npm alone: without vendor/ on disk Vite
-      # fails to resolve the import and the build dies after transforming 27
-      # modules. PHP is set up here only to run composer.
-      - name: Set up PHP
-        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+      - uses: ramsey/composer-install@65e4f84970763564f46a70b8a54b90d033b3bdda # 4.0.0
+
+      # The suite reads the tracked .env.testing and tests/bootstrap.php mints
+      # a throwaway APP_KEY: no .env, no key on disk. The variables below win
+      # over .env.testing. Each parallel process gets a database of its own.
+      - name: Tests on PostgreSQL, with coverage (≥ 95 %)
+        if: matrix.database == 'pgsql'
+        env:
+          DB_CONNECTION: pgsql
+          DB_HOST: 127.0.0.1
+          DB_PORT: '5432'
+          DB_DATABASE: forum_testing
+          DB_USERNAME: forum
+          DB_PASSWORD: forum
+        run: >-
+          vendor/bin/pest --parallel --fail-on-warning
+          --coverage --min=95 --coverage-clover=coverage/php/clover.xml
+
+      - name: Tests on SQLite
+        if: matrix.database == 'sqlite'
+        run: composer test
+
+      - name: Coverage report
+        if: matrix.database == 'pgsql' && !cancelled()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: coverage-php
+          path: coverage/php/clover.xml
+          if-no-files-found: ignore
+          retention-days: 14
+
+  js:
+    name: JS · ESLint, Prettier, vue-tsc y Vitest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Wayfinder writes the TypeScript routes the pages import from the
+      # Laravel routes: PHP is here for that alone.
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
         with:
           php-version: '8.4'
+          extensions: ${{ env.PHP_EXTENSIONS }}
           coverage: none
           tools: composer:v2
 
-      - name: Install PHP dependencies (Ziggy is one of them)
-        uses: ramsey/composer-install@a8d0d959dab41457692a5e2041bd9b757a119e3f # 3.2.1
+      - uses: ramsey/composer-install@65e4f84970763564f46a70b8a54b90d033b3bdda # 4.0.0
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          composer-options: '--prefer-dist'
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
 
-      - name: Install dependencies
-        run: npm ci
+      - run: npm ci
 
-      # The Vue pages are only ever exercised through Vite; nothing else in CI
-      # would notice a template that stopped compiling.
+      - name: Wayfinder routes
+        run: php artisan wayfinder:generate --with-form
+
+      - name: ESLint
+        run: npm run lint -- --max-warnings=0
+
+      - name: Prettier
+        run: npm run format:check
+
+      - name: vue-tsc
+        run: npm run types:check
+
+      - name: Vitest, with coverage (thresholds in vitest.config.ts)
+        run: npm run test:coverage
+
+  build:
+    name: Build · Vite (cliente y SSR)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: '8.4'
+          extensions: ${{ env.PHP_EXTENSIONS }}
+          coverage: none
+          tools: composer:v2
+
+      - uses: ramsey/composer-install@65e4f84970763564f46a70b8a54b90d033b3bdda # 4.0.0
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - run: npm ci
+
+      # The client bundle and the self-contained SSR one (bootstrap/ssr).
       - name: Build
-        run: npm run build
+        run: npm run build:ssr
+
+  docker:
+    name: Docker · imágenes y smoke test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      COMPOSER_AUTH: '{"github-oauth":{"github.com":"${{ github.token }}"}}'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: hadolint
+        run: >-
+          docker run --rm -i -v "$PWD/.hadolint.yaml:/.config/hadolint.yaml:ro"
+          hadolint/hadolint:v2.14.0-alpine@sha256:7aba693c1442eb31c0b015c129697cb3b6cb7da589d85c7562f9deb435a6657c
+          hadolint --config /.config/hadolint.yaml - < Dockerfile
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      # The four images, each with its own cache in GitHub's cache and the
+      # others' to start from. app, web and ssr are loaded for the smoke
+      # test under the names compose.prod.yaml expects; dev is only built.
+      # COMPOSER_AUTH (the job's token) spares composer GitHub's anonymous
+      # rate limits; a build secret never reaches a layer.
+      - name: Build app
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          target: app
+          load: true
+          tags: ghcr.io/jaisato/laravel-forum-app:ci
+          cache-from: |
+            type=gha,scope=app
+            type=gha,scope=web
+          cache-to: type=gha,mode=max,scope=app
+          secret-envs: composer_auth=COMPOSER_AUTH
+
+      - name: Build web
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          target: web
+          load: true
+          tags: ghcr.io/jaisato/laravel-forum-web:ci
+          cache-from: |
+            type=gha,scope=web
+            type=gha,scope=app
+          cache-to: type=gha,mode=max,scope=web
+          secret-envs: composer_auth=COMPOSER_AUTH
+
+      - name: Build ssr
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          target: ssr
+          load: true
+          tags: ghcr.io/jaisato/laravel-forum-ssr:ci
+          cache-from: |
+            type=gha,scope=ssr
+            type=gha,scope=web
+          cache-to: type=gha,mode=max,scope=ssr
+          secret-envs: composer_auth=COMPOSER_AUTH
+
+      - name: Build dev
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          target: dev
+          cache-from: |
+            type=gha,scope=dev
+            type=gha,scope=app
+          cache-to: type=gha,mode=max,scope=dev
+
+      # The production stack from those images: migrations, /up through Caddy
+      # and the home page rendered by the SSR server.
+      - name: Smoke test of the production stack
+        env:
+          IMAGE_TAG: ci
+        run: .github/scripts/smoke-test.sh
+
+  actions:
+    name: GitHub Actions · actionlint
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: actionlint
+        run: >-
+          docker run --rm -v "$PWD:/repo" --workdir /repo
+          rhysd/actionlint:1.7.12@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+          -color

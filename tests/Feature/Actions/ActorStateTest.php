@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Actions\Forum\CreateThread;
 use App\Actions\Forum\DeletePost;
 use App\Actions\Forum\DeleteThread;
 use App\Actions\Forum\MarkSolution;
@@ -10,10 +11,13 @@ use App\Actions\Forum\ReplyToThread;
 use App\Actions\Forum\UnmarkSolution;
 use App\Actions\Forum\UpdatePost;
 use App\Actions\Forum\UpdateThread;
+use App\Actions\Messaging\SendMessage;
+use App\Actions\Messaging\StartConversation;
 use App\Actions\Moderation\BanUser;
 use App\Actions\Moderation\ReportPost;
 use App\Enums\ReactionType;
 use App\Enums\ReportReason;
+use App\Models\Category;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
 
@@ -34,6 +38,7 @@ it('refuses members banned after their request was authorised', function (Closur
 
     expect(fn () => $act($loaded))->toThrow(AuthorizationException::class);
 })->with([
+    'start a thread' => [fn (User $member): Closure => fn (User $as) => app(CreateThread::class)->handle($as, Category::factory()->create(), 'Un hilo nuevo sobre colas', 'El cuerpo del hilo nuevo.')],
     'reply' => [fn (User $member): Closure => fn (User $as) => app(ReplyToThread::class)->handle(forumThread(), $as, 'Hola a todos.')],
     'delete their thread' => [function (User $member): Closure {
         $thread = forumThread($member);
@@ -70,11 +75,17 @@ it('refuses members banned after their request was authorised', function (Closur
     'react' => [function (User $member): Closure {
         $reply = forumReply(forumThread());
 
-        return fn (User $as) => app(ReactToPost::class)->toggle($reply, $as, ReactionType::Like);
+        return fn (User $as) => app(ReactToPost::class)->handle($reply, $as, ReactionType::Like);
     }],
     'report' => [function (User $member): Closure {
         $reply = forumReply(forumThread());
 
         return fn (User $as) => app(ReportPost::class)->handle($reply, $as, ReportReason::Spam);
+    }],
+    'start a conversation' => [fn (User $member): Closure => fn (User $as) => app(StartConversation::class)->handle($as, collect([User::factory()->create()]), 'Una pregunta', 'Hola, ¿tienes un minuto?')],
+    'write a private message' => [function (User $member): Closure {
+        $conversation = app(StartConversation::class)->handle(User::factory()->create(), collect([$member]), 'Una pregunta', 'Hola, ¿tienes un minuto?');
+
+        return fn (User $as) => app(SendMessage::class)->handle($conversation, $as, 'Claro, dime.');
     }],
 ]);

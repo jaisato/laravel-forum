@@ -10,13 +10,16 @@ use App\Models\ConversationParticipant;
 use App\Models\Message;
 use App\Models\User;
 use App\Support\Markdown\MarkdownRenderer;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
-use InvalidArgumentException;
 
 /**
  * Adds a message to a conversation. Locking the conversation serialises its
  * messages, so their ids follow commit order (the read watermarks rely on
- * that). The sender's own message never counts as unread.
+ * that). The sender's own message never counts as unread. Under the lock it
+ * checks again that the sender, as stored now, still takes part in the
+ * conversation and may write (ConversationPolicy::reply): they may have
+ * left it or been banned while their request ran.
  */
 final class SendMessage
 {
@@ -35,8 +38,8 @@ final class SendMessage
                 ->whereNull('left_at')
                 ->first();
 
-            if ($membership === null) {
-                throw new InvalidArgumentException('Only active participants can write to a conversation.');
+            if ($membership === null || ! $sender->current()->canParticipate()) {
+                throw new AuthorizationException(__('You can no longer write to this conversation.'));
             }
 
             $message = $conversation->messages()->create([

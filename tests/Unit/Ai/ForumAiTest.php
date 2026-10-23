@@ -62,3 +62,16 @@ it('summarises which features the interface may offer', function () {
         'tags' => false,
     ]);
 });
+
+it('searches similar threads by vector only with the feature on and PostgreSQL', function () {
+    $ai = app(ForumAi::class);
+
+    config(['database.default' => 'sqlite']);
+    expect($ai->usesVectorSearch())->toBeFalse();
+
+    config(['database.default' => 'pgsql']);
+    expect($ai->usesVectorSearch())->toBeTrue();
+
+    config(['forum.ai.similar.enabled' => false]);
+    expect($ai->usesVectorSearch())->toBeFalse();
+});

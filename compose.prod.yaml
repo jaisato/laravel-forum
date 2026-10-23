@@ -1,0 +1,254 @@
+# Laravel Forum: the production stack (docs/04-despliegue.md).
+#
+#   cp .env.production.example .env.production       # then fill it in
+#   docker compose -f compose.prod.yaml --env-file .env.production pull
+#   docker compose -f compose.prod.yaml --env-file .env.production up -d --wait
+#
+# The images come from GHCR (release.yml) or from this checkout with
+# `docker compose -f compose.prod.yaml --env-file .env.production build`.
+# Caddy alone publishes ports (80 and 443, certificates included); the data
+# services live on an internal network with no way out. Each deployment runs
+# the migrations first (migrate) and the rest waits for them.
+
+name: laravel-forum-prod
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
+x-service: &service
+  restart: unless-stopped
+  logging: *logging
+  security_opt:
+    - no-new-privileges:true
+
+x-healthcheck: &healthcheck
+  interval: 30s
+  timeout: 5s
+  retries: 3
+  start_period: 60s
+  start_interval: 2s
+
+# The app image runs PHP-FPM, Horizon, the scheduler and the migrations.
+x-app: &app
+  <<: *service
+  image: ${IMAGE_PREFIX:-ghcr.io/jaisato/laravel-forum}-app:${IMAGE_TAG:-latest}
+  build:
+    context: .
+    target: app
+    args:
+      VITE_APP_NAME: ${APP_NAME:-Laravel Forum}
+  init: true
+  # The containers' environment. ENV_FILE points elsewhere for a throwaway
+  # stack (.github/scripts/smoke-test.sh) without touching .env.production.
+  env_file: ${ENV_FILE:-.env.production}
+  volumes:
+    - storage:/var/www/html/storage/app
+  networks: [app, data]
+
+x-after-migrations: &after-migrations
+  migrate:
+    condition: service_completed_successfully
+  postgres:
+    condition: service_healthy
+  redis:
+    condition: service_healthy
+  meilisearch:
+    condition: service_healthy
+
+services:
+  proxy:
+    <<: *service
+    image: caddy:2.11-alpine
+    environment:
+      SERVER_NAME: ${SERVER_NAME:?Set SERVER_NAME in .env.production}
+      ACME_EMAIL: ${ACME_EMAIL:?Set ACME_EMAIL in .env.production}
+    ports:
+      - 80:80
+      - 443:443
+      - 443:443/udp
+    volumes:
+      - ./docker/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks: [edge]
+    depends_on:
+      web:
+        condition: service_healthy
+    healthcheck:
+      <<: *healthcheck
+      test: [CMD, wget, -q, -O, /dev/null, http://127.0.0.1:2019/config/]
+    deploy:
+      resources:
+        limits: { cpus: "0.50", memory: 256M }
+
+  # Nginx: public/ and the avatars, read-only; PHP goes to app.
+  web:
+    <<: *service
+    image: ${IMAGE_PREFIX:-ghcr.io/jaisato/laravel-forum}-web:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      target: web
+      args:
+        VITE_APP_NAME: ${APP_NAME:-Laravel Forum}
+    read_only: true
+    tmpfs: [/tmp]
+    volumes:
+      - storage:/var/www/html/storage/app:ro
+    networks: [edge, app]
+    depends_on:
+      app:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits: { cpus: "0.50", memory: 256M }
+
+  app:
+    <<: *app
+    depends_on: *after-migrations
+    deploy:
+      resources:
+        limits: { cpus: "2", memory: 1G }
+
+  # The Inertia SSR server. Never publish its port: it also answers
+  # /shutdown.
+  ssr:
+    <<: *service
+    image: ${IMAGE_PREFIX:-ghcr.io/jaisato/laravel-forum}-ssr:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      target: ssr
+      args:
+        VITE_APP_NAME: ${APP_NAME:-Laravel Forum}
+    init: true
+    read_only: true
+    tmpfs: [/tmp]
+    networks: [app]
+    deploy:
+      resources:
+        limits: { cpus: "1", memory: 512M }
+
+  # Horizon finishes the jobs in hand on SIGTERM: the grace period outlasts
+  # the slowest supervisor (ai, 180 s).
+  queue:
+    <<: *app
+    command: [php, artisan, horizon]
+    stop_signal: SIGTERM
+    stop_grace_period: 200s
+    depends_on: *after-migrations
+    healthcheck:
+      <<: *healthcheck
+      test: [CMD, php, artisan, horizon:status]
+    deploy:
+      resources:
+        limits: { cpus: "1", memory: 1536M }
+
+  scheduler:
+    <<: *app
+    command: [php, artisan, schedule:work]
+    stop_signal: SIGTERM
+    depends_on: *after-migrations
+    healthcheck:
+      <<: *healthcheck
+      test: [CMD-SHELL, "pgrep -f 'artisan schedule:work' > /dev/null"]
+    deploy:
+      resources:
+        limits: { cpus: "0.50", memory: 256M }
+
+  # One-shot on every deployment: the migrations and the search settings.
+  migrate:
+    <<: *app
+    command:
+      - sh
+      - -c
+      - php artisan migrate --force && php artisan scout:sync-index-settings
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      meilisearch:
+        condition: service_healthy
+    healthcheck:
+      disable: true
+    deploy:
+      resources:
+        limits: { cpus: "1", memory: 512M }
+
+  postgres:
+    <<: *service
+    image: pgvector/pgvector:pg18
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:-forum}
+      POSTGRES_USER: ${DB_USERNAME:-forum}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env.production}
+    shm_size: 256m
+    volumes:
+      - postgres:/var/lib/postgresql
+    networks: [data]
+    healthcheck:
+      <<: *healthcheck
+      test: [CMD-SHELL, 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+    deploy:
+      resources:
+        limits: { cpus: "2", memory: 1G }
+
+  # Append-only file: the queued jobs survive a restart.
+  redis:
+    <<: *service
+    image: redis:8-alpine
+    command:
+      - redis-server
+      - --requirepass
+      - ${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env.production}
+      - --appendonly
+      - "yes"
+    environment:
+      REDISCLI_AUTH: ${REDIS_PASSWORD}
+    volumes:
+      - redis:/data
+    networks: [data]
+    healthcheck:
+      <<: *healthcheck
+      test: [CMD, redis-cli, ping]
+    deploy:
+      resources:
+        limits: { cpus: "1", memory: 512M }
+
+  meilisearch:
+    <<: *service
+    # An exact version: Meilisearch only opens a database written by its own
+    # version (upgrading: docs/04-despliegue.md, section 11).
+    image: getmeili/meilisearch:v1.24.0
+    environment:
+      MEILI_ENV: production
+      MEILI_MASTER_KEY: ${MEILISEARCH_KEY:?Set MEILISEARCH_KEY in .env.production}
+      MEILI_NO_ANALYTICS: "true"
+    volumes:
+      - meilisearch:/meili_data
+    networks: [data]
+    healthcheck:
+      <<: *healthcheck
+      test: [CMD, wget, -q, -O, /dev/null, http://127.0.0.1:7700/health]
+    deploy:
+      resources:
+        limits: { cpus: "1", memory: 1G }
+
+networks:
+  # Internet and Caddy.
+  edge: {}
+  # Nginx, PHP and SSR; PHP reaches out from here (mail, AI providers).
+  app: {}
+  # The data services: no way out.
+  data:
+    internal: true
+
+volumes:
+  # Uploads (avatars): storage/app, shared read-only with Nginx.
+  storage:
+  postgres:
+  redis:
+  meilisearch:
+  caddy_data:
+  caddy_config:

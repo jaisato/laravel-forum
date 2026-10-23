@@ -17,9 +17,14 @@
 /resources/js/wayfinder
 /vendor
 
-# Every environment file stays out of git. The two exceptions hold no
-# credentials: .env.example is the template and .env.testing configures the
-# test suite with fixtures that never address a real service.
+# Personal Docker Compose settings (Xdebug and the like), loaded on top of
+# compose.yaml: docs/03-desarrollo-local.md.
+/compose.override.yaml
+
+# Every environment file stays out of git. The exceptions hold no
+# credentials: .env.example and .env.production.example are templates and
+# .env.testing configures the test suite with fixtures that never address a
+# real service.
 .env
 .env.*
 !.env.example

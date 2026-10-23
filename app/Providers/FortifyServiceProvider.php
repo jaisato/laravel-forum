@@ -49,10 +49,7 @@ class FortifyServiceProvider extends ServiceProvider
         // Members sign in with their email address or their username; the
         // login form keeps Fortify's `email` field name for both.
         Fortify::authenticateUsing(function (Request $request): ?User {
-            $login = Str::lower(trim((string) $request->input(Fortify::username())));
-            $column = str_contains($login, '@') ? 'email' : 'username';
-
-            $user = User::query()->where($column, $login)->first();
+            $user = User::findByLogin((string) $request->input(Fortify::username()));
 
             return $user !== null && Hash::check((string) $request->input('password'), $user->password)
                 ? $user

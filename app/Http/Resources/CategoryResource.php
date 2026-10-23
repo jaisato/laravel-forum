@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Resources;
 
+use App\Http\Resources\Concerns\ResolvesNestedResources;
 use App\Models\Category;
 use App\Models\Thread;
 use Illuminate\Http\Request;
@@ -17,6 +18,8 @@ use Illuminate\Http\Resources\Json\JsonResource;
  */
 final class CategoryResource extends JsonResource
 {
+    use ResolvesNestedResources;
+
     /**
      * @return array<string, mixed>
      */
@@ -40,7 +43,7 @@ final class CategoryResource extends JsonResource
                 'title' => $thread->title,
                 'slug' => $thread->slug,
                 'last_posted_at' => $thread->last_posted_at?->toIso8601String(),
-                'last_poster' => UserResource::orErased($thread->lastPost?->author)?->resolve($request),
+                'last_poster' => UserResource::orErased($thread->lastPost?->author),
             ]),
         ];
     }

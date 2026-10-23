@@ -62,8 +62,8 @@ it('toggles a reaction on and off', function () {
     $post = Post::factory()->create();
     $member = User::factory()->create();
 
-    expect(reactions()->toggle($post, $member, ReactionType::Celebrate))->toBeTrue()
-        ->and(reactions()->toggle($post, $member, ReactionType::Celebrate))->toBeFalse()
+    expect(reactions()->handle($post, $member, ReactionType::Celebrate))->toBeTrue()
+        ->and(reactions()->handle($post, $member, ReactionType::Celebrate))->toBeFalse()
         ->and($post->reactions()->count())->toBe(0)
         ->and($post->author->fresh()->reputation)->toBe(0);
 });
@@ -88,7 +88,31 @@ it('refuses the reaction once the thread was locked after the request was author
     $authorised = Post::query()->findOrFail($reply->id);
     app(LockThread::class)->handle($reply->thread, User::factory()->moderator()->create());
 
-    expect(fn () => app(ReactToPost::class)->toggle($authorised, User::factory()->create(), ReactionType::Like))
+    expect(fn () => app(ReactToPost::class)->handle($authorised, User::factory()->create(), ReactionType::Like))
         ->toThrow(AuthorizationException::class);
     expect(Reaction::query()->count())->toBe(0);
+});
+
+it('gives and takes back a reaction whatever its state, never twice', function () {
+    $reply = forumReply(forumThread());
+    $member = User::factory()->create();
+
+    expect(reactions()->give($reply, $member, ReactionType::Like))->toBeTrue()
+        ->and(reactions()->give($reply, $member, ReactionType::Like))->toBeFalse()
+        ->and($reply->author->fresh()->reputation)->toBe(1)
+        ->and(reactions()->takeBack($reply, $member, ReactionType::Like))->toBeTrue()
+        ->and(reactions()->takeBack($reply, $member, ReactionType::Like))->toBeFalse()
+        ->and($reply->author->fresh()->reputation)->toBe(0);
+});
+
+it('neither gives nor takes back once the thread was locked after the request was authorised', function () {
+    $reply = forumReply(forumThread());
+    $member = User::factory()->create();
+    reactions()->give($reply, $member, ReactionType::Love);
+    $authorised = Post::query()->findOrFail($reply->id);
+    app(LockThread::class)->handle($reply->thread, User::factory()->moderator()->create());
+
+    expect(fn () => reactions()->give($authorised, $member, ReactionType::Like))->toThrow(AuthorizationException::class)
+        ->and(fn () => reactions()->takeBack($authorised, $member, ReactionType::Love))->toThrow(AuthorizationException::class);
+    expect(Reaction::query()->pluck('type')->map->value->all())->toBe(['love']);
 });

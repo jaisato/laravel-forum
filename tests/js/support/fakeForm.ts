@@ -5,6 +5,7 @@ export type FakeForm<T extends Record<string, unknown>> = T & {
     errors: Partial<Record<keyof T, string>>;
     processing: boolean;
     post: Mock;
+    put: Mock;
     patch: Mock;
     delete: Mock;
     reset: Mock;
@@ -30,6 +31,7 @@ export function fakeUseForm<T extends Record<string, unknown>>(
         errors: {},
         processing: false,
         post: vi.fn(),
+        put: vi.fn(),
         patch: vi.fn(),
         delete: vi.fn(),
         reset: vi.fn(() => Object.assign(form, defaults)),

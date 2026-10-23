@@ -9,15 +9,24 @@ use App\Models\ConversationParticipant;
 use App\Models\User;
 
 /**
- * Marks every message of the conversation as read for the member. The
- * marker only moves forward: a message the member sent meanwhile already
- * moved it past what this request saw.
+ * Marks the messages of the conversation as read for the member: all of
+ * them, or up to the last one they got to see. The marker only moves
+ * forward: a message the member sent meanwhile already moved it past what
+ * this request saw.
  */
 final class MarkConversationRead
 {
-    public function handle(Conversation $conversation, User $user): void
+    /**
+     * @param  int|null  $upTo  the last message the member got to see (a page of
+     *                          them, in the API); the whole conversation when null
+     */
+    public function handle(Conversation $conversation, User $user, ?int $upTo = null): void
     {
         $lastMessageId = (int) Conversation::query()->whereKey($conversation->id)->value('last_message_id');
+
+        if ($upTo !== null) {
+            $lastMessageId = min($lastMessageId, $upTo);
+        }
 
         ConversationParticipant::query()
             ->where('conversation_id', $conversation->id)

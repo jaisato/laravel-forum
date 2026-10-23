@@ -11,6 +11,7 @@ import { formatCount } from '@/lib/format';
 import { show as showCategory } from '@/routes/categories';
 import { show as showTag } from '@/routes/tags';
 import { show as showThread } from '@/routes/threads';
+import { show as showUser } from '@/routes/users';
 import type { ThreadSummary } from '@/types/forum';
 
 const props = defineProps<{
@@ -139,7 +140,14 @@ const count = (value: number) => formatCount(value, page.props.locale);
                     :href="showTag.url(tag.slug)"
                 />
                 <span data-test="thread-activity">
-                    {{ thread.author?.name ?? $t('Deleted user') }}
+                    <Link
+                        v-if="thread.author"
+                        :href="showUser.url(thread.author.username)"
+                        data-test="thread-author"
+                        class="hover:text-foreground hover:underline"
+                        >{{ thread.author.name }}</Link
+                    >
+                    <template v-else>{{ $t('Deleted user') }}</template>
                     <template v-if="answered">
                         ·
                         {{

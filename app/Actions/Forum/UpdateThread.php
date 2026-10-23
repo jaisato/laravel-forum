@@ -26,9 +26,12 @@ final class UpdateThread
     ) {}
 
     /**
-     * @param  array<int, int|string>  $tagIds
+     * A null title or tag list keeps the current one (the API's partial
+     * updates).
+     *
+     * @param  array<int, int|string>|null  $tagIds
      */
-    public function handle(Thread $thread, User $editor, string $title, array $tagIds): Thread
+    public function handle(Thread $thread, User $editor, ?string $title, ?array $tagIds): Thread
     {
         return DB::transaction(function () use ($thread, $editor, $title, $tagIds): Thread {
             // The copy the editor loaded may be stale (a moderator may have
@@ -41,10 +44,12 @@ final class UpdateThread
 
             $previousTitle = $thread->title;
 
-            $thread->fill(['title' => $title])->save();
+            $thread->fill(['title' => $title ?? $thread->title])->save();
 
             /** @var array{attached: array<int, int>, detached: array<int, int>} $tags */
-            $tags = $thread->tags()->sync(Tag::existingIds($tagIds));
+            $tags = $tagIds === null
+                ? ['attached' => [], 'detached' => []]
+                : $thread->tags()->sync(Tag::existingIds($tagIds));
 
             if ($this->counters->countsThread($thread)) {
                 $this->counters->applyTagChanges($tags['attached'], $tags['detached']);
@@ -61,7 +66,7 @@ final class UpdateThread
                 ]);
             }
 
-            ThreadUpdated::dispatch($thread);
+            ThreadUpdated::dispatch($thread, $thread->wasChanged('title'), $editor);
 
             return $thread;
         });

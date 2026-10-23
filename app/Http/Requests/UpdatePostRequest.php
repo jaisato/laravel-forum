@@ -4,14 +4,18 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\AuthorizesVisibleContent;
 use App\Models\Post;
+use Illuminate\Auth\Access\Response;
 use Illuminate\Foundation\Http\FormRequest;
 
 final class UpdatePostRequest extends FormRequest
 {
-    public function authorize(): bool
+    use AuthorizesVisibleContent;
+
+    public function authorize(): Response
     {
-        return $this->user()?->can('update', $this->editedPost()) ?? false;
+        return $this->inspectVisible('update', $this->editedPost());
     }
 
     /**

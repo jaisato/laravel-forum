@@ -1,12 +1,15 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Settings;
 
 use App\Actions\Users\DeleteAccount;
+use App\Actions\Users\UpdateProfile;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\ProfileDeleteRequest;
 use App\Http\Requests\Settings\ProfileUpdateRequest;
-use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -20,32 +23,32 @@ class ProfileController extends Controller
      */
     public function edit(Request $request): Response
     {
+        /** @var User $user */
+        $user = $request->user();
+
         return Inertia::render('settings/Profile', [
-            'mustVerifyEmail' => $request->user() instanceof MustVerifyEmail,
             'status' => $request->session()->get('status'),
+            // The name and the email come with every page (auth.user).
+            'profile' => [
+                'username' => $user->username,
+                'bio' => $user->bio,
+                'location' => $user->location,
+                'website' => $user->website,
+                'locale' => $user->locale,
+                'avatar_url' => $user->avatar_url,
+            ],
         ]);
     }
 
     /**
      * Update the user's profile information.
      */
-    public function update(ProfileUpdateRequest $request): RedirectResponse
+    public function update(ProfileUpdateRequest $request, UpdateProfile $updateProfile): RedirectResponse
     {
+        /** @var User $user */
         $user = $request->user();
-        $user->fill($request->validated());
 
-        $emailChanged = $user->isDirty('email');
-
-        if ($emailChanged) {
-            $user->email_verified_at = null;
-        }
-
-        $user->save();
-
-        // Unverified members cannot post: the new address needs its link now.
-        if ($emailChanged) {
-            $user->sendEmailVerificationNotification();
-        }
+        $updateProfile->handle($user, $request->profile(), $request->file('avatar'), $request->boolean('remove_avatar'));
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Profile updated.')]);
 

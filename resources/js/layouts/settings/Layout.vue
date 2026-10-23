@@ -5,11 +5,14 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { useCurrentUrl } from '@/composables/useCurrentUrl';
 import { toUrl } from '@/lib/utils';
+import { index as apiTokens } from '@/routes/api-tokens';
 import { edit as editAppearance } from '@/routes/appearance';
+import { edit as editNotifications } from '@/routes/notifications/preferences';
 import { edit as editProfile } from '@/routes/profile';
 import { edit as editSecurity } from '@/routes/security';
 import type { NavItem } from '@/types';
 
+// Titles are translation keys.
 const sidebarNavItems: NavItem[] = [
     {
         title: 'Profile',
@@ -18,6 +21,14 @@ const sidebarNavItems: NavItem[] = [
     {
         title: 'Security',
         href: editSecurity(),
+    },
+    {
+        title: 'Notifications',
+        href: editNotifications(),
+    },
+    {
+        title: 'API tokens',
+        href: apiTokens(),
     },
     {
         title: 'Appearance',
@@ -39,7 +50,7 @@ const { isCurrentOrParentUrl } = useCurrentUrl();
             <aside class="w-full max-w-xl lg:w-48">
                 <nav
                     class="flex flex-col space-y-1 space-x-0"
-                    aria-label="Settings"
+                    :aria-label="$t('Settings')"
                 >
                     <Button
                         v-for="item in sidebarNavItems"
@@ -53,7 +64,7 @@ const { isCurrentOrParentUrl } = useCurrentUrl();
                     >
                         <Link :href="item.href">
                             <component :is="item.icon" class="h-4 w-4" />
-                            {{ item.title }}
+                            {{ $t(item.title) }}
                         </Link>
                     </Button>
                 </nav>

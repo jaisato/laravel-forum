@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace App\Concerns;
 
+use App\Models\RetiredUsername;
 use App\Models\User;
+use App\Support\Locale;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\In;
 use Illuminate\Validation\Rules\NotIn;
 use Illuminate\Validation\Rules\Unique;
 
@@ -35,6 +39,24 @@ trait ProfileValidationRules
     }
 
     /**
+     * What members tell about themselves on their public profile, and the
+     * language of their interface and their emails.
+     *
+     * @return array<string, list<string|In>>
+     */
+    protected function aboutRules(): array
+    {
+        return [
+            'bio' => ['nullable', 'string', 'max:'.(int) config('forum.profiles.bio_max')],
+            'location' => ['nullable', 'string', 'max:'.(int) config('forum.profiles.location_max')],
+            // Profiles link it: web addresses only.
+            'website' => ['nullable', 'string', 'max:255', 'url:http,https'],
+            // Null: the language of the browser or the session.
+            'locale' => ['nullable', 'string', Rule::in(Locale::supported())],
+        ];
+    }
+
+    /**
      * Usernames are public handles used in profile URLs and @mentions, so
      * they are lower case ASCII and some are reserved for the forum itself.
      * The `deleted-` prefix is given to accounts erased on request.
@@ -54,6 +76,10 @@ trait ProfileValidationRules
             $userId === null
                 ? Rule::unique(User::class)
                 : Rule::unique(User::class)->ignore($userId),
+            // Left behind by someone else (RetiredUsername): their owner may
+            // take theirs back, nobody else may.
+            Rule::unique(RetiredUsername::class, 'username')
+                ->where(fn (Builder $retired): Builder => $userId === null ? $retired : $retired->where('user_id', '!=', $userId)),
         ];
     }
 

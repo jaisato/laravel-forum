@@ -25,7 +25,9 @@
         <!-- APP_ENV=testing makes Laravel load the tracked .env.testing instead
              of .env; tests/bootstrap.php mints a throwaway APP_KEY per run. -->
         <env name="APP_ENV" value="testing"/>
-        <env name="APP_MAINTENANCE_DRIVER" value="file"/>
+        <!-- Maintenance mode lives in each test process: a file under storage/
+             would answer 503 to the other parallel processes too. -->
+        <env name="APP_MAINTENANCE_DRIVER" value="array"/>
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="BROADCAST_CONNECTION" value="null"/>
         <env name="CACHE_STORE" value="array"/>

@@ -88,3 +88,19 @@ it('refuses the author once the thread was locked after the request was authoris
         ->toThrow(AuthorizationException::class);
     expect($thread->fresh()->title)->toBe($authorised->title);
 });
+
+it('keeps the title or the tags it is not given', function () {
+    $tag = Tag::factory()->create();
+    $thread = forumThread(tagIds: [$tag->id]);
+
+    app(UpdateThread::class)->handle($thread, $thread->author, 'Un título mucho mejor para el hilo', null);
+
+    expect($thread->fresh()->title)->toBe('Un título mucho mejor para el hilo')
+        ->and($thread->fresh()->tags->pluck('id')->all())->toBe([$tag->id]);
+
+    app(UpdateThread::class)->handle($thread, $thread->author, null, []);
+
+    expect($thread->fresh()->title)->toBe('Un título mucho mejor para el hilo')
+        ->and($thread->fresh()->tags)->toBeEmpty()
+        ->and($tag->fresh()->threads_count)->toBe(0);
+});

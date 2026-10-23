@@ -43,6 +43,7 @@ const code = ref<string>('');
 
 const pinInputContainerRef = useTemplateRef('pinInputContainerRef');
 
+// The texts are translation keys.
 const modalConfig = computed<TwoFactorConfigContent>(() => {
     if (props.twoFactorEnabled) {
         return {
@@ -142,9 +143,9 @@ watch(
                         />
                     </div>
                 </div>
-                <DialogTitle>{{ modalConfig.title }}</DialogTitle>
+                <DialogTitle>{{ $t(modalConfig.title) }}</DialogTitle>
                 <DialogDescription class="text-center">
-                    {{ modalConfig.description }}
+                    {{ $t(modalConfig.description) }}
                 </DialogDescription>
             </DialogHeader>
 
@@ -188,7 +189,7 @@ watch(
 
                         <div class="flex w-full items-center space-x-5">
                             <Button class="w-full" @click="handleModalNextStep">
-                                {{ modalConfig.buttonText }}
+                                {{ $t(modalConfig.buttonText) }}
                             </Button>
                         </div>
 
@@ -198,9 +199,9 @@ watch(
                             <div
                                 class="absolute inset-0 top-1/2 h-px w-full bg-border"
                             />
-                            <span class="relative bg-card px-2 py-1"
-                                >or, enter the code manually</span
-                            >
+                            <span class="relative bg-card px-2 py-1">{{
+                                $t('or enter the code by hand')
+                            }}</span>
                         </div>
 
                         <div
@@ -223,7 +224,9 @@ watch(
                                         class="h-full w-full bg-background p-3 text-foreground"
                                     />
                                     <button
+                                        type="button"
                                         class="relative block h-auto border-l border-border px-3 hover:bg-muted"
+                                        :aria-label="$t('Copy')"
                                         @click="copy(manualSetupKey || '')"
                                     >
                                         <Check
@@ -281,14 +284,14 @@ watch(
                                     :disabled="processing"
                                     @click="showVerificationStep = false"
                                 >
-                                    Back
+                                    {{ $t('Back') }}
                                 </Button>
                                 <Button
                                     type="submit"
                                     class="w-auto flex-1"
                                     :disabled="processing || code.length < 6"
                                 >
-                                    Confirm
+                                    {{ $t('Confirm') }}
                                 </Button>
                             </div>
                         </div>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// The title and the description are translation keys.
 type Props = {
     title: string;
     description?: string;
@@ -19,10 +20,10 @@ withDefaults(defineProps<Props>(), {
                     : 'text-xl font-semibold tracking-tight'
             "
         >
-            {{ title }}
+            {{ $t(title) }}
         </h2>
         <p v-if="description" class="text-sm text-muted-foreground">
-            {{ description }}
+            {{ $t(description) }}
         </p>
     </header>
 </template>

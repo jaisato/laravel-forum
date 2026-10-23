@@ -10,11 +10,13 @@ use App\Support\Markdown\MarkdownRenderer;
 
 final class NewPrivateMessage extends ForumNotification
 {
+    public const string TYPE = 'new_private_message';
+
     public function __construct(public Message $message) {}
 
     public function type(): string
     {
-        return 'new_private_message';
+        return self::TYPE;
     }
 
     /**

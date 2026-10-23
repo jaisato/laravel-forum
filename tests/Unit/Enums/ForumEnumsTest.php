@@ -10,6 +10,7 @@ use App\Enums\ReportSource;
 use App\Enums\ReportStatus;
 use App\Enums\Role;
 use App\Enums\ThreadStatus;
+use Filament\Support\Contracts\HasLabel;
 use Illuminate\Support\Facades\File;
 
 it('shows an emoji for every reaction', function () {
@@ -58,3 +59,18 @@ it('shows reaction and moderation labels in Spanish', function () {
         ->and(ModerationActionType::PostHidden->label())->toBe('Mensaje ocultado')
         ->and(ThreadStatus::PendingReview->label())->toBe('Pendiente de revisión');
 });
+
+it('gives the admin panel the same labels as the rest of the forum', function (string $enum) {
+    foreach ($enum::cases() as $case) {
+        expect($case)->toBeInstanceOf(HasLabel::class)
+            ->and($case->getLabel())->toBe($case->label());
+    }
+})->with([
+    Role::class,
+    ThreadStatus::class,
+    PostStatus::class,
+    ReportReason::class,
+    ReportSource::class,
+    ReportStatus::class,
+    ModerationActionType::class,
+]);

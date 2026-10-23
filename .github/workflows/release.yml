@@ -1,0 +1,124 @@
+name: Release
+
+# A v* tag publishes the production images to GHCR under the names
+# compose.prod.yaml expects (ghcr.io/<owner>/<repo>-{app,web,ssr}), tagged
+# 1.2.3, 1.2 and latest, with provenance and an SBOM, and then, if the
+# repository configures it, deploys that version over SSH to the protected
+# "production" environment (docs/04-despliegue.md, docs/07-testing-y-ci.md).
+#
+# The deployment needs:
+#   the repository variable DEPLOY_HOST (a repository one: the job's `if`
+#   is read before the environment's variables exist, so one set there would
+#   always skip the job); and, in the "production" environment, the
+#   variables DEPLOY_USER and DEPLOY_PATH (a clone of this repository with
+#   its .env.production) and the secrets DEPLOY_SSH_KEY (a private key
+#   allowed on the server) and DEPLOY_KNOWN_HOSTS (the server's line from
+#   `ssh-keyscan`, checked, never trusted on first use).
+# Without DEPLOY_HOST the job is skipped and the images are the release.
+
+on:
+  push:
+    tags: ['v*']
+
+permissions: {}
+
+concurrency:
+  group: release-${{ github.ref }}
+
+jobs:
+  images:
+    name: Imagen ${{ matrix.target }} en GHCR
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: true
+      matrix:
+        target: [app, web, ssr]
+    env:
+      COMPOSER_AUTH: '{"github-oauth":{"github.com":"${{ github.token }}"}}'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      # v1.2.3 → 1.2.3, 1.2 and latest (only for a stable version).
+      - id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ghcr.io/${{ github.repository }}-${{ matrix.target }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+
+      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          target: ${{ matrix.target }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          provenance: mode=max
+          sbom: true
+          cache-from: type=gha,scope=${{ matrix.target }}
+          cache-to: type=gha,mode=max,scope=release-${{ matrix.target }}
+          secret-envs: composer_auth=COMPOSER_AUTH
+
+  deploy:
+    name: Despliegue en producción (SSH)
+    needs: images
+    if: vars.DEPLOY_HOST != ''
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: production
+    concurrency:
+      group: deploy-production
+    permissions: {}
+    steps:
+      # The server checks out the tag (compose.prod.yaml and the Caddyfile of
+      # that version), points IMAGE_TAG at it and pulls the images. The new
+      # migrations run on their own first, while the current version still
+      # serves: `up` would stop app, queue and scheduler before its one-shot
+      # migrate, so a failing migration would leave the forum down. Then the
+      # stack comes up and the job waits for it to be healthy.
+      - name: Deploy the tagged version
+        env:
+          DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ vars.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          # The tag ends up in a sed expression on the server: versions only.
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]]; then
+            echo "Not a version tag: $TAG" >&2
+            exit 1
+          fi
+
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes -o BatchMode=yes \
+            "$DEPLOY_USER@$DEPLOY_HOST" bash -s -- "$DEPLOY_PATH" "$TAG" <<'REMOTE'
+          set -euo pipefail
+          cd "$1"
+          git fetch --quiet --tags origin
+          git checkout --quiet "$2"
+          sed -i "s/^IMAGE_TAG=.*/IMAGE_TAG=${2#v}/" .env.production
+          docker compose -f compose.prod.yaml --env-file .env.production pull
+          docker compose -f compose.prod.yaml --env-file .env.production run --rm migrate
+          docker compose -f compose.prod.yaml --env-file .env.production up -d --wait --remove-orphans
+          REMOTE

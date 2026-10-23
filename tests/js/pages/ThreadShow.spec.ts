@@ -116,6 +116,7 @@ const nothing: ThreadAbilities = {
     move: false,
     mark_solution: false,
     subscribe: false,
+    summarize: false,
 };
 
 function show(
@@ -148,7 +149,13 @@ function show(
             },
             ...props,
         },
-        global: { stubs: { ReportDialog: true, MoveThreadDialog: true } },
+        global: {
+            stubs: {
+                ReportDialog: true,
+                MoveThreadDialog: true,
+                EditThreadDialog: true,
+            },
+        },
         attachTo: document.body,
     });
 }
@@ -176,9 +183,56 @@ describe('threads/Show', () => {
         expect(wrapper.find('[data-test="ai-summary"]').exists()).toBe(false);
     });
 
+    it('links the author of the thread to their profile', () => {
+        const wrapper = show({
+            thread: thread({
+                author: {
+                    id: 3,
+                    name: 'Luis Pérez',
+                    username: 'luis',
+                    avatar_url: null,
+                    role: 'member',
+                },
+            }),
+        });
+
+        expect(
+            wrapper.get('[data-test="thread-author"]').attributes('href'),
+        ).toBe('/u/luis');
+        expect(show().find('a[data-test="thread-author"]').exists()).toBe(
+            false,
+        );
+    });
+
+    it('lists the related threads once they arrive', () => {
+        expect(show().find('[data-test="related-threads"]').exists()).toBe(
+            false,
+        );
+
+        const wrapper = show({
+            similar: [
+                {
+                    id: 9,
+                    title: 'Horizon no procesa nada',
+                    slug: 'horizon-no-procesa-nada',
+                    replies_count: 2,
+                    is_solved: false,
+                },
+            ],
+        });
+
+        expect(wrapper.get('[data-test="related-threads"]').text()).toContain(
+            'Horizon no procesa nada',
+        );
+    });
+
     it('shows the summary once it arrives', () => {
         const wrapper = show({
-            summary: { html: '<p>Usa Queue::fake().</p>', generated_at: null },
+            summary: {
+                html: '<p>Usa Queue::fake().</p>',
+                generated_at: null,
+                stale: false,
+            },
         });
 
         expect(wrapper.get('[data-test="ai-summary"]').html()).toContain(
@@ -247,6 +301,28 @@ describe('threads/Show', () => {
         expect(wrapper.get('[data-test="reply-blocker"]').text()).toContain(
             message,
         );
+    });
+
+    it('lets those who may edit the thread change its title and tags', async () => {
+        page.props.auth.user = member();
+        const tagOptions = [
+            { id: 3, name: 'colas', slug: 'colas', color: null },
+        ];
+        const wrapper = show({ can: { ...nothing, update: true }, tagOptions });
+
+        expect(wrapper.find('edit-thread-dialog-stub').exists()).toBe(false);
+
+        await wrapper.get('[data-test="edit-thread"]').trigger('click');
+
+        const dialog = wrapper.get('edit-thread-dialog-stub');
+        expect(dialog.attributes('open')).toBe('true');
+        expect(wrapper.vm.$props).toMatchObject({ tagOptions });
+    });
+
+    it('offers no edit to those who may not', () => {
+        page.props.auth.user = member();
+
+        expect(show().find('[data-test="edit-thread"]').exists()).toBe(false);
     });
 
     it('scrolls to the focused post, also after a reply', async () => {

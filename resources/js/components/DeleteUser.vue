@@ -26,21 +26,27 @@ const passwordInput = useTemplateRef('passwordInput');
         <Heading
             variant="small"
             title="Delete account"
-            description="Delete your account and all of its resources"
+            description="Erase your account and your personal data"
         />
         <div
             class="space-y-4 rounded-lg border border-red-100 bg-red-50 p-4 dark:border-red-200/10 dark:bg-red-700/10"
         >
             <div class="relative space-y-0.5 text-red-600 dark:text-red-100">
-                <p class="font-medium">Warning</p>
+                <p class="font-medium">{{ $t('Warning') }}</p>
                 <p class="text-sm">
-                    Please proceed with caution, this cannot be undone.
+                    {{
+                        $t(
+                            'This cannot be undone. Your threads and posts stay in the forum, credited to «Deleted user».',
+                        )
+                    }}
                 </p>
             </div>
             <Dialog>
                 <DialogTrigger as-child>
-                    <Button variant="destructive" data-test="delete-user-button"
-                        >Delete account</Button
+                    <Button
+                        variant="destructive"
+                        data-test="delete-user-button"
+                        >{{ $t('Delete account') }}</Button
                     >
                 </DialogTrigger>
                 <DialogContent>
@@ -55,28 +61,29 @@ const passwordInput = useTemplateRef('passwordInput');
                         @error="() => passwordInput?.focus()"
                     >
                         <DialogHeader class="space-y-3">
-                            <DialogTitle
-                                >Are you sure you want to delete your
-                                account?</DialogTitle
-                            >
+                            <DialogTitle>{{
+                                $t(
+                                    'Are you sure you want to delete your account?',
+                                )
+                            }}</DialogTitle>
                             <DialogDescription>
-                                Once your account is deleted, all of its
-                                resources and data will also be permanently
-                                deleted. Please enter your password to confirm
-                                you would like to permanently delete your
-                                account.
+                                {{
+                                    $t(
+                                        'Your name, email, picture, profile, API tokens and passkeys go for good; your threads, posts and private messages stay, credited to «Deleted user». Enter your password to confirm.',
+                                    )
+                                }}
                             </DialogDescription>
                         </DialogHeader>
 
                         <div class="grid gap-2">
-                            <Label for="password" class="sr-only"
-                                >Password</Label
-                            >
+                            <Label for="password" class="sr-only">{{
+                                $t('Password')
+                            }}</Label>
                             <PasswordInput
                                 id="password"
                                 ref="passwordInput"
                                 name="password"
-                                placeholder="Password"
+                                :placeholder="$t('Password')"
                             />
                             <InputError :message="errors.password" />
                         </div>
@@ -92,7 +99,7 @@ const passwordInput = useTemplateRef('passwordInput');
                                         }
                                     "
                                 >
-                                    Cancel
+                                    {{ $t('Cancel') }}
                                 </Button>
                             </DialogClose>
 
@@ -102,7 +109,7 @@ const passwordInput = useTemplateRef('passwordInput');
                                 :disabled="processing"
                                 data-test="confirm-delete-user-button"
                             >
-                                Delete account
+                                {{ $t('Delete account') }}
                             </Button>
                         </DialogFooter>
                     </Form>

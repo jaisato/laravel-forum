@@ -2,12 +2,15 @@
 
 declare(strict_types=1);
 
+use App\Actions\Forum\CreateThread;
 use App\Events\PostCreated;
 use App\Events\ThreadCreated;
 use App\Models\Category;
 use App\Models\Tag;
+use App\Models\Thread;
 use App\Models\ThreadRead;
 use App\Models\User;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\Event;
 
 it('creates the thread with its opening post', function () {
@@ -66,4 +69,23 @@ it('announces the thread and its opening post once committed', function () {
 
     Event::assertDispatched(ThreadCreated::class, fn (ThreadCreated $event): bool => $event->thread->is($thread));
     Event::assertDispatched(PostCreated::class, fn (PostCreated $event): bool => $event->post->is($thread->firstPost));
+});
+
+it('refuses the thread when the category was locked after the request was authorised', function () {
+    $category = Category::factory()->create();
+    // The copy the request authorised the thread on, before an administrator
+    // locked the category.
+    $authorised = Category::query()->findOrFail($category->id);
+    $category->forceFill(['is_locked' => true])->save();
+
+    expect(fn () => app(CreateThread::class)->handle(User::factory()->create(), $authorised, 'Un hilo en una categoría cerrada', 'El cuerpo del hilo.'))
+        ->toThrow(AuthorizationException::class);
+
+    expect(Thread::query()->count())->toBe(0)
+        ->and($category->fresh()->threads_count)->toBe(0);
+
+    // Staff may still open threads there.
+    app(CreateThread::class)->handle(User::factory()->moderator()->create(), $authorised, 'Un aviso del equipo de moderación', 'El cuerpo del aviso.');
+
+    expect($category->fresh()->threads_count)->toBe(1);
 });

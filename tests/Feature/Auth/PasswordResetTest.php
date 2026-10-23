@@ -60,6 +60,28 @@ it('resets the password with a valid token', function () {
     });
 });
 
+it('revokes the API tokens of an account whose password is reset', function () {
+    Notification::fake();
+    $user = User::factory()->create();
+    $user->createToken('Un script', ['read']);
+
+    post(route('password.email'), ['email' => $user->email]);
+
+    Notification::assertSentTo($user, ResetPassword::class, function (ResetPassword $notification) use ($user) {
+        post(route('password.update'), [
+            'token' => $notification->token,
+            'email' => $user->email,
+            'password' => 'otra-password',
+            'password_confirmation' => 'otra-password',
+        ])->assertSessionHasNoErrors();
+
+        return true;
+    });
+
+    // Whoever took the account and minted a token is out with the password.
+    expect($user->tokens()->count())->toBe(0);
+});
+
 it('refuses to reset the password with an invalid token', function () {
     $user = User::factory()->create();
 

@@ -48,6 +48,16 @@ abstract class ForumNotification extends Notification implements ShouldQueue
     }
 
     /**
+     * The post the notification is about, stored apart from the payload
+     * (ForumDatabaseChannel) so the notification can be withheld once the
+     * post stops being public.
+     */
+    public function postId(): ?int
+    {
+        return null;
+    }
+
+    /**
      * @return list<string>
      */
     public function via(User $notifiable): array

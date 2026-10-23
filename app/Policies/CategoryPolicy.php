@@ -24,6 +24,14 @@ class CategoryPolicy
         return $user->canAdminister();
     }
 
+    /**
+     * The order of the categories, dragged in the admin panel.
+     */
+    public function reorder(User $user): bool
+    {
+        return $user->canAdminister();
+    }
+
     public function update(User $user, Category $category): bool
     {
         return $user->canAdminister();

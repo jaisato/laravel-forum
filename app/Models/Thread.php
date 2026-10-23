@@ -67,6 +67,12 @@ class Thread extends Model
     ];
 
     /**
+     * Characters of the opening post read for a listing's excerpt: enough
+     * Markdown for a short summary without loading whole posts.
+     */
+    private const int EXCERPT_SOURCE_LENGTH = 600;
+
+    /**
      * @return array<string, string>
      */
     protected function casts(): array
@@ -224,6 +230,20 @@ class Thread extends Model
     }
 
     /**
+     * Adds excerpt_source, the start of the opening post, from which
+     * ThreadResource makes the excerpt of a listing.
+     *
+     * @param  Builder<self>  $query
+     * @return Builder<self>
+     */
+    public function scopeWithExcerptSource(Builder $query): Builder
+    {
+        return $query->addSelect(['excerpt_source' => Post::query()
+            ->selectRaw('substr(body, 1, '.self::EXCERPT_SOURCE_LENGTH.')')
+            ->whereColumn('posts.id', $query->qualifyColumn('first_post_id'))]);
+    }
+
+    /**
      * The scopeVisibleTo() rule for a single loaded thread; deleted threads
      * are visible to staff only.
      */
@@ -358,6 +378,48 @@ class Thread extends Model
     protected function makeAllSearchableUsing(Builder $query): Builder
     {
         return $query->with(['firstPost', 'tags']);
+    }
+
+    /**
+     * AI summaries are for public threads with enough replies to sum up
+     * (spec §4.6): everyone reads them.
+     */
+    public function canHaveSummary(): bool
+    {
+        return ! $this->trashed()
+            && $this->status === ThreadStatus::Published
+            && $this->replies_count >= (int) config('forum.ai.summaries.min_replies');
+    }
+
+    /**
+     * Forgets the AI summaries of these threads. A summary may restate what
+     * a post said before it was edited, hidden, held or deleted, or name an
+     * account that was erased since; the next one is written when someone
+     * asks for it.
+     *
+     * @param  Builder<self>  $threads
+     */
+    public static function forgetSummaries(Builder $threads): void
+    {
+        $threads->withoutGlobalScopes()->whereNotNull('ai_summary')->toBase()->update([
+            'ai_summary' => null,
+            'ai_summary_generated_at' => null,
+            'ai_summary_replies_count' => null,
+        ]);
+    }
+
+    /**
+     * Whether the stored summary should be written again: there is none,
+     * enough replies arrived since, or enough time went by.
+     */
+    public function summaryIsStale(): bool
+    {
+        if ($this->ai_summary === null || $this->ai_summary_generated_at === null) {
+            return true;
+        }
+
+        return $this->replies_count - (int) $this->ai_summary_replies_count >= (int) config('forum.ai.summaries.regenerate_after_replies')
+            || $this->ai_summary_generated_at->addHours((int) config('forum.ai.summaries.regenerate_after_hours'))->isPast();
     }
 
     public function isSolved(): bool

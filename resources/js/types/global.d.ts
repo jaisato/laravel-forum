@@ -24,6 +24,8 @@ declare module '@inertiajs/core' {
             features: { ai: AiFeatures };
             locale: string;
             locales: string[];
+            /** The address search engines should index the page under. */
+            canonical: string;
             [key: string]: unknown;
         };
         flashDataType: {

@@ -63,3 +63,13 @@ it('marks staff and banned members', function () {
         ->where('auth.user.is_staff', true)
         ->where('auth.user.is_banned', true));
 });
+
+it('gives search engines the address of each page, keeping only its page number', function (string $visited, string $canonical) {
+    $this->get($visited)->assertInertia(fn (Assert $page) => $page->where('canonical', url($canonical)));
+})->with([
+    'the home page' => ['/', '/'],
+    'a listing with its sort and filter' => ['/threads?sort=newest&filter=solved', '/threads'],
+    'a later page' => ['/threads?sort=newest&page=2', '/threads?page=2'],
+    'the first page' => ['/threads?page=1', '/threads'],
+    'a page number that is none' => ['/threads?page=abc', '/threads'],
+]);

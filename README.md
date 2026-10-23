@@ -1,94 +1,249 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Laravel Forum
 
-## About Forum
+[![CI](https://github.com/jaisato/laravel-forum/actions/workflows/ci.yml/badge.svg)](https://github.com/jaisato/laravel-forum/actions/workflows/ci.yml)
+[![Dependency audit](https://github.com/jaisato/laravel-forum/actions/workflows/audit.yml/badge.svg)](https://github.com/jaisato/laravel-forum/actions/workflows/audit.yml)
 
-This project is a Forum web application make with Laravel. 
-This repository is a project build with Laravel 11, Inertia, JetStream and Vue3. 
+Foro de comunidad bilingüe (español por defecto e inglés) construido con
+**Laravel 13**, **Inertia 3** y **Vue 3** con TypeScript, con renderizado en
+servidor (SSR), búsqueda en **Meilisearch** y colas en **Redis**. Se desarrolla
+y se despliega con **Docker**: un único `Dockerfile` *multi-stage* y Docker
+Compose para el entorno local y para producción.
 
-## Requirements
+El diseño completo (alcance, arquitectura, modelo de datos y seguridad) está en
+[docs/02-arquitectura.md](docs/02-arquitectura.md), y la reconstrucción siguió,
+tarea a tarea, el [plan](docs/plans/2026-10-22-reconstruccion-foro.md).
 
-To execute or work with this project, the next requirements is a must:
+## Funcionalidades
 
-- PHP 8.2
-- Composer
-- Docker and Docker Compose
+**Cuentas**
 
-## Installation and Configuration
+- Registro, inicio de sesión con email o nombre de usuario, verificación del
+  email y recuperación de la contraseña.
+- Segundo factor (TOTP con códigos de recuperación) y *passkeys*.
+- Ajustes de perfil (nombre, usuario, email, foto en WebP de 256×256,
+  biografía, ubicación, web e idioma), seguridad (contraseña, 2FA y
+  *passkeys*), notificaciones por email, mensajes privados, tokens de API con
+  permisos y apariencia (claro, oscuro o el del sistema).
+- Borrado de la cuenta con anonimización: los datos personales desaparecen y
+  los hilos y mensajes se quedan como «Usuario eliminado». Un nombre de usuario
+  que se deja (al cambiarlo o al borrar la cuenta) no lo puede tomar nadie más.
 
-This project is configured with Sail and Docker.
+**Foro**
 
-Configuration and installation steps:
+- Portada con categorías, últimos hilos y estadísticas; páginas de categoría y
+  de etiqueta.
+- Listado de hilos con filtros (sin respuesta, resueltos, sin resolver, los que
+  sigues…).
+- Creación de hilos con categoría y hasta cinco etiquetas, hilos parecidos
+  sugeridos mientras se escribe el título y borrador guardado en el navegador;
+  edición del título y las etiquetas.
+- Página de hilo: respuestas en Markdown con vista previa (renderizado seguro
+  en el servidor), citas, reacciones, menciones `@usuario`, solución marcada,
+  seguimiento del hilo y salto al primer mensaje sin leer.
+- Perfiles públicos (`/u/usuario`) con biografía, reputación y pestañas de
+  hilos y respuestas.
+- Búsqueda de hilos y mensajes con filtros por categoría y etiqueta; solo
+  encuentra contenido público.
+- Mensajes privados: conversaciones con uno o varios miembros (desde el perfil,
+  «Enviar un mensaje»), bandeja con lo no leído y abandonar una conversación.
+  Solo sus participantes las ven; tampoco el *staff*.
+- Reportes de mensajes y moderación en el propio hilo: fijar, cerrar, mover,
+  ocultar, aprobar y restaurar.
+- Notificaciones en la web (campana con contador que se actualiza sola y página
+  para abrirlas o marcarlas como leídas) y por email (en cola y según las
+  preferencias de cada miembro): respuestas en hilos seguidos, menciones,
+  soluciones aceptadas y moderación. Una notificación sobre un mensaje que se
+  oculta o se borra después deja de mostrar su contenido.
+- Límites de frecuencia por miembro al publicar, reaccionar y reportar.
+- SEO: páginas renderizadas en el servidor con título, descripción, URL
+  canónica y Open Graph; `sitemap.xml` y `robots.txt` generados; páginas de
+  error propias (404, 403, 429, 500 y mantenimiento).
+- Interfaz en español e inglés con selector de idioma.
 
-- Download or clone the repository
-- Go to root folder in the terminal
-- Execute: composer install
-- Execute: ./vendor/bin/sail up -d
+**API REST v1** (`/api/v1`)
 
-There are 3 Docker containers:
+- Tokens de Sanctum con permisos (`read`, `write`, `messages` y, para el
+  *staff*, `moderate`): desde los ajustes o con `POST /api/v1/auth/token`
+  (email o nombre de usuario, contraseña y el código de la verificación en dos
+  pasos si está activada); `DELETE` revoca el token con el que se llama.
+- `GET`/`PATCH /api/v1/me`: el perfil propio, el único sitio donde la API
+  muestra un email (que solo se cambia desde la web).
+- Lectura pública con token opcional (con él, se lee como su miembro):
+  categorías, etiquetas, hilos con los filtros de la web, mensajes de un hilo,
+  perfiles con sus hilos y respuestas, y búsqueda de hilos y mensajes.
+- Participación con el permiso `write`: crear, editar y borrar hilos y
+  mensajes, responder, reacciones y suscripción (`PUT`/`DELETE`
+  idempotentes), solución y reportes, con las mismas reglas que la web. Lo que
+  un miembro no puede ver responde 404, nunca 403.
+- Notificaciones (`read`), mensajes privados (`messages`) y moderación para el
+  *staff* (`moderate`): fijar, cerrar, mover y restaurar hilos; ocultar,
+  aprobar y restaurar mensajes; la cola de reportes, y banear y desbanear.
+- Documentación OpenAPI 3.1 generada desde el código en `/docs/api` (y
+  `/docs/api.json`); la guía está en [docs/05-api.md](docs/05-api.md).
+- Resúmenes de IA (`GET`/`POST /api/v1/threads/{id}/summary`) e hilos
+  relacionados (`GET /api/v1/threads/{id}/similar`).
+- Límites: 120 peticiones por minuto por miembro, 60 por dirección para los
+  invitados y cinco intentos por minuto al pedir un token.
 
-- laravel.test (image Sail 8.3): web server
-- mysql (image MySQL 8.0.32): MySQL server for databases
-- mailpit (image Mailpit latest): email service to send and receive emails in local environment
+**Panel de administración** (`/admin`, Filament 5)
 
-## Tests
+- Solo para el *staff*, con la cuenta del foro (verificación en dos pasos
+  incluida: el panel no tiene un formulario de acceso propio) y en el idioma
+  de cada uno.
+- Moderadores: la cola de reportes de miembros y de la IA (el más antiguo
+  primero) para resolver, ocultando el mensaje si hace falta, o descartar;
+  mensajes e hilos, también los borrados, para aprobar, ocultar, fijar,
+  cerrar, mover, borrar y restaurar; banear miembros (con motivo y, si se
+  quiere, fecha de fin) y levantar el baneo; y el registro de moderación.
+- Administradores, además: categorías (con su orden) y etiquetas, el rol de
+  cada miembro (nunca el propio), los emails y Horizon en `/horizon`.
+- Cada decisión pasa por las mismas acciones y *policies* que el foro y la API
+  y queda en el registro de moderación.
+- Escritorio con los miembros, hilos, mensajes y reportes abiertos, y la
+  actividad de los últimos 30 días.
+
+**Inteligencia artificial** (opcional, con laravel/ai)
+
+- Viene apagada: sin claves de ningún proveedor, el foro funciona entero y
+  no hace peticiones fuera. Se activa con `FORUM_AI_ENABLED=true` y cada
+  función tiene además su propio interruptor.
+- Moderación automática de los mensajes nuevos y editados: avisa al *staff*
+  de lo dudoso y retiene para revisión lo claramente dañino. Nunca borra ni
+  banea.
+- Resúmenes TL;DR de los hilos con cinco respuestas o más, a petición de los
+  miembros y con el aviso de que los escribe una IA.
+- Hilos similares por significado (*embeddings* en pgvector), con la
+  búsqueda por palabras como respaldo.
+- Sugerencia de etiquetas al abrir un hilo, siempre entre las que ya
+  existen.
+- Anthropic (texto) y OpenAI (*embeddings*) por defecto, cualquier proveedor
+  de laravel/ai o modelos locales con Ollama (`docker compose --profile ai
+  up -d ollama`). Proveedores, costes, privacidad y protección frente a la
+  inyección de instrucciones en [docs/06-ia.md](docs/06-ia.md).
+
+## Stack
+
+| Capa | Tecnologías |
+|---|---|
+| Backend | PHP 8.4, Laravel 13, Fortify (autenticación), Sanctum, Scout, Horizon, Wayfinder, laravel/ai |
+| Frontend | Inertia 3, Vue 3.5 + TypeScript, Vite 8, Tailwind CSS 4, shadcn-vue (Reka UI), laravel-vue-i18n |
+| Datos | PostgreSQL 18 con pgvector, Redis 8 (caché, sesiones y colas), Meilisearch |
+| Calidad | Pest, Larastan (nivel 7), Pint, Vitest, ESLint, Prettier, vue-tsc |
+| Infraestructura | Docker, Docker Compose, Nginx, Caddy (TLS en producción), GitHub Actions y GHCR |
+
+## Arranque rápido
+
+Solo hacen falta **Docker Engine 25 o posterior con Docker Compose v2**, **GNU
+Make** y **Git**: PHP, Composer, Node y los servicios de datos viven en
+contenedores.
+
+```bash
+git clone https://github.com/jaisato/laravel-forum.git
+cd laravel-forum
+make setup
+```
+
+`make setup` crea el `.env`, construye la imagen de desarrollo, instala las
+dependencias, crea la base de datos con datos de demostración y levanta todos
+los servicios. Después:
+
+- El foro: <http://localhost:8080>. Cuenta de administración:
+  `admin@example.com` / `password`; moderación: `moderador@example.com`; y diez
+  miembros de demostración (`ana@example.com`, `luis@example.com`…), todos con
+  la contraseña `password`.
+- Los correos que envía el foro: Mailpit en <http://localhost:8025>.
+
+La guía completa (servicios, Vite y SSR, depuración, problemas frecuentes) está
+en [docs/03-desarrollo-local.md](docs/03-desarrollo-local.md).
+
+## Comandos
+
+| Comando | Qué hace |
+|---|---|
+| `make up` / `make down` | Arranca o para el entorno (los datos se quedan en los volúmenes) |
+| `make ps` / `make logs` | Estado de los contenedores / sus logs (`make logs s=queue`) |
+| `make shell` / `make tinker` | Una shell o el REPL de Laravel en el contenedor `app` |
+| `make migrate` / `make fresh` | Migraciones pendientes / base de datos nueva con datos de demostración |
+| `make test` | Suite PHP (Pest, en paralelo, SQLite en memoria) |
+| `make test-pgsql` | Suite PHP sobre PostgreSQL 18 (base de datos `forum_testing`) |
+| `make test-js` | Suite de Vitest |
+| `make coverage` | Ambas suites con cobertura (PHP: mínimo del 95 %) |
+| `make lint` | Estilo, análisis estático y tipos: Pint, Larastan, ESLint, Prettier, vue-tsc y hadolint |
+| `make fix` | Corrige el estilo (Pint, ESLint y Prettier) |
+
+`make help` los lista todos.
+
+## Tests sin Docker
+
+Con PHP 8.4 (extensiones `pdo_sqlite`, `intl`, `gd`, `zip`…) y Composer:
 
 ```bash
 composer install
 composer test
 ```
 
-That is the whole procedure: no `.env` to create, no key to generate and no
-database server to start. `vendor/bin/pest` works just as well — `composer test`
-only adds `--fail-on-warning`. The suite reads the tracked `.env.testing`
-(selected by `APP_ENV=testing` in `phpunit.xml`) and runs against an in-memory
-SQLite database, so it leaves nothing behind.
+No hay que crear un `.env`, generar una clave ni levantar una base de datos: la
+suite lee el `.env.testing` versionado (lo selecciona `APP_ENV=testing` en
+`phpunit.xml`) y usa SQLite en memoria. `APP_KEY` es el único valor que ese
+fichero no lleva: `tests/bootstrap.php` genera una clave desechable en el
+entorno del proceso antes de arrancar el framework, de modo que ninguna clave
+se escribe en disco. Si defines `APP_KEY`, se respeta.
 
-`APP_KEY` is the one value `.env.testing` does not carry, and nothing writes it
-there. `tests/bootstrap.php` mints a throwaway key into the process environment
-before the framework boots, so each run gets its own and none of them outlive
-the process. Set `APP_KEY` yourself and it is left alone.
+`composer test` ejecuta Pest con `--fail-on-warning`: un aviso de PHP o de
+PHPUnit hace fallar la suite. Cómo está organizada, la cobertura y lo que
+comprueba CI en cada *pull request*: [docs/07-testing-y-ci.md](docs/07-testing-y-ci.md).
 
-CI runs `vendor/bin/pest --fail-on-warning`. Warnings are failures here for a
-reason: the suite's last two outages were a `tests/Unit` directory named in
-`phpunit.xml` but absent from the repository, which aborted PHPUnit before any
-test ran, and a missing environment file, which attached a PHP warning to every
-test while they all still reported green.
+## Producción
 
-## License
+`compose.prod.yaml` despliega el foro con Caddy (HTTPS automático) delante de
+Nginx, PHP-FPM, el servidor SSR, Horizon y el planificador, con PostgreSQL,
+Redis y Meilisearch en una red interna sin salida. Cada despliegue ejecuta
+antes las migraciones.
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+```bash
+cp .env.production.example .env.production   # y completa sus valores
+docker compose -f compose.prod.yaml --env-file .env.production up -d --wait
+```
 
-## Security notice: rotate the previously committed credentials
+Cada *tag* `v*` publica las imágenes en GitHub Container Registry y, si el
+repositorio lo tiene configurado, despliega esa versión por SSH. Todos los pasos
+(requisitos, actualizaciones, publicación, copias de seguridad y ajustes) en
+[docs/04-despliegue.md](docs/04-despliegue.md), y cómo protege el foro las
+cuentas y los datos, en [docs/08-seguridad.md](docs/08-seguridad.md).
 
-`.env.local`, `.env.testing` and `.env.example` were tracked in git with a real
-`APP_KEY` and database password. They have been untracked and `.gitignore` now
-covers every `.env.*` file except `.env.example`, but **the values remain in the
-git history** and must be treated as compromised:
+## Documentación
 
-1. Generate a new application key: `php artisan key:generate`.
-   Note this invalidates existing sessions, signed URLs, and anything else
-   encrypted with the old key.
-2. Change the `forum_user` / `root` database passwords on every environment that
-   used them.
-3. Purge the values from history (`git filter-repo` or BFG) and force-push if
-   this repository is or ever was public.
+- [01 · Evaluación inicial](docs/01-evaluacion-inicial.md): el punto de partida
+  y por qué se reconstruyó.
+- [02 · Arquitectura](docs/02-arquitectura.md): la especificación de diseño.
+- [03 · Desarrollo local](docs/03-desarrollo-local.md): el entorno con Docker
+  Compose.
+- [04 · Despliegue](docs/04-despliegue.md): producción con `compose.prod.yaml`.
+- [05 · API](docs/05-api.md): autenticación, permisos, convenciones, límites y
+  rutas de la API REST v1.
+- [06 · IA](docs/06-ia.md): las funciones de IA, cómo activarlas, proveedores,
+  costes, privacidad y modelos locales con Ollama.
+- [07 · Tests y CI](docs/07-testing-y-ci.md): la suite, cómo escribir tests,
+  cobertura, análisis estático, los *workflows* de GitHub Actions y el *smoke
+  test* de producción.
+- [08 · Seguridad](docs/08-seguridad.md): cuentas, permisos, contenido de los
+  miembros, datos personales, producción, secretos y riesgos conocidos.
 
-Copy `.env.example` to `.env` locally and fill in your own values.
+## Aviso de seguridad: credenciales en el historial
 
-`.env.testing` is tracked again, but it is not the file that leaked, and it no
-longer carries a key at all. Every value in it is a fixture — an in-memory
-database, array mail and cache drivers — that addresses no real service.
+`.env.local`, `.env.testing` y `.env.example` estuvieron versionados con una
+`APP_KEY` y una contraseña de base de datos reales. Ya no lo están y
+`.gitignore` excluye todos los `.env.*` salvo las plantillas, pero **esos
+valores siguen en el historial de git** y deben considerarse comprometidos:
 
-It did briefly ship with a freshly generated `APP_KEY`, on the argument that a
-test key encrypts only values that live and die inside one test run.
-GitGuardian flagged it and was right to: a valid Laravel key in the repository
-cannot be told apart from a production one by anything reading the file, and
-the argument holds only until somebody copies `.env.testing` to `.env`.
+1. Genera una clave nueva en cada entorno que usara la antigua (`php artisan
+   key:generate`). Invalida las sesiones, las URL firmadas y todo lo cifrado con
+   la clave anterior.
+2. Cambia las contraseñas de los usuarios de base de datos `forum_user` y `root`
+   allí donde se usaran.
+3. Si el repositorio es o fue público, purga esos valores del historial
+   (`git filter-repo` o BFG) y fuerza la subida.
 
-Generating one into that file on the first test run — the next attempt — was no
-better. It left every clean clone with a modified tracked file holding a real
-key, and git tracks modifications whatever `.gitignore` says, so `git commit -a`
-would have put it straight back. So the key is never written down at all: see
-`tests/bootstrap.php`.
+## Licencia
 
-Deployed values stay in the untracked `.env`.
+MIT, según `composer.json`.

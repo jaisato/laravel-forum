@@ -7,26 +7,45 @@ namespace App\Policies;
 use App\Models\Conversation;
 use App\Models\ConversationParticipant;
 use App\Models\User;
+use Illuminate\Auth\Access\Response;
 
 /**
  * Private conversations are visible to their active participants only,
- * staff included: there is no moderator override.
+ * staff included: there is no moderator override. Everyone else gets a 404,
+ * so a conversation does not even show it exists.
  */
 class ConversationPolicy
 {
-    public function view(User $user, Conversation $conversation): bool
+    public function view(User $user, Conversation $conversation): Response
     {
-        return $this->isActiveParticipant($user, $conversation);
+        return $this->isActiveParticipant($user, $conversation) ? Response::allow() : Response::denyAsNotFound();
     }
 
-    public function reply(User $user, Conversation $conversation): bool
+    /**
+     * Banned or unverified participants still read the conversation, but
+     * may not write to it.
+     */
+    public function reply(User $user, Conversation $conversation): Response
     {
-        return $user->canParticipate() && $this->isActiveParticipant($user, $conversation);
+        if (! $this->isActiveParticipant($user, $conversation)) {
+            return Response::denyAsNotFound();
+        }
+
+        return $user->canParticipate() ? Response::allow() : Response::deny();
     }
 
-    public function leave(User $user, Conversation $conversation): bool
+    public function leave(User $user, Conversation $conversation): Response
     {
-        return $this->isActiveParticipant($user, $conversation);
+        return $this->view($user, $conversation);
+    }
+
+    /**
+     * Opening the new conversation form; who may be written to is
+     * message().
+     */
+    public function create(User $user): bool
+    {
+        return $user->canParticipate();
     }
 
     /**

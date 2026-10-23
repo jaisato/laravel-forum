@@ -143,6 +143,16 @@ describe('ThreadListItem', () => {
         expect(activity.text()).not.toContain('Last reply');
     });
 
+    it('links the author to their profile', () => {
+        const wrapper = mount(ThreadListItem, {
+            props: { thread: summary() },
+        });
+
+        expect(
+            wrapper.get('[data-test="thread-author"]').attributes('href'),
+        ).toBe('/u/ana');
+    });
+
     it('credits the last reply of an answered thread', () => {
         const wrapper = mount(ThreadListItem, {
             props: {
@@ -181,6 +191,9 @@ describe('ThreadListItem', () => {
 
         expect(activity.text()).toContain('Deleted user');
         expect(activity.text()).toContain('Last reply by Deleted user');
+        expect(wrapper.find('a[data-test="thread-author"]').exists()).toBe(
+            false,
+        );
     });
 
     it('links the category and the tags', () => {

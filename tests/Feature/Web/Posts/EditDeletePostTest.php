@@ -79,3 +79,20 @@ it('lets staff restore a deleted post', function () {
 
     expect($reply->fresh()->trashed())->toBeFalse();
 });
+
+it('slows down members who edit too often', function () {
+    $reply = forumReply(forumThread());
+
+    foreach (range(1, 10) as $edit) {
+        $this->actingAs($reply->author)
+            ->patch(route('posts.update', $reply), ['body' => "Versión número {$edit}."])
+            ->assertSessionHasNoErrors();
+    }
+
+    $this->actingAs($reply->author)
+        ->from(route('threads.show', $reply->thread))
+        ->patch(route('posts.update', $reply), ['body' => 'Una de más.'])
+        ->assertInertiaFlash('toast', ['type' => 'error', 'message' => 'Too many attempts. Please wait a moment.']);
+
+    expect($reply->fresh()->body)->toBe('Versión número 10.');
+});

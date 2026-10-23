@@ -1,0 +1,189 @@
+# Laravel Forum: the development environment (docs/03-desarrollo-local.md).
+#
+#   make setup   first start: .env, image, dependencies, database, search
+#   make up      start everything      make down   stop it
+#   make help    every other shortcut
+#
+# The forum answers on http://localhost:8080 and Mailpit shows the emails on
+# http://localhost:8025. app, vite, queue and scheduler run the dev image
+# over the mounted code as the host user (HOST_UID and HOST_GID, which the
+# Makefile sets). Optional profiles: `ssr` (the production SSR bundle) and
+# `ai` (Ollama, for local models).
+
+name: laravel-forum
+
+x-dev: &dev
+  build:
+    context: .
+    target: dev
+    args:
+      UID: ${HOST_UID:-1000}
+      GID: ${HOST_GID:-1000}
+  image: laravel-forum/dev
+  init: true
+  volumes:
+    - .:/var/www/html
+  extra_hosts:
+    - host.docker.internal:host-gateway
+
+x-healthcheck: &healthcheck
+  interval: 10s
+  timeout: 5s
+  retries: 5
+  start_period: 60s
+  start_interval: 2s
+
+x-data: &data
+  postgres:
+    condition: service_healthy
+  redis:
+    condition: service_healthy
+  meilisearch:
+    condition: service_healthy
+  mailpit:
+    condition: service_healthy
+
+services:
+  app:
+    <<: *dev
+    depends_on: *data
+    healthcheck:
+      <<: *healthcheck
+      test: [CMD, php-fpm-healthcheck]
+
+  web:
+    image: nginx:1.29-alpine3.23
+    user: nginx
+    ports:
+      - 127.0.0.1:${APP_PORT:-8080}:8080
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./public:/var/www/html/public:ro
+      - ./storage/app/public:/var/www/html/storage/app/public:ro
+    depends_on:
+      app:
+        condition: service_healthy
+    healthcheck:
+      <<: *healthcheck
+      test: [CMD, wget, -q, -O, /dev/null, http://127.0.0.1:8080/up]
+
+  # Vite with hot reload; the Wayfinder plugin runs PHP, hence the dev image.
+  # Run directly (not through npm) so it gets the stop signal and removes
+  # public/hot on its way out.
+  vite:
+    <<: *dev
+    command:
+      - ./node_modules/.bin/vite
+      - --host=0.0.0.0
+      - --port=5173
+      - --strictPort
+    environment:
+      VITE_HMR_HOST: localhost
+      VITE_ALLOWED_HOSTS: vite
+    ports:
+      - 127.0.0.1:5173:5173
+    healthcheck:
+      <<: *healthcheck
+      test: [CMD, wget, -q, -O, /dev/null, http://127.0.0.1:5173/@vite/client]
+
+  # queue:listen loads the code again for each job. The timeout matches
+  # Horizon's slowest supervisor (ai, config/horizon.php).
+  queue:
+    <<: *dev
+    command:
+      - php
+      - artisan
+      - queue:listen
+      - --queue=default,ai
+      - --tries=3
+      - --timeout=180
+    depends_on: *data
+    healthcheck:
+      <<: *healthcheck
+      test: [CMD-SHELL, "pgrep -f 'artisan queue:listen' > /dev/null"]
+
+  scheduler:
+    <<: *dev
+    command: [php, artisan, schedule:work]
+    depends_on: *data
+    healthcheck:
+      <<: *healthcheck
+      test: [CMD-SHELL, "pgrep -f 'artisan schedule:work' > /dev/null"]
+
+  # The production SSR bundle (`npm run build:ssr`), for trying it without
+  # the Vite dev server: Laravel renders through it when public/hot is gone.
+  ssr:
+    <<: *dev
+    profiles: [ssr]
+    command: [node, bootstrap/ssr/ssr.js]
+    healthcheck:
+      <<: *healthcheck
+      test: [CMD, wget, -q, -O, /dev/null, http://127.0.0.1:13714/health]
+
+  # PostgreSQL 18 with pgvector. docker/postgres/init creates the vector
+  # extension and the forum_testing database on the first start.
+  postgres:
+    image: pgvector/pgvector:pg18
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:-forum}
+      POSTGRES_USER: ${DB_USERNAME:-forum}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-forum-dev-password}
+    ports:
+      - 127.0.0.1:${FORWARD_DB_PORT:-5432}:5432
+    volumes:
+      - postgres:/var/lib/postgresql
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      <<: *healthcheck
+      test: [CMD-SHELL, 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+
+  redis:
+    image: redis:8-alpine
+    ports:
+      - 127.0.0.1:${FORWARD_REDIS_PORT:-6379}:6379
+    volumes:
+      - redis:/data
+    healthcheck:
+      <<: *healthcheck
+      test: [CMD, redis-cli, ping]
+
+  meilisearch:
+    # An exact version: Meilisearch only opens a database written by its own
+    # version (upgrading: docs/04-despliegue.md, section 11).
+    image: getmeili/meilisearch:v1.24.0
+    environment:
+      MEILI_ENV: development
+      MEILI_MASTER_KEY: ${MEILISEARCH_KEY:-forum-dev-master-key-change-me}
+      MEILI_NO_ANALYTICS: "true"
+    ports:
+      - 127.0.0.1:${FORWARD_MEILISEARCH_PORT:-7700}:7700
+    volumes:
+      - meilisearch:/meili_data
+    healthcheck:
+      <<: *healthcheck
+      test: [CMD, wget, -q, -O, /dev/null, http://127.0.0.1:7700/health]
+
+  mailpit:
+    image: axllent/mailpit:v1.27
+    ports:
+      - 127.0.0.1:${FORWARD_MAILPIT_DASHBOARD_PORT:-8025}:8025
+    healthcheck:
+      <<: *healthcheck
+      test: [CMD, /mailpit, readyz]
+
+  # Local models for the AI features: `docker compose --profile ai up -d`,
+  # then `docker compose exec ollama ollama pull <model>` (docs/06-ia.md).
+  ollama:
+    image: ollama/ollama:0.12.6
+    profiles: [ai]
+    volumes:
+      - ollama:/root/.ollama
+    healthcheck:
+      <<: *healthcheck
+      test: [CMD, ollama, list]
+
+volumes:
+  postgres:
+  redis:
+  meilisearch:
+  ollama:

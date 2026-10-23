@@ -21,7 +21,7 @@ final class PostReactionController extends Controller
         /** @var User $member */
         $member = $request->user();
 
-        $reactToPost->toggle($post, $member, $request->type());
+        $reactToPost->handle($post, $member, $request->type());
 
         return back();
     }

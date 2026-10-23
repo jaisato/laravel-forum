@@ -16,6 +16,15 @@ use Illuminate\Auth\Access\Response;
 class ThreadPolicy
 {
     /**
+     * The staff's list of threads in the admin panel, deleted and hidden ones
+     * included; the forum's own lists need no check.
+     */
+    public function viewAny(User $user): bool
+    {
+        return $user->canModerate();
+    }
+
+    /**
      * Threads the viewer may not see answer 404, so their existence does not
      * leak (Review Focus 2).
      */
@@ -24,10 +33,18 @@ class ThreadPolicy
         return $thread->isVisibleTo($user) ? Response::allow() : Response::denyAsNotFound();
     }
 
+    /**
+     * Whether the user may open the new thread form: some category takes
+     * their threads.
+     */
+    public function createAny(User $user): bool
+    {
+        return Category::query()->get()->contains(fn (Category $category): bool => $category->acceptsThreadsFrom($user));
+    }
+
     public function create(User $user, Category $category): bool
     {
-        return $user->canModerate()
-            || ($user->canParticipate() && ! $category->is_locked);
+        return $category->acceptsThreadsFrom($user);
     }
 
     public function update(User $user, Thread $thread): bool
@@ -84,8 +101,6 @@ class ThreadPolicy
      */
     public function summarize(User $user, Thread $thread): bool
     {
-        return $user->canParticipate()
-            && $thread->isVisibleTo($user)
-            && $thread->replies_count >= (int) config('forum.ai.summaries.min_replies');
+        return $user->canParticipate() && $thread->canHaveSummary();
     }
 }

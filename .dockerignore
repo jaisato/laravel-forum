@@ -1,0 +1,62 @@
+# Build context of the Dockerfile: the sources the images are built from.
+# Whatever the build generates (vendor, node_modules, Wayfinder, Vite, SSR)
+# is made again inside it; secrets and local data never get in.
+
+# Repository, tooling and editors
+.git
+.github
+.superpowers
+.idea
+.vscode
+**/.DS_Store
+
+# Secrets and local settings
+.env
+.env.*
+auth.json
+
+# Dependencies and generated files
+vendor
+node_modules
+public/build
+public/hot
+public/storage
+public/css/filament
+public/fonts/filament
+public/js/filament
+bootstrap/ssr
+bootstrap/cache/*.php
+resources/js/actions
+resources/js/routes
+resources/js/wayfinder
+
+# Runtime data (the directories stay: their .gitignore files go in)
+storage/app/private/*
+storage/app/public/*
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/testing/*
+storage/framework/views/*
+storage/logs/*
+!storage/**/.gitignore
+
+# Not needed to run the forum: docs, tests and the tools of development
+coverage
+docs
+tests
+.phpunit.cache
+.phpunit.result.cache
+.editorconfig
+.hadolint.yaml
+.prettierignore
+.prettierrc.json
+components.json
+eslint.config.js
+phpstan.neon
+phpunit.xml
+pint.json
+vitest.config.ts
+Dockerfile
+.dockerignore
+compose*.yaml
+Makefile

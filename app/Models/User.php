@@ -8,6 +8,7 @@ use App\Enums\Role;
 use Carbon\CarbonImmutable;
 use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
+use Filament\Models\Contracts\HasAvatar;
 use Filament\Panel;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Contracts\Translation\HasLocalePreference;
@@ -18,6 +19,7 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -61,7 +63,7 @@ use Laravel\Sanctum\HasApiTokens;
  */
 #[Fillable(['name', 'username', 'email', 'password', 'locale', 'bio', 'location', 'website', 'preferences'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
-class User extends Authenticatable implements FilamentUser, HasLocalePreference, MustVerifyEmail, PasskeyUser
+class User extends Authenticatable implements FilamentUser, HasAvatar, HasLocalePreference, MustVerifyEmail, PasskeyUser
 {
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, Notifiable, PasskeyAuthenticatable, SoftDeletes, TwoFactorAuthenticatable;
@@ -80,6 +82,16 @@ class User extends Authenticatable implements FilamentUser, HasLocalePreference,
     ];
 
     /**
+     * API token abilities every member may grant (tokenAbilities()).
+     */
+    public const array TOKEN_ABILITIES = ['read', 'write', 'messages'];
+
+    /**
+     * API token abilities only staff may grant (tokenAbilities()).
+     */
+    public const array STAFF_TOKEN_ABILITIES = ['moderate'];
+
+    /**
      * The database defaults, so a model that was just saved behaves like a
      * reloaded one.
      *
@@ -91,6 +103,20 @@ class User extends Authenticatable implements FilamentUser, HasLocalePreference,
         'threads_count' => 0,
         'posts_count' => 0,
     ];
+
+    /**
+     * A new password locks out whoever had the old one: API tokens never
+     * expire, so they go with it, whether the password was reset (after it
+     * was stolen, say) or changed from the settings.
+     */
+    protected static function booted(): void
+    {
+        static::updated(function (self $user): void {
+            if ($user->wasChanged('password')) {
+                $user->tokens()->delete();
+            }
+        });
+    }
 
     /**
      * Get the attributes that should be cast.
@@ -143,6 +169,17 @@ class User extends Authenticatable implements FilamentUser, HasLocalePreference,
             ->withTimestamps();
     }
 
+    /**
+     * The member's notifications, newest first, as UserNotification models
+     * (the database channel stores new ones through this relation too).
+     *
+     * @return MorphMany<UserNotification, $this>
+     */
+    public function notifications(): MorphMany
+    {
+        return $this->morphMany(UserNotification::class, 'notifiable')->latest();
+    }
+
     public function isAdmin(): bool
     {
         return $this->role === Role::Admin;
@@ -166,6 +203,18 @@ class User extends Authenticatable implements FilamentUser, HasLocalePreference,
     {
         return $this->banned_at !== null
             && ($this->banned_until === null || $this->banned_until->isFuture());
+    }
+
+    /**
+     * The member a login names: an email address or, without "@", a
+     * username, in any case. The login form and the API token endpoint take
+     * either in the same field.
+     */
+    public static function findByLogin(string $login): ?self
+    {
+        $login = Str::lower(trim($login));
+
+        return self::query()->where(str_contains($login, '@') ? 'email' : 'username', $login)->first();
     }
 
     /**
@@ -233,6 +282,25 @@ class User extends Authenticatable implements FilamentUser, HasLocalePreference,
         return Gate::forUser($this)->allows('access-admin');
     }
 
+    /**
+     * The member's own avatar in the admin panel (initials without one).
+     */
+    public function getFilamentAvatarUrl(): ?string
+    {
+        return $this->avatar_url;
+    }
+
+    /**
+     * The abilities the member may give an API token: reading, writing,
+     * private messages and, for staff, moderation.
+     *
+     * @return list<string>
+     */
+    public function tokenAbilities(): array
+    {
+        return [...self::TOKEN_ABILITIES, ...($this->canModerate() ? self::STAFF_TOKEN_ABILITIES : [])];
+    }
+
     public function acceptsPrivateMessages(): bool
     {
         return $this->preferences['allow_private_messages'];
@@ -256,6 +324,21 @@ class User extends Authenticatable implements FilamentUser, HasLocalePreference,
             ->where(fn (Builder $query) => $query
                 ->whereNull('banned_at')
                 ->orWhere('banned_until', '<=', now()));
+    }
+
+    /**
+     * The SQL side of isBanned(): banned right now, for good or until a
+     * date still to come.
+     *
+     * @param  Builder<self>  $query
+     * @return Builder<self>
+     */
+    public function scopeBanned(Builder $query): Builder
+    {
+        return $query->whereNotNull('banned_at')
+            ->where(fn (Builder $query) => $query
+                ->whereNull('banned_until')
+                ->orWhere('banned_until', '>', now()));
     }
 
     /**

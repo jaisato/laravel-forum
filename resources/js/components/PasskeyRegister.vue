@@ -61,11 +61,11 @@ const handleCancel = () => {
 
 <template>
     <div v-if="!isSupported" class="text-sm text-muted-foreground">
-        Passkeys are not supported in this browser.
+        {{ $t('Passkeys are not supported in this browser.') }}
     </div>
 
     <Button v-else-if="!showForm" variant="outline" @click="showForm = true">
-        Add passkey
+        {{ $t('Add passkey') }}
     </Button>
 
     <form
@@ -74,17 +74,17 @@ const handleCancel = () => {
         @submit="handleSubmit"
     >
         <div class="grid gap-2">
-            <Label for="passkey-name">Passkey name</Label>
+            <Label for="passkey-name">{{ $t('Passkey name') }}</Label>
             <Input
                 id="passkey-name"
                 v-model="name"
                 v-focus
                 type="text"
-                placeholder="e.g., MacBook Pro, iPhone"
+                :placeholder="$t('e.g. MacBook Pro, iPhone')"
                 class="mt-1 block w-full border-foreground/20"
             />
             <p class="text-xs text-muted-foreground">
-                A name helps you identify this passkey later.
+                {{ $t('A name helps you recognise this passkey later.') }}
             </p>
         </div>
 
@@ -92,10 +92,10 @@ const handleCancel = () => {
 
         <div class="flex gap-2">
             <Button type="submit" :disabled="isLoading || !name.trim()">
-                {{ isLoading ? 'Registering...' : 'Register passkey' }}
+                {{ isLoading ? $t('Registering…') : $t('Register passkey') }}
             </Button>
             <Button type="button" variant="ghost" @click="handleCancel">
-                Cancel
+                {{ $t('Cancel') }}
             </Button>
         </div>
     </form>
