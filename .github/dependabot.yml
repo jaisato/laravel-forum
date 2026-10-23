@@ -1,0 +1,78 @@
+# Weekly, grouped dependency updates (spec §13): one pull request per
+# ecosystem with its minor and patch updates, and one per major version, so
+# a breaking change never hides among the routine ones. CI judges each of
+# them like any other pull request; security updates come apart, as soon as
+# GitHub knows about them.
+
+version: 2
+
+updates:
+  - package-ecosystem: composer
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Madrid
+    groups:
+      composer:
+        update-types: [minor, patch]
+    commit-message:
+      prefix: build(deps)
+
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Madrid
+    groups:
+      npm:
+        update-types: [minor, patch]
+    commit-message:
+      prefix: build(deps)
+
+  # The actions are pinned to commits: Dependabot moves the SHA and the
+  # version in the comment together.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Madrid
+    groups:
+      github-actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: ci(deps)
+
+  # The Dockerfile's base images.
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Madrid
+    groups:
+      docker:
+        patterns: ["*"]
+    commit-message:
+      prefix: build(docker)
+
+  # The services' images in compose.yaml and compose.prod.yaml (PostgreSQL,
+  # Redis, Meilisearch, Caddy…).
+  - package-ecosystem: docker-compose
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Madrid
+    groups:
+      docker-compose:
+        patterns: ["*"]
+    commit-message:
+      prefix: build(docker)

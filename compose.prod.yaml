@@ -41,7 +41,9 @@ x-app: &app
     args:
       VITE_APP_NAME: ${APP_NAME:-Laravel Forum}
   init: true
-  env_file: .env.production
+  # The containers' environment. ENV_FILE points elsewhere for a throwaway
+  # stack (.github/scripts/smoke-test.sh) without touching .env.production.
+  env_file: ${ENV_FILE:-.env.production}
   volumes:
     - storage:/var/www/html/storage/app
   networks: [app, data]
