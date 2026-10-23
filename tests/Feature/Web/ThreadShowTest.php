@@ -315,6 +315,23 @@ it('shows hidden threads to staff and pending threads to their author', function
         ->assertOk();
 });
 
+it('offers no post actions in a deleted thread until it is restored', function () {
+    $thread = forumThread();
+    $reply = forumReply($thread);
+    $moderator = User::factory()->moderator()->create();
+    app(DeleteThread::class)->handle($thread, $moderator);
+
+    $none = array_fill_keys(['update', 'quote', 'delete', 'restore', 'react', 'report', 'hide', 'approve', 'mark_solution'], false);
+
+    $this->actingAs(User::factory()->moderator()->create())
+        ->get(route('threads.show', $thread))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('posts.data.0.can', $none)
+            ->where('posts.data.1.id', $reply->id)
+            ->where('posts.data.1.can', $none)
+            ->missing('posts.data.1.body'));
+});
+
 it('lets staff open a deleted thread to restore it', function () {
     $thread = forumThread();
     app(DeleteThread::class)->handle($thread, $thread->author);

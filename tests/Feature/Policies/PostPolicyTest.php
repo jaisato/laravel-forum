@@ -140,3 +140,13 @@ it('does not take reactions or reports on posts members cannot read', function (
     expect(allows($member, $ability, Post::factory()->hidden()->create()))->toBeFalse()
         ->and(allows($member, $ability, Post::factory()->pending()->create()))->toBeFalse();
 })->with(['react', 'report']);
+
+it('takes no reactions or reports in a deleted thread, however it was loaded', function (string $ability) {
+    $thread = Thread::factory()->create();
+    $post = Post::factory()->for($thread)->create();
+    $thread->delete();
+    // The thread page loads deleted threads for staff and sets the relation.
+    $post->setRelation('thread', Thread::withTrashed()->findOrFail($thread->id));
+
+    expect(allows(User::factory()->create(), $ability, $post))->toBeFalse();
+})->with(['react', 'report']);

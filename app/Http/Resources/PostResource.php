@@ -32,7 +32,12 @@ final class PostResource extends JsonResource
         $viewer = $request->user();
         $thread = $post->thread;
 
-        $may = fn (string $ability, mixed $subject = null): bool => $viewer !== null
+        // A deleted thread is read-only until staff restore it, which is all
+        // its page offers: its posts get no actions.
+        $threadOpen = $thread !== null && ! $thread->trashed();
+
+        $may = fn (string $ability, mixed $subject = null): bool => $threadOpen
+            && $viewer !== null
             && Gate::forUser($viewer)->allows($ability, $subject ?? $post);
 
         // A deleted post is only restored, and only a post everybody can see

@@ -78,6 +78,9 @@ class PostPolicy
             && ! $post->isAuthoredBy($user)
             && $post->status === PostStatus::Published
             && ! $post->trashed()
-            && $post->thread?->status === ThreadStatus::Published;
+            && $post->thread?->status === ThreadStatus::Published
+            // The relation may hold a deleted thread (the thread page loads
+            // them for staff); the routes would not find it.
+            && ! $post->thread->trashed();
     }
 }
