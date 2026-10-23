@@ -1,0 +1,20 @@
+# Caddy in front of the forum (compose.prod.yaml): HTTPS with automatic
+# certificates for SERVER_NAME (a locally trusted one for localhost),
+# compression and HSTS. Nginx (web) adds the other security headers.
+
+{
+	email {$ACME_EMAIL}
+}
+
+{$SERVER_NAME} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		-Server
+	}
+
+	# Caddy sets X-Forwarded-For and -Proto (Laravel trusts them through
+	# TRUSTED_PROXIES) and passes the Host header on unchanged.
+	reverse_proxy web:8080
+}
