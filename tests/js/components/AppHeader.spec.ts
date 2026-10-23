@@ -47,7 +47,7 @@ const member: AuthUser = {
     is_banned: false,
     email_verified: true,
     unread_notifications: 3,
-    unread_conversations: 0,
+    unread_conversations: 2,
 };
 
 const slot = { template: '<div><slot /></div>' };
@@ -76,14 +76,26 @@ describe('AppHeader', () => {
 
         const wrapper = header();
 
-        expect(
-            wrapper.get('a[href="/notifications"]').attributes('aria-label'),
-        ).toBe('Notifications (3 unread)');
-        expect(wrapper.get('[data-test="unread-count"]').text()).toBe('3');
+        const bell = wrapper.get('a[href="/notifications"]');
+
+        expect(bell.attributes('aria-label')).toBe('Notifications (3 unread)');
+        expect(bell.get('[data-test="unread-count"]').text()).toBe('3');
     });
 
-    it('has no bell for guests', () => {
-        expect(header().find('a[href="/notifications"]').exists()).toBe(false);
+    it('shows members how many conversations have something new', () => {
+        state.page.props.auth.user = member;
+
+        const link = header().get('a[href="/messages"]');
+
+        expect(link.attributes('aria-label')).toBe('Messages (2 unread)');
+        expect(link.get('[data-test="unread-count"]').text()).toBe('2');
+    });
+
+    it('has no bell nor messages for guests', () => {
+        const wrapper = header();
+
+        expect(wrapper.find('a[href="/notifications"]').exists()).toBe(false);
+        expect(wrapper.find('a[href="/messages"]').exists()).toBe(false);
     });
 
     it('lets everybody search', () => {

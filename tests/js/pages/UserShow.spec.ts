@@ -67,7 +67,13 @@ const meta = { title: 'Ana López (@ana)', description: 'Desarrolladora PHP.' };
 
 function show(props: Record<string, unknown>) {
     return mount(UserShow, {
-        props: { profile, tab: 'threads', meta, ...props },
+        props: {
+            profile,
+            tab: 'threads',
+            meta,
+            can: { message: false },
+            ...props,
+        },
         global: { stubs: { ThreadList: true, PostSummaryList: true } },
     });
 }
@@ -127,6 +133,7 @@ describe('users/Show', () => {
                 },
                 tab: 'threads',
                 meta,
+                can: { message: false },
                 threads: paginated<ThreadSummary>([], '/u/ana'),
             },
             global: { stubs: { ThreadList: true } },
@@ -140,6 +147,19 @@ describe('users/Show', () => {
             false,
         );
         expect(wrapper.find('[data-test="profile-seen"]').exists()).toBe(false);
+    });
+
+    it('offers to write to the member those who may', () => {
+        const threads = paginated<ThreadSummary>([], '/u/ana');
+
+        expect(
+            show({ threads, can: { message: true } })
+                .get('[data-test="send-message"]')
+                .attributes('href'),
+        ).toBe('/messages/create?to=ana');
+        expect(
+            show({ threads }).find('[data-test="send-message"]').exists(),
+        ).toBe(false);
     });
 
     it('links the tabs and marks the open one', () => {

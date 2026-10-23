@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\ConversationController;
+use App\Http\Controllers\ConversationMessageController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\MarkdownPreviewController;
@@ -43,6 +45,22 @@ Route::middleware('auth')->group(function () {
     Route::post('notifications/{notification}/read', [NotificationController::class, 'read'])
         ->whereUuid('notification')
         ->name('notifications.read');
+
+    Route::get('messages', [ConversationController::class, 'index'])->name('conversations.index');
+    Route::get('messages/create', [ConversationController::class, 'create'])->name('conversations.create');
+    Route::post('messages', [ConversationController::class, 'store'])
+        ->middleware('throttle:forum-messages')
+        ->name('conversations.store');
+    Route::get('messages/{conversation}', [ConversationController::class, 'show'])
+        ->whereNumber('conversation')
+        ->name('conversations.show');
+    Route::post('messages/{conversation}', [ConversationMessageController::class, 'store'])
+        ->whereNumber('conversation')
+        ->middleware('throttle:forum-messages')
+        ->name('conversations.messages.store');
+    Route::post('messages/{conversation}/leave', [ConversationController::class, 'leave'])
+        ->whereNumber('conversation')
+        ->name('conversations.leave');
 
     Route::post('markdown/preview', MarkdownPreviewController::class)
         ->middleware('throttle:60,1')

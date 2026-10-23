@@ -327,10 +327,35 @@ export type Message = {
     is_own: boolean;
 };
 
+/**
+ * A conversation in the member's inbox.
+ */
 export type Conversation = {
     id: number;
     subject: string;
     last_message_at: string | null;
     is_unread: boolean;
+    /** The others still in it. */
     participants: UserSummary[];
+    last_message: { excerpt: string; author: UserSummary | null } | null;
+};
+
+/**
+ * A conversation on its own page.
+ */
+export type ConversationDetail = {
+    id: number;
+    subject: string;
+    /** Everyone still in it, the viewer included. */
+    participants: UserSummary[];
+};
+
+export type ConversationAbilities = {
+    reply: boolean;
+    leave: boolean;
+};
+
+/** What the viewer may do from a profile. */
+export type ProfileAbilities = {
+    message: boolean;
 };

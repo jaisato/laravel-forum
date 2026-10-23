@@ -6,6 +6,7 @@ import AppLogo from '@/components/AppLogo.vue';
 import Breadcrumbs from '@/components/Breadcrumbs.vue';
 import HeaderSearch from '@/components/forum/HeaderSearch.vue';
 import LocaleSwitcher from '@/components/forum/LocaleSwitcher.vue';
+import MessagesLink from '@/components/forum/MessagesLink.vue';
 import NotificationBell from '@/components/forum/NotificationBell.vue';
 import UserAvatar from '@/components/forum/UserAvatar.vue';
 import { Button } from '@/components/ui/button';
@@ -25,6 +26,7 @@ import UserMenuContent from '@/components/UserMenuContent.vue';
 import { useCurrentUrl } from '@/composables/useCurrentUrl';
 import { useUnreadNotifications } from '@/composables/useUnreadNotifications';
 import { home, login, register } from '@/routes';
+import { index as conversationsIndex } from '@/routes/conversations';
 import { index as notificationsIndex } from '@/routes/notifications';
 import { index as threadsIndex } from '@/routes/threads';
 import type { BreadcrumbItem, NavItem } from '@/types';
@@ -124,11 +126,16 @@ const mainNavItems: NavItem[] = [
 
                 <LocaleSwitcher class="hidden sm:inline-flex" />
 
-                <NotificationBell
-                    v-if="user"
-                    :href="notificationsIndex.url()"
-                    :count="unreadNotifications"
-                />
+                <template v-if="user">
+                    <MessagesLink
+                        :href="conversationsIndex.url()"
+                        :count="user.unread_conversations"
+                    />
+                    <NotificationBell
+                        :href="notificationsIndex.url()"
+                        :count="unreadNotifications"
+                    />
+                </template>
 
                 <DropdownMenu v-if="user">
                     <DropdownMenuTrigger :as-child="true">

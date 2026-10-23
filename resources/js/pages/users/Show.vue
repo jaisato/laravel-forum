@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, usePage } from '@inertiajs/vue3';
-import { CalendarDays, Clock, Globe, MapPin } from '@lucide/vue';
+import { CalendarDays, Clock, Globe, Mail, MapPin } from '@lucide/vue';
 import { computed } from 'vue';
 import Pagination from '@/components/forum/Pagination.vue';
 import PostSummaryList from '@/components/forum/PostSummaryList.vue';
@@ -8,12 +8,15 @@ import RelativeTime from '@/components/forum/RelativeTime.vue';
 import RoleBadge from '@/components/forum/RoleBadge.vue';
 import ThreadList from '@/components/forum/ThreadList.vue';
 import UserAvatar from '@/components/forum/UserAvatar.vue';
+import { Button } from '@/components/ui/button';
 import { formatCount } from '@/lib/format';
+import { create as createConversation } from '@/routes/conversations';
 import { show } from '@/routes/users';
 import type {
     PageMeta,
     Paginated,
     PostSummary,
+    ProfileAbilities,
     ProfileTab,
     ThreadSummary,
     UserProfile,
@@ -23,6 +26,7 @@ const props = defineProps<{
     profile: UserProfile;
     tab: ProfileTab;
     meta: PageMeta;
+    can: ProfileAbilities;
     /** The threads tab. */
     threads?: Paginated<ThreadSummary>;
     /** The replies tab. */
@@ -103,6 +107,22 @@ const stats = computed(() => [
                 <p class="text-sm text-muted-foreground">
                     @{{ profile.username }}
                 </p>
+            </div>
+
+            <div v-if="can.message">
+                <Button variant="outline" size="sm" as-child>
+                    <Link
+                        :href="
+                            createConversation.url({
+                                query: { to: profile.username },
+                            })
+                        "
+                        data-test="send-message"
+                    >
+                        <Mail aria-hidden="true" />
+                        {{ $t('Send a message') }}
+                    </Link>
+                </Button>
             </div>
 
             <p

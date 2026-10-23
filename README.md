@@ -37,6 +37,9 @@ página describe lo que ya funciona.
   hilos y respuestas.
 - Búsqueda de hilos y mensajes con filtros por categoría y etiqueta; solo
   encuentra contenido público.
+- Mensajes privados: conversaciones con uno o varios miembros (desde el perfil,
+  «Enviar un mensaje»), bandeja con lo no leído y abandonar una conversación.
+  Solo sus participantes las ven; tampoco el *staff*.
 - Reportes de mensajes y moderación en el propio hilo: fijar, cerrar, mover,
   ocultar, aprobar y restaurar.
 - Notificaciones en la web (campana con contador que se actualiza sola y página

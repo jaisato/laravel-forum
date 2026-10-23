@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Models\Conversation;
 use App\Models\User;
+use Illuminate\Support\Facades\Gate;
 
 function conversationBetween(User ...$users): Conversation
 {
@@ -23,6 +24,24 @@ it('opens a conversation to its active participants only', function () {
         ->and(allows($outsider, 'view', $conversation))->toBeFalse()
         ->and(allows(User::factory()->admin()->create(), 'view', $conversation))->toBeFalse();
 });
+
+it('answers 404 to those outside, so the conversation does not show it exists', function () {
+    [$alice, $bob, $outsider] = User::factory()->count(3)->create();
+    $conversation = conversationBetween($alice, $bob);
+
+    foreach (['view', 'reply', 'leave'] as $ability) {
+        expect(Gate::forUser($outsider)->inspect($ability, $conversation)->status())->toBe(404);
+    }
+});
+
+it('lets members who may take part start conversations', function (string $role, bool $expected) {
+    expect(allows(forumUser($role), 'create', Conversation::class))->toBe($expected);
+})->with([
+    ['guest', false],
+    ['unverified', false],
+    ['banned', false],
+    ['member', true],
+]);
 
 it('closes a conversation to a participant who left it', function () {
     [$alice, $bob] = User::factory()->count(2)->create();

@@ -65,6 +65,22 @@ describe('the profile', function () {
             ->where('meta.description', 'Luis is a member of '.config('app.name').'.'));
     });
 
+    it('offers to write to the member those who may', function (?Closure $viewer, bool $expected) {
+        $ana = User::factory()->create(['username' => 'ana']);
+        $user = $viewer === null ? null : $viewer($ana);
+
+        if ($user !== null) {
+            $this->actingAs($user);
+        }
+
+        $this->get('/u/ana')->assertInertia(fn (Assert $page) => $page->where('can.message', $expected));
+    })->with([
+        'a guest' => [null, false],
+        'a member' => [fn () => User::factory()->create(), true],
+        'the member themselves' => [fn (User $ana) => $ana, false],
+        'a banned member' => [fn () => User::factory()->banned()->create(), false],
+    ]);
+
     it('does not know erased accounts', function () {
         $ana = User::factory()->create(['username' => 'ana']);
 

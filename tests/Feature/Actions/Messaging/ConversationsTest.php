@@ -9,6 +9,7 @@ use App\Actions\Messaging\StartConversation;
 use App\Events\MessageSent;
 use App\Models\Conversation;
 use App\Models\User;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Validation\ValidationException;
 
@@ -74,8 +75,9 @@ it('only lets active participants write', function () {
     $conversation = startConversation($alice, $bob);
     app(LeaveConversation::class)->handle($conversation, $bob);
 
-    expect(fn () => app(SendMessage::class)->handle($conversation, $outsider, 'Hola'))->toThrow(InvalidArgumentException::class)
-        ->and(fn () => app(SendMessage::class)->handle($conversation, $bob, 'Hola'))->toThrow(InvalidArgumentException::class);
+    expect(fn () => app(SendMessage::class)->handle($conversation, $outsider, 'Hola'))->toThrow(AuthorizationException::class)
+        ->and(fn () => app(SendMessage::class)->handle($conversation, $bob, 'Hola'))->toThrow(AuthorizationException::class)
+        ->and($conversation->messages()->count())->toBe(1);
 });
 
 it('hides a conversation from the member who left it', function () {

@@ -11,6 +11,8 @@ use App\Actions\Forum\ReplyToThread;
 use App\Actions\Forum\UnmarkSolution;
 use App\Actions\Forum\UpdatePost;
 use App\Actions\Forum\UpdateThread;
+use App\Actions\Messaging\SendMessage;
+use App\Actions\Messaging\StartConversation;
 use App\Actions\Moderation\BanUser;
 use App\Actions\Moderation\ReportPost;
 use App\Enums\ReactionType;
@@ -79,5 +81,11 @@ it('refuses members banned after their request was authorised', function (Closur
         $reply = forumReply(forumThread());
 
         return fn (User $as) => app(ReportPost::class)->handle($reply, $as, ReportReason::Spam);
+    }],
+    'start a conversation' => [fn (User $member): Closure => fn (User $as) => app(StartConversation::class)->handle($as, collect([User::factory()->create()]), 'Una pregunta', 'Hola, ¿tienes un minuto?')],
+    'write a private message' => [function (User $member): Closure {
+        $conversation = app(StartConversation::class)->handle(User::factory()->create(), collect([$member]), 'Una pregunta', 'Hola, ¿tienes un minuto?');
+
+        return fn (User $as) => app(SendMessage::class)->handle($conversation, $as, 'Claro, dime.');
     }],
 ]);

@@ -7,10 +7,12 @@ namespace App\Http\Controllers;
 use App\Http\Resources\PostSummaryResource;
 use App\Http\Resources\ThreadResource;
 use App\Http\Resources\UserProfileResource;
+use App\Models\Conversation;
 use App\Models\User;
 use App\Queries\MemberReplies;
 use App\Queries\ThreadListing;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -36,6 +38,10 @@ final class UserProfileController extends Controller
         return Inertia::render('users/Show', [
             'profile' => (new UserProfileResource($user))->resolve($request),
             'tab' => $tab,
+            'can' => [
+                // "Send a message" (ConversationPolicy::message).
+                'message' => $viewer !== null && Gate::forUser($viewer)->allows('message', [Conversation::class, $user]),
+            ],
             'meta' => [
                 'title' => "{$user->name} (@{$user->username})",
                 'description' => $user->bio !== null && trim($user->bio) !== ''
