@@ -17,6 +17,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\Attributes\Queue;
 use Illuminate\Queue\Attributes\UniqueFor;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -82,7 +83,28 @@ final class ModeratePost implements ShouldBeUniqueUntilProcessing, ShouldQueue
             return;
         }
 
-        $applyVerdict->handle($post, $result);
+        // The provider takes a while, and the post or its thread's title may
+        // have been edited meanwhile: the verdict is about the text it read.
+        // It stands only if the post still reads the same, checked under the
+        // thread's lock that edits and moderation take too. Otherwise the job
+        // asks again about the post as it is now (a no-op when the edit already
+        // queued that question).
+        $stands = DB::transaction(function () use ($post, $thread, $result, $applyVerdict): bool {
+            $title = Thread::withTrashed()->whereKey($thread->id)->lockForUpdate()->value('title');
+            $body = Post::query()->whereKey($post->id)->value('body');
+
+            if ($title !== $thread->title || $body !== $post->body) {
+                return false;
+            }
+
+            $applyVerdict->handle($post, $result);
+
+            return true;
+        });
+
+        if (! $stands) {
+            self::dispatch($post);
+        }
     }
 
     private function prompt(string $title, string $body): string

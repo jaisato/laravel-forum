@@ -109,6 +109,27 @@ describe('verdicts', function () {
 });
 
 describe('failures and limits', function () {
+    it('acts on no verdict about text that changed meanwhile, and asks again about the post as it is now', function (Closure $change) {
+        $reply = forumReply(forumThread(), body: 'Compra relojes baratos en example.com');
+        enableAiModeration();
+        Queue::fake();
+
+        // The change lands while the provider is still answering.
+        moderate($reply, function () use ($change, $reply): array {
+            $change($reply);
+
+            return ['verdict' => 'block', 'categories' => ['spam'], 'confidence' => 0.92, 'reason' => 'Publicidad no solicitada.'];
+        });
+
+        expect($reply->fresh()->status)->toBe(PostStatus::Published)
+            ->and(Report::query()->exists())->toBeFalse();
+        Queue::assertPushed(ModeratePost::class, 1);
+    })->with([
+        'its author edits it' => [fn (Post $reply) => app(UpdatePost::class)->handle($reply->fresh(), $reply->author, 'Perdón, me equivoqué de hilo.')],
+        // Staff edits queue no moderation of their own.
+        'the staff retitle its thread' => [fn (Post $reply) => app(UpdateThread::class)->handle($reply->thread, forumUser('moderator'), 'Un título más claro', null)],
+    ]);
+
     it('leaves the post published when the provider fails, for the job to try again', function () {
         $reply = forumReply(forumThread());
         enableAiModeration();

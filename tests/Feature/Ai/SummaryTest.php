@@ -227,6 +227,13 @@ describe('when it applies', function () {
     });
 });
 
+dataset('changes to a post a summary restates', [
+    'edited by its author' => [fn (Post $reply) => app(UpdatePost::class)->handle($reply, $reply->author, 'Otra versión de la respuesta.')],
+    'hidden by a moderator' => [fn (Post $reply) => app(HidePost::class)->handle($reply, forumUser('moderator'), 'Spam.')],
+    'held by the AI' => [fn (Post $reply) => app(HidePost::class)->handle($reply, null, 'Dudoso.')],
+    'deleted by its author' => [fn (Post $reply) => app(DeletePost::class)->handle($reply, $reply->author)],
+]);
+
 describe('keeping it true to the thread', function () {
     it('forgets the summary once a post it may restate is edited, hidden, held or deleted', function (Closure $change) {
         $thread = summarized(threadToSummarize(5), 5);
@@ -239,12 +246,39 @@ describe('keeping it true to the thread', function () {
             ->ai_summary->toBeNull()
             ->ai_summary_generated_at->toBeNull()
             ->ai_summary_replies_count->toBeNull();
-    })->with([
-        'edited by its author' => [fn (Post $reply) => app(UpdatePost::class)->handle($reply, $reply->author, 'Otra versión de la respuesta.')],
-        'hidden by a moderator' => [fn (Post $reply) => app(HidePost::class)->handle($reply, forumUser('moderator'), 'Spam.')],
-        'held by the AI' => [fn (Post $reply) => app(HidePost::class)->handle($reply, null, 'Dudoso.')],
-        'deleted by its author' => [fn (Post $reply) => app(DeletePost::class)->handle($reply, $reply->author)],
-    ]);
+    })->with('changes to a post a summary restates');
+
+    it('stores nothing if a post it read changes while the summary is being written', function (Closure $change) {
+        $thread = threadToSummarize(6);
+        enableAiSummaries();
+        $reply = $thread->posts()->whereKeyNot($thread->first_post_id)->oldest('id')->firstOrFail();
+        // The change lands while the provider is still answering, before
+        // there is a summary to forget.
+        ThreadSummarizer::fake([function () use ($change, $reply): string {
+            $change($reply);
+
+            return '**TL;DR:** usa Horizon.';
+        }])->preventStrayPrompts();
+
+        expect(app(SummarizeThread::class)->handle($thread))->toBeNull()
+            ->and($thread->fresh()->ai_summary)->toBeNull();
+    })->with('changes to a post a summary restates');
+
+    it('still stores it when a reply arrives meanwhile: it covers what it read', function () {
+        $thread = threadToSummarize(5);
+        enableAiSummaries();
+        ThreadSummarizer::fake([function () use ($thread): string {
+            forumReply($thread, body: 'Una respuesta nueva.');
+
+            return '**TL;DR:** usa Horizon.';
+        }])->preventStrayPrompts();
+
+        app(SummarizeThread::class)->handle($thread);
+
+        expect($thread->fresh())
+            ->ai_summary->toBe('**TL;DR:** usa Horizon.')
+            ->ai_summary_replies_count->toBe(5);
+    });
 
     it('keeps the summaries of other threads', function () {
         $thread = summarized(threadToSummarize(5), 5);
