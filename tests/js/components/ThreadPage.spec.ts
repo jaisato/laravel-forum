@@ -245,7 +245,7 @@ describe('PostActions', () => {
         vi.unstubAllGlobals();
     });
 
-    it('asks before deleting the whole thread', async () => {
+    it('asks before deleting the whole thread, through the thread', async () => {
         const confirm = vi.fn(() => false);
         vi.stubGlobal('confirm', confirm);
         const wrapper = actions({ is_first: true, can: allowed('delete') });
@@ -254,6 +254,14 @@ describe('PostActions', () => {
 
         expect(confirm).toHaveBeenCalledWith('Delete the whole thread?');
         expect(router.delete).not.toHaveBeenCalled();
+
+        confirm.mockReturnValueOnce(true);
+        await wrapper.get('[data-test="post-action-delete"]').trigger('click');
+
+        expect(router.delete).toHaveBeenCalledWith(
+            '/t/hilo',
+            expect.anything(),
+        );
 
         vi.unstubAllGlobals();
     });

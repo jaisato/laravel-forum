@@ -17,6 +17,8 @@ use App\Models\ThreadRead;
 use App\Models\ThreadSubscription;
 use App\Models\User;
 use App\Notifications\Channels\ForumDatabaseChannel;
+use App\Services\Ai\KeywordSimilarThreadFinder;
+use App\Services\Ai\SimilarThreadFinder;
 use Carbon\CarbonImmutable;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
@@ -40,6 +42,7 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->bind(DatabaseChannel::class, ForumDatabaseChannel::class);
+        $this->app->bind(SimilarThreadFinder::class, KeywordSimilarThreadFinder::class);
     }
 
     /**

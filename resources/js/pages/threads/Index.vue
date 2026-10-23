@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
-import { Hash, Lock } from '@lucide/vue';
+import { Hash, Lock, Plus } from '@lucide/vue';
 import { computed } from 'vue';
 import Pagination from '@/components/forum/Pagination.vue';
 import ThreadList from '@/components/forum/ThreadList.vue';
+import { Button } from '@/components/ui/button';
 import { show as showCategory } from '@/routes/categories';
 import { show as showTag } from '@/routes/tags';
-import { index as threadsIndex } from '@/routes/threads';
+import { create, index as threadsIndex } from '@/routes/threads';
 import type {
+    ListingAbilities,
     ListingContext,
     ListingFilters,
     Paginated,
@@ -20,9 +22,24 @@ const props = defineProps<{
     threads: Paginated<ThreadSummary>;
     filters: ListingFilters;
     context: ListingContext;
+    can: ListingAbilities;
 }>();
 
 const page = usePage();
+
+// Guests see it too: the form asks them to log in first.
+const showNewThread = computed(
+    () => page.props.auth.user === null || props.can.create_thread,
+);
+
+// From a category, the thread starts in it.
+const newThreadUrl = computed(() =>
+    create.url(
+        props.context?.type === 'category'
+            ? { query: { category: props.context.category.slug } }
+            : undefined,
+    ),
+);
 
 const title = computed(() => {
     switch (props.context?.type) {
@@ -97,52 +114,64 @@ function changeSort(event: Event): void {
 <template>
     <Head :title="title ?? $t('All threads')" />
 
-    <header class="flex flex-col gap-1">
-        <template v-if="context?.type === 'category'">
-            <h1
-                class="flex items-center gap-2 text-2xl font-semibold tracking-tight"
-            >
-                <span
-                    class="size-3 shrink-0 rounded-full"
-                    :style="{ backgroundColor: context.category.color }"
-                    aria-hidden="true"
-                />
-                {{ context.category.name }}
-                <span
-                    v-if="context.category.is_locked"
-                    role="img"
-                    :aria-label="$t('Only staff can start threads here')"
-                    :title="$t('Only staff can start threads here')"
-                    class="text-muted-foreground"
+    <header class="flex flex-wrap items-start justify-between gap-3">
+        <div class="flex min-w-0 flex-col gap-1">
+            <template v-if="context?.type === 'category'">
+                <h1
+                    class="flex items-center gap-2 text-2xl font-semibold tracking-tight"
                 >
-                    <Lock class="size-4" aria-hidden="true" />
-                </span>
+                    <span
+                        class="size-3 shrink-0 rounded-full"
+                        :style="{ backgroundColor: context.category.color }"
+                        aria-hidden="true"
+                    />
+                    {{ context.category.name }}
+                    <span
+                        v-if="context.category.is_locked"
+                        role="img"
+                        :aria-label="$t('Only staff can start threads here')"
+                        :title="$t('Only staff can start threads here')"
+                        class="text-muted-foreground"
+                    >
+                        <Lock class="size-4" aria-hidden="true" />
+                    </span>
+                </h1>
+                <p
+                    v-if="context.category.description"
+                    class="text-sm text-muted-foreground"
+                >
+                    {{ context.category.description }}
+                </p>
+            </template>
+            <template v-else-if="context?.type === 'tag'">
+                <h1
+                    class="flex items-center gap-1 text-2xl font-semibold tracking-tight"
+                >
+                    <Hash
+                        class="size-5 text-muted-foreground"
+                        aria-hidden="true"
+                    />
+                    {{ context.tag.name }}
+                </h1>
+                <p class="text-sm text-muted-foreground">
+                    {{
+                        $t('Threads tagged :tag', {
+                            tag: context.tag.name,
+                        })
+                    }}
+                </p>
+            </template>
+            <h1 v-else class="text-2xl font-semibold tracking-tight">
+                {{ $t('All threads') }}
             </h1>
-            <p
-                v-if="context.category.description"
-                class="text-sm text-muted-foreground"
-            >
-                {{ context.category.description }}
-            </p>
-        </template>
-        <template v-else-if="context?.type === 'tag'">
-            <h1
-                class="flex items-center gap-1 text-2xl font-semibold tracking-tight"
-            >
-                <Hash class="size-5 text-muted-foreground" aria-hidden="true" />
-                {{ context.tag.name }}
-            </h1>
-            <p class="text-sm text-muted-foreground">
-                {{
-                    $t('Threads tagged :tag', {
-                        tag: context.tag.name,
-                    })
-                }}
-            </p>
-        </template>
-        <h1 v-else class="text-2xl font-semibold tracking-tight">
-            {{ $t('All threads') }}
-        </h1>
+        </div>
+
+        <Button v-if="showNewThread" size="sm" as-child>
+            <Link :href="newThreadUrl" data-test="new-thread">
+                <Plus aria-hidden="true" />
+                {{ $t('New thread') }}
+            </Link>
+        </Button>
     </header>
 
     <div

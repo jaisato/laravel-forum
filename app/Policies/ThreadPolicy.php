@@ -24,10 +24,18 @@ class ThreadPolicy
         return $thread->isVisibleTo($user) ? Response::allow() : Response::denyAsNotFound();
     }
 
+    /**
+     * Whether the user may open the new thread form: some category takes
+     * their threads.
+     */
+    public function createAny(User $user): bool
+    {
+        return Category::query()->get()->contains(fn (Category $category): bool => $category->acceptsThreadsFrom($user));
+    }
+
     public function create(User $user, Category $category): bool
     {
-        return $user->canModerate()
-            || ($user->canParticipate() && ! $category->is_locked);
+        return $category->acceptsThreadsFrom($user);
     }
 
     public function update(User $user, Thread $thread): bool

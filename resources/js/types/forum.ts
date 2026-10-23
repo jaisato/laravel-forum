@@ -78,6 +78,15 @@ export type Tag = {
 
 export type TagSummary = Pick<Tag, 'id' | 'name' | 'slug' | 'color'>;
 
+/** A tag the tag pickers offer. */
+export type TagOption = TagSummary;
+
+/** A category the new thread form offers. */
+export type CategoryOption = Pick<
+    Category,
+    'id' | 'name' | 'slug' | 'color' | 'is_locked'
+>;
+
 export type ThreadSummary = {
     id: number;
     title: string;
@@ -127,6 +136,17 @@ export type ForumStats = {
 /**
  * What the viewer may do with the thread on its page (prop `can`).
  */
+/** A thread like the one being written, under the title of a new thread. */
+export type SimilarThread = Pick<
+    ThreadSummary,
+    'id' | 'title' | 'slug' | 'replies_count' | 'is_solved'
+>;
+
+/** What the viewer may do from a listing. */
+export type ListingAbilities = {
+    create_thread: boolean;
+};
+
 export type ThreadAbilities = {
     reply: boolean;
     update: boolean;

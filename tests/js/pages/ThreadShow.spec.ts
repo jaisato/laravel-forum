@@ -148,7 +148,13 @@ function show(
             },
             ...props,
         },
-        global: { stubs: { ReportDialog: true, MoveThreadDialog: true } },
+        global: {
+            stubs: {
+                ReportDialog: true,
+                MoveThreadDialog: true,
+                EditThreadDialog: true,
+            },
+        },
         attachTo: document.body,
     });
 }
@@ -247,6 +253,28 @@ describe('threads/Show', () => {
         expect(wrapper.get('[data-test="reply-blocker"]').text()).toContain(
             message,
         );
+    });
+
+    it('lets those who may edit the thread change its title and tags', async () => {
+        page.props.auth.user = member();
+        const tagOptions = [
+            { id: 3, name: 'colas', slug: 'colas', color: null },
+        ];
+        const wrapper = show({ can: { ...nothing, update: true }, tagOptions });
+
+        expect(wrapper.find('edit-thread-dialog-stub').exists()).toBe(false);
+
+        await wrapper.get('[data-test="edit-thread"]').trigger('click');
+
+        const dialog = wrapper.get('edit-thread-dialog-stub');
+        expect(dialog.attributes('open')).toBe('true');
+        expect(wrapper.vm.$props).toMatchObject({ tagOptions });
+    });
+
+    it('offers no edit to those who may not', () => {
+        page.props.auth.user = member();
+
+        expect(show().find('[data-test="edit-thread"]').exists()).toBe(false);
     });
 
     it('scrolls to the focused post, also after a reply', async () => {

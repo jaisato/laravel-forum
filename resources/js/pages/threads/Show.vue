@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { Head, Link, usePage } from '@inertiajs/vue3';
-import { Eye, MessageSquare, Sparkles } from '@lucide/vue';
+import { Eye, MessageSquare, Pencil, Sparkles } from '@lucide/vue';
 import { computed, onMounted, ref, watch } from 'vue';
 import CategoryBadge from '@/components/forum/CategoryBadge.vue';
+import EditThreadDialog from '@/components/forum/EditThreadDialog.vue';
 import EmptyState from '@/components/forum/EmptyState.vue';
 import MarkdownContent from '@/components/forum/MarkdownContent.vue';
 import Pagination from '@/components/forum/Pagination.vue';
@@ -26,6 +27,7 @@ import type {
     PageMeta,
     Paginated,
     Post,
+    TagOption,
     Thread,
     ThreadAbilities,
 } from '@/types/forum';
@@ -40,12 +42,16 @@ const props = defineProps<{
     meta: PageMeta;
     /** Only for those who may move the thread. */
     moveTargets?: MoveTarget[];
+    /** Only for those who may edit the thread. */
+    tagOptions?: TagOption[];
     /** Deferred; null while AI summaries are off or none was generated. */
     summary?: AiSummary | null;
 }>();
 
 const page = usePage();
 const replyForm = ref<InstanceType<typeof ReplyForm> | null>(null);
+// Mounted while open, so it always starts from the thread as it is now.
+const editing = ref(false);
 
 const count = (value: number) => formatCount(value, page.props.locale);
 
@@ -170,12 +176,31 @@ watch(() => props.focus, scrollToFocus);
                 </span>
             </p>
 
-            <SubscriptionButton
-                v-if="can.subscribe"
-                :thread-slug="thread.slug"
-                :subscribed="subscribed"
-            />
+            <div class="flex items-center gap-2">
+                <Button
+                    v-if="can.update && tagOptions"
+                    data-test="edit-thread"
+                    variant="outline"
+                    size="sm"
+                    @click="editing = true"
+                >
+                    <Pencil aria-hidden="true" />
+                    {{ $t('Edit') }}
+                </Button>
+                <SubscriptionButton
+                    v-if="can.subscribe"
+                    :thread-slug="thread.slug"
+                    :subscribed="subscribed"
+                />
+            </div>
         </div>
+
+        <EditThreadDialog
+            v-if="editing && tagOptions"
+            v-model:open="editing"
+            :thread="thread"
+            :tag-options="tagOptions"
+        />
 
         <ThreadModerationMenu
             :thread="thread"

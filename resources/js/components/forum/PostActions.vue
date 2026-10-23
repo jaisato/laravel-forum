@@ -16,6 +16,7 @@ import ReportDialog from '@/components/forum/ReportDialog.vue';
 import { Button } from '@/components/ui/button';
 import { approve, hide, restore } from '@/routes/moderation/posts';
 import { destroy } from '@/routes/posts';
+import { destroy as destroyThread } from '@/routes/threads';
 import {
     destroy as unmarkSolution,
     store as markSolution,
@@ -39,9 +40,17 @@ function send(url: string): void {
 }
 
 function confirmDelete(question: string): void {
-    if (window.confirm(question)) {
-        router.delete(destroy.url(props.post.id), options);
+    if (!window.confirm(question)) {
+        return;
     }
+
+    // The first post is the thread: deleting it deletes the thread.
+    router.delete(
+        props.post.is_first
+            ? destroyThread.url(props.threadSlug)
+            : destroy.url(props.post.id),
+        options,
+    );
 }
 </script>
 

@@ -8,7 +8,9 @@ use App\Http\Requests\ThreadIndexRequest;
 use App\Http\Resources\TagResource;
 use App\Http\Resources\ThreadResource;
 use App\Models\Tag;
+use App\Models\Thread;
 use App\Queries\ThreadListing;
+use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -28,6 +30,7 @@ final class TagController extends Controller
                 [...$filters, 'tag' => $tag->slug],
                 $request->user(),
             )),
+            'can' => ['create_thread' => Gate::allows('createAny', Thread::class)],
         ]);
     }
 }

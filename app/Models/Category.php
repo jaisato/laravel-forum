@@ -85,6 +85,16 @@ class Category extends Model
     }
 
     /**
+     * Whether the user may start threads here (ThreadPolicy::create, and
+     * CreateThread again under lock): staff always may; members who may take
+     * part, unless the category is locked.
+     */
+    public function acceptsThreadsFrom(User $user): bool
+    {
+        return $user->canModerate() || ($user->canParticipate() && ! $this->is_locked);
+    }
+
+    /**
      * @param  Builder<self>  $query
      * @return Builder<self>
      */

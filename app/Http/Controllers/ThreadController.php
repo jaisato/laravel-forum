@@ -4,28 +4,43 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Actions\Forum\CreateThread;
+use App\Actions\Forum\DeleteThread;
+use App\Actions\Forum\UpdateThread;
 use App\Ai\ForumAi;
+use App\Http\Controllers\Concerns\FlashesToasts;
+use App\Http\Requests\StoreThreadRequest;
 use App\Http\Requests\ThreadIndexRequest;
+use App\Http\Requests\UpdateThreadRequest;
 use App\Http\Resources\PostResource;
 use App\Http\Resources\ThreadResource;
 use App\Models\Category;
 use App\Models\Post;
+use App\Models\Tag;
 use App\Models\Thread;
 use App\Models\User;
 use App\Queries\ThreadListing;
+use App\Services\Ai\SimilarThreadFinder;
 use App\Services\ReadTracker;
 use App\Services\ThreadSubscriptions;
 use App\Services\ViewCounter;
 use App\Support\Markdown\MarkdownRenderer;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 
 final class ThreadController extends Controller
 {
+    use FlashesToasts;
+
     private const int DESCRIPTION_LENGTH = 160;
+
+    /** Shorter titles say too little to look for similar threads. */
+    private const int SIMILAR_MIN_LENGTH = 10;
 
     public function index(ThreadIndexRequest $request, ThreadListing $listing): Response
     {
@@ -35,7 +50,89 @@ final class ThreadController extends Controller
             'context' => null,
             'filters' => $filters,
             'threads' => ThreadResource::collection($listing->paginate($filters, $request->user())),
+            'can' => ['create_thread' => Gate::allows('createAny', Thread::class)],
         ]);
+    }
+
+    /**
+     * The new thread form: the categories the member may post in (the one
+     * they came from, ?category=, preselected), the tags, and the similar
+     * threads to the title they type (?title=), refreshed by partial reloads.
+     */
+    public function create(Request $request, SimilarThreadFinder $finder): Response
+    {
+        Gate::authorize('createAny', Thread::class);
+
+        /** @var User $member */
+        $member = $request->user();
+        $categories = Category::query()->ordered()->get()
+            ->filter(fn (Category $category): bool => $category->acceptsThreadsFrom($member))
+            ->values();
+        // No more of it than a title may have: the search gets what the form sends.
+        $title = is_string($request->query('title'))
+            ? trim(mb_substr($request->query('title'), 0, (int) config('forum.threads.title_max')))
+            : '';
+
+        return Inertia::render('threads/Create', [
+            'categories' => $categories->map(fn (Category $category): array => [
+                'id' => $category->id,
+                'name' => $category->name,
+                'slug' => $category->slug,
+                'color' => $category->color,
+                'is_locked' => $category->is_locked,
+            ])->all(),
+            'tags' => $this->tagOptions(),
+            'category' => $categories->firstWhere('slug', $request->query('category'))?->id,
+            'similar' => fn (): array => mb_strlen($title) < self::SIMILAR_MIN_LENGTH
+                ? []
+                : $this->similarThreads($finder->forText($title)),
+        ]);
+    }
+
+    public function store(StoreThreadRequest $request, CreateThread $createThread): RedirectResponse
+    {
+        /** @var User $author */
+        $author = $request->user();
+        /** @var Category $category */
+        $category = $request->category();
+
+        $thread = $createThread->handle(
+            $author,
+            $category,
+            $request->string('title')->value(),
+            $request->string('body')->value(),
+            $request->tagIds(),
+        );
+
+        $this->toast('Thread created.');
+
+        return to_route('threads.show', $thread);
+    }
+
+    public function update(UpdateThreadRequest $request, Thread $thread, UpdateThread $updateThread): RedirectResponse
+    {
+        /** @var User $editor */
+        $editor = $request->user();
+
+        $updateThread->handle($thread, $editor, $request->string('title')->value(), $request->tagIds());
+
+        $this->toast('Thread updated.');
+
+        return back();
+    }
+
+    public function destroy(Request $request, Thread $thread, DeleteThread $deleteThread): RedirectResponse
+    {
+        Gate::authorize('delete', $thread);
+
+        /** @var User $actor */
+        $actor = $request->user();
+
+        $deleteThread->handle($thread, $actor);
+
+        $this->toast('Thread deleted.');
+
+        return to_route('categories.show', $thread->category);
     }
 
     /**
@@ -90,6 +187,7 @@ final class ThreadController extends Controller
                 'description' => $markdown->excerpt($thread->firstPost->body ?? '', self::DESCRIPTION_LENGTH),
             ],
             ...($can['move'] ? ['moveTargets' => $this->moveTargets()] : []),
+            ...($can['update'] ? ['tagOptions' => $this->tagOptions()] : []),
             // Filled by the similar threads (Task 19) and summaries (Task 28)
             // features; deferred so they never hold the page back.
             'similar' => Inertia::defer(fn (): array => []),
@@ -171,6 +269,40 @@ final class ThreadController extends Controller
             ->get(['id', 'name'])
             ->map(fn (Category $category): array => ['id' => $category->id, 'name' => $category->name])
             ->all());
+    }
+
+    /**
+     * Every tag, for the tag pickers.
+     *
+     * @return list<array{id: int, name: string, slug: string, color: string|null}>
+     */
+    private function tagOptions(): array
+    {
+        return array_values(Tag::query()
+            ->orderBy('name')
+            ->get(['id', 'name', 'slug', 'color'])
+            ->map(fn (Tag $tag): array => [
+                'id' => $tag->id,
+                'name' => $tag->name,
+                'slug' => $tag->slug,
+                'color' => $tag->color,
+            ])
+            ->all());
+    }
+
+    /**
+     * @param  Collection<int, Thread>  $threads
+     * @return list<array{id: int, title: string, slug: string, replies_count: int, is_solved: bool}>
+     */
+    private function similarThreads(Collection $threads): array
+    {
+        return array_values($threads->map(fn (Thread $thread): array => [
+            'id' => $thread->id,
+            'title' => $thread->title,
+            'slug' => $thread->slug,
+            'replies_count' => $thread->replies_count,
+            'is_solved' => $thread->isSolved(),
+        ])->all());
     }
 
     /**

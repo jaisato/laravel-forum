@@ -15,6 +15,7 @@ use App\Services\ReadTracker;
 use App\Services\ThreadSubscriptions;
 use App\Support\Markdown\MarkdownRenderer;
 use App\Support\Markdown\MentionParser;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -41,6 +42,17 @@ final class CreateThread
         $mentioned = $this->mentions->extract($body);
 
         return DB::transaction(function () use ($author, $category, $title, $body, $bodyHtml, $mentioned, $tagIds): Thread {
+            // The request was authorised on the copy it loaded: an
+            // administrator may have locked the category since, or a
+            // moderator banned the author. The category row stays locked
+            // until its counters are updated (categories before tags and
+            // users, as everywhere).
+            $category = Category::query()->whereKey($category->id)->lockForUpdate()->firstOrFail();
+
+            if (! $category->acceptsThreadsFrom($author->current())) {
+                throw new AuthorizationException(__('New threads are closed in this category.'));
+            }
+
             $thread = new Thread(['title' => $title]);
             $thread->category()->associate($category);
             $thread->author()->associate($author);

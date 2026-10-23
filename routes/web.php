@@ -33,6 +33,13 @@ Route::middleware('auth')->group(function () {
         ->middleware('throttle:60,1')
         ->name('markdown.preview');
 
+    Route::get('threads/create', [ThreadController::class, 'create'])->name('threads.create');
+    Route::post('threads', [ThreadController::class, 'store'])
+        ->middleware('throttle:forum-threads')
+        ->name('threads.store');
+    Route::patch('t/{thread:slug}', [ThreadController::class, 'update'])->name('threads.update');
+    Route::delete('t/{thread:slug}', [ThreadController::class, 'destroy'])->name('threads.destroy');
+
     Route::post('t/{thread:slug}/posts', [PostController::class, 'store'])
         ->middleware('throttle:forum-replies')
         ->name('posts.store');
