@@ -14,6 +14,7 @@ use App\Services\ForumCounters;
 use App\Services\ReadTracker;
 use App\Services\ThreadSubscriptions;
 use App\Support\Markdown\MarkdownRenderer;
+use App\Support\Markdown\MentionParser;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -25,6 +26,7 @@ final class CreateThread
 {
     public function __construct(
         private readonly MarkdownRenderer $markdown,
+        private readonly MentionParser $mentions,
         private readonly ForumCounters $counters,
         private readonly ThreadSubscriptions $subscriptions,
         private readonly ReadTracker $reads,
@@ -36,8 +38,9 @@ final class CreateThread
     public function handle(User $author, Category $category, string $title, string $body, array $tagIds = []): Thread
     {
         $bodyHtml = $this->markdown->render($body);
+        $mentioned = $this->mentions->extract($body);
 
-        return DB::transaction(function () use ($author, $category, $title, $body, $bodyHtml, $tagIds): Thread {
+        return DB::transaction(function () use ($author, $category, $title, $body, $bodyHtml, $mentioned, $tagIds): Thread {
             $thread = new Thread(['title' => $title]);
             $thread->category()->associate($category);
             $thread->author()->associate($author);
@@ -63,7 +66,7 @@ final class CreateThread
             $this->reads->markRead($thread, $author);
 
             ThreadCreated::dispatch($thread);
-            PostCreated::dispatch($post);
+            PostCreated::dispatch($post, $mentioned);
 
             return $thread;
         });

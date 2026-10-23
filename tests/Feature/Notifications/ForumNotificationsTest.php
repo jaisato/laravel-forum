@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Actions\Forum\MarkSolution;
+use App\Actions\Forum\ReplyToThread;
 use App\Actions\Forum\UpdatePost;
 use App\Actions\Messaging\LeaveConversation;
 use App\Actions\Messaging\SendMessage;
@@ -11,7 +12,10 @@ use App\Actions\Moderation\ApprovePost;
 use App\Actions\Moderation\HidePost;
 use App\Enums\PostStatus;
 use App\Events\PostCreated;
+use App\Events\PostUpdated;
+use App\Listeners\NotifyMentionedUsers;
 use App\Listeners\NotifyThreadSubscribers;
+use App\Models\Thread;
 use App\Models\User;
 use App\Notifications\NewPrivateMessage;
 use App\Notifications\PostModerated;
@@ -19,6 +23,7 @@ use App\Notifications\SolutionAccepted;
 use App\Notifications\ThreadReplied;
 use App\Notifications\UserMentioned;
 use App\Services\ThreadSubscriptions;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Notification;
 
 it('tells every subscriber but the author about a new reply', function () {
@@ -70,6 +75,52 @@ it('only tells the members newly mentioned in an edit', function () {
     Notification::assertNotSentTo($ana, UserMentioned::class);
 });
 
+/**
+ * Replies and edits the post with the events held back, then runs their
+ * queued listeners: what an asynchronous queue does when the jobs start
+ * after the edit.
+ */
+function replyThenEditBeforeTheJobsRun(Thread $thread, User $author, string $body, string $edited): void
+{
+    Event::fake([PostCreated::class, PostUpdated::class]);
+
+    $reply = app(ReplyToThread::class)->handle($thread, $author, $body);
+    app(UpdatePost::class)->handle($reply, $author, $edited);
+
+    Event::dispatched(PostCreated::class)->each(function (array $arguments): void {
+        app(NotifyThreadSubscribers::class)->handle($arguments[0]);
+        app(NotifyMentionedUsers::class)->handlePostCreated($arguments[0]);
+    });
+    Event::dispatched(PostUpdated::class)->each(
+        fn (array $arguments) => app(NotifyMentionedUsers::class)->handlePostUpdated($arguments[0]),
+    );
+}
+
+it('notifies a mention once when the queued jobs run after an edit', function () {
+    $bob = User::factory()->create(['username' => 'bob']);
+    $starter = User::factory()->create(['username' => 'starter']);
+    $thread = forumThread($starter);
+    Notification::fake();
+
+    replyThenEditBeforeTheJobsRun($thread, User::factory()->create(), 'Sin menciones todavía.', 'Ahora sí, @bob y @starter.');
+
+    Notification::assertSentToTimes($bob, UserMentioned::class, 1);
+    // The reply itself did not mention the starter: they hear of it as a
+    // subscriber, and of the edit as a mention.
+    Notification::assertSentToTimes($starter, ThreadReplied::class, 1);
+    Notification::assertSentToTimes($starter, UserMentioned::class, 1);
+});
+
+it('does not notify a mention removed before its job runs', function () {
+    $bob = User::factory()->create(['username' => 'bob']);
+    $thread = forumThread();
+    Notification::fake();
+
+    replyThenEditBeforeTheJobsRun($thread, User::factory()->create(), 'Hola @bob.', 'Hola a todos.');
+
+    Notification::assertNotSentTo($bob, UserMentioned::class);
+});
+
 it('does not notify about posts that are no longer public', function () {
     Notification::fake();
     $starter = User::factory()->create();
@@ -78,7 +129,7 @@ it('does not notify about posts that are no longer public', function () {
     Notification::fake();
     app(HidePost::class)->handle($reply, null);
 
-    app(NotifyThreadSubscribers::class)->handle(new PostCreated($reply));
+    app(NotifyThreadSubscribers::class)->handle(new PostCreated($reply, []));
 
     Notification::assertNotSentTo($starter, ThreadReplied::class);
 });

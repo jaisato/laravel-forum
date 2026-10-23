@@ -34,8 +34,9 @@ final class UpdatePost
         }
 
         $bodyHtml = $this->markdown->render($body);
+        $mentioned = $this->mentions->extract($body);
 
-        return DB::transaction(function () use ($post, $editor, $body, $bodyHtml): Post {
+        return DB::transaction(function () use ($post, $editor, $body, $bodyHtml, $mentioned): Post {
             // Thread first, then post: the lock order of every action.
             $thread = Thread::withTrashed()->whereKey($post->thread_id)->lockForUpdate()->firstOrFail();
             $stored = Post::withTrashed()->whereKey($post->id)->lockForUpdate()->firstOrFail();
@@ -61,7 +62,7 @@ final class UpdatePost
                     $this->log->handle($editor, ModerationActionType::PostEdited, $stored);
                 }
 
-                PostUpdated::dispatch($stored, $previousMentions);
+                PostUpdated::dispatch($stored, $previousMentions, $mentioned);
             }
 
             $post->setRawAttributes($stored->getAttributes(), sync: true);

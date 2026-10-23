@@ -12,6 +12,7 @@ use App\Services\ForumCounters;
 use App\Services\ReadTracker;
 use App\Services\ThreadSubscriptions;
 use App\Support\Markdown\MarkdownRenderer;
+use App\Support\Markdown\MentionParser;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
@@ -25,6 +26,7 @@ final class ReplyToThread
 {
     public function __construct(
         private readonly MarkdownRenderer $markdown,
+        private readonly MentionParser $mentions,
         private readonly ForumCounters $counters,
         private readonly ThreadSubscriptions $subscriptions,
         private readonly ReadTracker $reads,
@@ -37,8 +39,9 @@ final class ReplyToThread
         }
 
         $bodyHtml = $this->markdown->render($body);
+        $mentioned = $this->mentions->extract($body);
 
-        return DB::transaction(function () use ($thread, $author, $body, $bodyHtml, $replyTo): Post {
+        return DB::transaction(function () use ($thread, $author, $body, $bodyHtml, $mentioned, $replyTo): Post {
             $thread = Thread::query()->whereKey($thread->id)->lockForUpdate()->firstOrFail();
 
             // The request was authorised on the copy it loaded: a moderator
@@ -67,7 +70,7 @@ final class ReplyToThread
             $this->subscriptions->subscribe($thread, $author);
             $this->reads->markRead($thread, $author);
 
-            PostCreated::dispatch($post);
+            PostCreated::dispatch($post, $mentioned);
 
             return $post;
         });

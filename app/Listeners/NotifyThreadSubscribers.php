@@ -28,7 +28,8 @@ final class NotifyThreadSubscribers implements ShouldQueue
             return;
         }
 
-        $mentioned = $this->mentions->extract($post->body);
+        // NotifyMentionedUsers tells these members instead.
+        $mentioned = $this->mentions->stillNew($event->mentions, [], $post->body);
 
         $post->thread->subscribers()
             ->whereKeyNot($post->user_id)

@@ -13,5 +13,11 @@ final class PostCreated implements ShouldDispatchAfterCommit
 {
     use Dispatchable, SerializesModels;
 
-    public function __construct(public readonly Post $post) {}
+    /**
+     * @param  list<string>  $mentions  usernames the post mentioned when it was created
+     */
+    public function __construct(
+        public readonly Post $post,
+        public readonly array $mentions,
+    ) {}
 }

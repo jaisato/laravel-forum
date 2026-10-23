@@ -15,9 +15,11 @@ final class PostUpdated implements ShouldDispatchAfterCommit
 
     /**
      * @param  list<string>  $previousMentions  usernames mentioned before the edit, so only new mentions notify
+     * @param  list<string>  $mentions  usernames mentioned after the edit
      */
     public function __construct(
         public readonly Post $post,
         public readonly array $previousMentions,
+        public readonly array $mentions,
     ) {}
 }

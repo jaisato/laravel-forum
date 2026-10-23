@@ -23,18 +23,19 @@ final class NotifyMentionedUsers implements ShouldQueue
 
     public function handlePostCreated(PostCreated $event): void
     {
-        $this->notify($event->post->id, []);
+        $this->notify($event->post->id, $event->mentions, []);
     }
 
     public function handlePostUpdated(PostUpdated $event): void
     {
-        $this->notify($event->post->id, $event->previousMentions);
+        $this->notify($event->post->id, $event->mentions, $event->previousMentions);
     }
 
     /**
-     * @param  list<string>  $previousMentions
+     * @param  list<string>  $mentioned  usernames the revision mentioned
+     * @param  list<string>  $before  usernames the revision before it mentioned
      */
-    private function notify(int $postId, array $previousMentions): void
+    private function notify(int $postId, array $mentioned, array $before): void
     {
         $post = Post::query()->with('thread')->find($postId);
 
@@ -42,7 +43,7 @@ final class NotifyMentionedUsers implements ShouldQueue
             return;
         }
 
-        $usernames = array_values(array_diff($this->mentions->extract($post->body), $previousMentions));
+        $usernames = $this->mentions->stillNew($mentioned, $before, $post->body);
 
         if ($usernames === []) {
             return;
