@@ -16,11 +16,13 @@ use App\Models\ThreadEmbedding;
 use App\Models\ThreadRead;
 use App\Models\ThreadSubscription;
 use App\Models\User;
+use App\Notifications\Channels\ForumDatabaseChannel;
 use Carbon\CarbonImmutable;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\Request;
+use Illuminate\Notifications\Channels\DatabaseChannel;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -37,7 +39,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->bind(DatabaseChannel::class, ForumDatabaseChannel::class);
     }
 
     /**

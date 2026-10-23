@@ -85,6 +85,23 @@ it('erases the personal data of the account', function () {
     Storage::disk(config('forum.profiles.avatar.disk'))->assertMissing('avatars/ana.webp');
 });
 
+it('erases the notifications the account caused for others', function () {
+    $user = memberWithPersonalData();
+    $starter = User::factory()->create();
+    $thread = forumThread($starter);
+    // The member replies: the starter is told who did, by name.
+    forumReply($thread, $user, 'Mi respuesta.');
+    // Somebody else replies too: that notification is not theirs to erase.
+    forumReply($thread);
+
+    expect($starter->notifications()->count())->toBe(2);
+
+    actingAs($user)->delete(route('profile.destroy'), ['password' => 'password']);
+
+    expect($starter->notifications()->count())->toBe(1)
+        ->and($starter->notifications()->sole()->data['actor']['username'])->not->toBe('ana');
+});
+
 it('keeps the posts and credits them to «Deleted user»', function () {
     $user = memberWithPersonalData();
 

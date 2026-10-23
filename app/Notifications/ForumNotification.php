@@ -39,6 +39,15 @@ abstract class ForumNotification extends Notification implements ShouldQueue
     abstract protected function actor(): ?User;
 
     /**
+     * Who caused the notification, stored apart from the payload
+     * (ForumDatabaseChannel).
+     */
+    public function actorId(): ?int
+    {
+        return $this->actor()?->id;
+    }
+
+    /**
      * @return list<string>
      */
     public function via(User $notifiable): array

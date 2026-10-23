@@ -15,6 +15,9 @@ return new class extends Migration
             $table->uuid('id')->primary();
             $table->string('type');
             $table->morphs('notifiable');
+            // Who caused it (ForumDatabaseChannel): erasing an account erases
+            // the notifications it caused for others too.
+            $table->foreignId('actor_id')->nullable()->index()->constrained('users')->nullOnDelete();
             $table->text('data');
             $table->timestamp('read_at')->nullable();
             $table->timestamps();

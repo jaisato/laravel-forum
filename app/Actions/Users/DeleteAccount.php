@@ -7,6 +7,7 @@ namespace App\Actions\Users;
 use App\Models\ThreadRead;
 use App\Models\ThreadSubscription;
 use App\Models\User;
+use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -27,6 +28,8 @@ final class DeleteAccount
             $user->tokens()->delete();
             $user->passkeys()->delete();
             $user->notifications()->delete();
+            // Those it caused for others name it in their title and payload.
+            DatabaseNotification::query()->where('actor_id', $user->id)->delete();
             ThreadSubscription::query()->where('user_id', $user->id)->delete();
             ThreadRead::query()->where('user_id', $user->id)->delete();
 
