@@ -50,18 +50,20 @@ export default defineConfig(({ isSsrBuild }) => ({
                   },
         },
     },
-    ssr: {
-        // A self-contained bundle: the ssr image ships bootstrap/ssr alone,
-        // without node_modules.
-        noExternal: true,
-    },
+    // A self-contained bundle: the ssr image ships bootstrap/ssr alone,
+    // without node_modules. The dev server's SSR keeps Vite's defaults: it
+    // loads the CommonJS packages from node_modules as they are.
+    ssr: isSsrBuild ? { noExternal: true } : undefined,
     server: {
         // compose.yaml runs Vite on 0.0.0.0 inside its container: the browser
         // reaches it through the published port on VITE_HMR_HOST (localhost),
-        // the address laravel-vite-plugin writes to public/hot.
+        // the address laravel-vite-plugin writes to public/hot, and the app
+        // container renders pages through it by the service name, which
+        // VITE_ALLOWED_HOSTS lets past Vite's host check.
         hmr: process.env.VITE_HMR_HOST
             ? { host: process.env.VITE_HMR_HOST }
             : undefined,
+        allowedHosts: process.env.VITE_ALLOWED_HOSTS?.split(','),
         watch: {
             ignored: ['**/vendor/**', '**/storage/**', '**/.superpowers/**'],
         },

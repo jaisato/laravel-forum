@@ -90,6 +90,10 @@ RUN set -eux; \
 
 USER ${UID}:${GID}
 
+# A host user that is root (UID 0) runs FPM as root too, which FPM refuses
+# without this flag; for any other user the flag changes nothing.
+CMD ["php-fpm", "--allow-to-run-as-root"]
+
 # ----------------------------------------------------------------------------
 FROM base AS vendor
 
