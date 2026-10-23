@@ -173,7 +173,7 @@ ENTRYPOINT ["app-entrypoint"]
 CMD ["php-fpm"]
 
 # ----------------------------------------------------------------------------
-FROM nginx:1.29-alpine3.23 AS web
+FROM nginx:1.31-alpine3.23 AS web
 
 COPY docker/nginx/nginx.conf /etc/nginx/nginx.conf
 COPY --from=vendor /var/www/html/public /var/www/html/public
