@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Actions\Forum;
 
+use App\Enums\PostStatus;
 use App\Events\SolutionMarked;
 use App\Models\Post;
 use App\Models\Thread;
@@ -29,6 +30,12 @@ final class MarkSolution
 
         DB::transaction(function () use ($thread, $post, $actor): void {
             $thread = Thread::query()->whereKey($thread->id)->lockForUpdate()->firstOrFail();
+            // Read again under lock: the answer may have been hidden meanwhile.
+            $post = Post::query()->whereKey($post->id)->lockForUpdate()->first();
+
+            if ($post === null || $post->status !== PostStatus::Published) {
+                throw new InvalidArgumentException('Only a reply everybody can see can be the solution.');
+            }
 
             if ((int) $thread->solution_post_id === $post->id) {
                 return;

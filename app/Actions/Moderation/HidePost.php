@@ -12,6 +12,7 @@ use App\Models\Post;
 use App\Models\Thread;
 use App\Models\User;
 use App\Services\ForumCounters;
+use App\Services\Reputation;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -24,6 +25,7 @@ final class HidePost
 {
     public function __construct(
         private readonly ForumCounters $counters,
+        private readonly Reputation $reputation,
         private readonly RecordModerationAction $log,
     ) {}
 
@@ -53,6 +55,14 @@ final class HidePost
             }
 
             $post->forceFill(['status' => $status])->save();
+
+            // As with a deleted answer, an answer nobody can see no longer
+            // solves the thread and its bonus goes back. Approving the post
+            // later does not mark it again: the thread author decides.
+            if ((int) $thread->solution_post_id === $post->id) {
+                $thread->forceFill(['solution_post_id' => null])->save();
+                $this->reputation->solution($thread, $post, -1);
+            }
 
             if ((int) $thread->last_post_id === $post->id) {
                 $this->counters->refreshLastPost($thread);

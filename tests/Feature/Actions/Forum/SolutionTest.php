@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 use App\Actions\Forum\MarkSolution;
 use App\Actions\Forum\UnmarkSolution;
+use App\Actions\Moderation\HidePost;
 use App\Events\SolutionMarked;
+use App\Models\Post;
 use App\Models\User;
 use Illuminate\Support\Facades\Event;
 
@@ -88,3 +90,32 @@ it('announces the solution once committed', function () {
         && $event->post->is($answer)
         && $event->actor->is($thread->author));
 });
+
+it('refuses a reply that the public cannot see', function (Closure $hide) {
+    $thread = forumThread();
+    $answer = forumReply($thread);
+    $hide($answer);
+
+    expect(fn () => app(MarkSolution::class)->handle($thread, $answer->fresh(), $thread->author))
+        ->toThrow(InvalidArgumentException::class);
+
+    expect($thread->fresh()->solution_post_id)->toBeNull()
+        ->and($answer->author->fresh()->reputation)->toBe(0);
+})->with([
+    // A Closure-typed parameter receives these closures as they are.
+    'hidden by a moderator' => fn (Post $post) => app(HidePost::class)->handle($post, User::factory()->moderator()->create()),
+    'held by the AI for review' => fn (Post $post) => app(HidePost::class)->handle($post, null),
+]);
+
+it('stops solving the thread once its answer is hidden', function (bool $byModerator) {
+    $thread = forumThread();
+    $answer = forumReply($thread);
+    app(MarkSolution::class)->handle($thread, $answer, $thread->author);
+
+    app(HidePost::class)->handle($answer, $byModerator ? User::factory()->moderator()->create() : null);
+
+    // Like a deleted answer: the thread is unsolved and the bonus goes back.
+    expect($thread->fresh()->solution_post_id)->toBeNull()
+        ->and($thread->fresh()->isSolved())->toBeFalse()
+        ->and($answer->author->fresh()->reputation)->toBe(0);
+})->with(['by a moderator' => true, 'by the AI' => false]);
