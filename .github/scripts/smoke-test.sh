@@ -3,8 +3,10 @@
 # already built as ${IMAGE_PREFIX}-{app,web,ssr}:${IMAGE_TAG}: the migrations
 # run, /up answers through Caddy and the home page arrives rendered by the SSR
 # server. CI runs it after building the images (ci.yml, docker job); locally,
-# once `docker compose -f compose.prod.yaml build` has tagged them:
+# once Compose has built and tagged them from the template:
 #
+#   ENV_FILE=.env.production.example docker compose -f compose.prod.yaml \
+#       --env-file .env.production.example build
 #   IMAGE_TAG=latest .github/scripts/smoke-test.sh
 #
 # It brings up a Compose project of its own (laravel-forum-smoke) on

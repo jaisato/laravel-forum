@@ -1,5 +1,8 @@
 # Laravel Forum
 
+[![CI](https://github.com/jaisato/laravel-forum/actions/workflows/ci.yml/badge.svg)](https://github.com/jaisato/laravel-forum/actions/workflows/ci.yml)
+[![Dependency audit](https://github.com/jaisato/laravel-forum/actions/workflows/audit.yml/badge.svg)](https://github.com/jaisato/laravel-forum/actions/workflows/audit.yml)
+
 Foro de comunidad bilingüe (español por defecto e inglés) construido con
 **Laravel 13**, **Inertia 3** y **Vue 3** con TypeScript, con renderizado en
 servidor (SSR), búsqueda en **Meilisearch** y colas en **Redis**. Se desarrolla
@@ -7,9 +10,8 @@ y se despliega con **Docker**: un único `Dockerfile` *multi-stage* y Docker
 Compose para el entorno local y para producción.
 
 El diseño completo (alcance, arquitectura, modelo de datos y seguridad) está en
-[docs/02-arquitectura.md](docs/02-arquitectura.md). La reconstrucción avanza por
-tareas según el [plan](docs/plans/2026-10-22-reconstruccion-foro.md); esta
-página describe lo que ya funciona.
+[docs/02-arquitectura.md](docs/02-arquitectura.md), y la reconstrucción siguió,
+tarea a tarea, el [plan](docs/plans/2026-10-22-reconstruccion-foro.md).
 
 ## Funcionalidades
 
@@ -126,7 +128,7 @@ página describe lo que ya funciona.
 | Frontend | Inertia 3, Vue 3.5 + TypeScript, Vite 8, Tailwind CSS 4, shadcn-vue (Reka UI), laravel-vue-i18n |
 | Datos | PostgreSQL 18 con pgvector, Redis 8 (caché, sesiones y colas), Meilisearch |
 | Calidad | Pest, Larastan (nivel 7), Pint, Vitest, ESLint, Prettier, vue-tsc |
-| Infraestructura | Docker, Docker Compose, Nginx, Caddy (TLS en producción) |
+| Infraestructura | Docker, Docker Compose, Nginx, Caddy (TLS en producción), GitHub Actions y GHCR |
 
 ## Arranque rápido
 
@@ -187,7 +189,8 @@ entorno del proceso antes de arrancar el framework, de modo que ninguna clave
 se escribe en disco. Si defines `APP_KEY`, se respeta.
 
 `composer test` ejecuta Pest con `--fail-on-warning`: un aviso de PHP o de
-PHPUnit hace fallar la suite.
+PHPUnit hace fallar la suite. Cómo está organizada, la cobertura y lo que
+comprueba CI en cada *pull request*: [docs/07-testing-y-ci.md](docs/07-testing-y-ci.md).
 
 ## Producción
 
@@ -201,8 +204,11 @@ cp .env.production.example .env.production   # y completa sus valores
 docker compose -f compose.prod.yaml --env-file .env.production up -d --wait
 ```
 
-Todos los pasos (requisitos, actualizaciones, copias de seguridad y ajustes) en
-[docs/04-despliegue.md](docs/04-despliegue.md).
+Cada *tag* `v*` publica las imágenes en GitHub Container Registry y, si el
+repositorio lo tiene configurado, despliega esa versión por SSH. Todos los pasos
+(requisitos, actualizaciones, publicación, copias de seguridad y ajustes) en
+[docs/04-despliegue.md](docs/04-despliegue.md), y cómo protege el foro las
+cuentas y los datos, en [docs/08-seguridad.md](docs/08-seguridad.md).
 
 ## Documentación
 
@@ -216,6 +222,11 @@ Todos los pasos (requisitos, actualizaciones, copias de seguridad y ajustes) en
   rutas de la API REST v1.
 - [06 · IA](docs/06-ia.md): las funciones de IA, cómo activarlas, proveedores,
   costes, privacidad y modelos locales con Ollama.
+- [07 · Tests y CI](docs/07-testing-y-ci.md): la suite, cómo escribir tests,
+  cobertura, análisis estático, los *workflows* de GitHub Actions y el *smoke
+  test* de producción.
+- [08 · Seguridad](docs/08-seguridad.md): cuentas, permisos, contenido de los
+  miembros, datos personales, producción, secretos y riesgos conocidos.
 
 ## Aviso de seguridad: credenciales en el historial
 

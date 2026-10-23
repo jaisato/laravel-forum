@@ -53,6 +53,11 @@ Al terminar, el foro está en <http://localhost:8080>:
 | Moderación | `moderador@example.com` | `password` |
 | Miembros de demostración | `ana@example.com`, `luis@example.com`, `marta@example.com`… | `password` |
 
+El panel de administración está en <http://localhost:8080/admin>. Con la
+cuenta de administración se ve entero; con la de moderación, solo la
+moderación: reportes, mensajes, hilos, miembros y el registro de moderación
+(las categorías y las etiquetas son de la administración).
+
 Para dar el rol de administración a otra cuenta:
 
 ```bash
@@ -194,6 +199,8 @@ docker compose exec app npx vitest run tests/js/lib/inertia.spec.ts
 
 El informe HTML de la cobertura de Vitest queda en `coverage/js/index.html`.
 La suite PHP también funciona sin Docker: ver el [README](../README.md#tests-sin-docker).
+Cómo está organizada la suite, cómo escribir tests y qué comprueba CI:
+[07-testing-y-ci.md](07-testing-y-ci.md).
 
 ## 7. Correo, búsqueda, colas y tareas programadas
 

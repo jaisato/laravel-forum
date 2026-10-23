@@ -51,9 +51,10 @@ Los volúmenes con nombre guardan el estado: `storage` (los ficheros subidos,
 como los avatares; Nginx lo monta en solo lectura), `postgres`, `redis`,
 `meilisearch` y `caddy_data`/`caddy_config` (certificados y cuenta ACME).
 
-Cada despliegue sigue este orden: los servicios de datos quedan sanos, `migrate`
+Cada arranque sigue este orden: los servicios de datos quedan sanos, `migrate`
 termina con éxito, arrancan `app`, `queue` y `scheduler`, después `web` y por
-último `proxy`. Si las migraciones fallan, no arranca nada que dependa de ellas.
+último `proxy`. Si las migraciones fallan, no arranca nada que dependa de ellas
+(por eso, al actualizar, se ejecutan antes por separado: sección 4).
 
 ## 2. Requisitos
 
@@ -140,20 +141,40 @@ Todos los servicios deben aparecer `healthy` salvo `migrate`, que termina con
 
 ## 4. Actualizar
 
+Cada versión es un *tag* del repositorio (`v1.2.3`) y unas imágenes con su
+número (`1.2.3`). Para pasar a otra, el código del servidor y `IMAGE_TAG`
+cambian juntos, de modo que `compose.prod.yaml` y el `Caddyfile` sean los de
+esas imágenes:
+
 ```bash
-# Nueva versión: IMAGE_TAG en .env.production y después
+git fetch --tags
+git checkout v1.2.3
+sed -i 's/^IMAGE_TAG=.*/IMAGE_TAG=1.2.3/' .env.production
 dcp pull
+dcp run --rm migrate
 dcp up -d --wait
 ```
 
-`up` recrea los contenedores cuya imagen cambió. `migrate` vuelve a ejecutarse
-antes de que arranquen `app`, `queue` y `scheduler`; Horizon termina los
-trabajos en curso antes de pararse (dispone de 200 s). Mientras se sustituye
-`app` hay una breve interrupción: para migraciones largas, activa antes el modo
-mantenimiento (`dcp exec app php artisan down`) y desactívalo al final
-(`dcp exec app php artisan up`).
+Es lo mismo que hace el despliegue automático de la
+[sección 10](#10-publicar-una-versión).
 
-Volver a la versión anterior es poner su `IMAGE_TAG` y repetir `up`. Las
+- **Primero las migraciones.** `run --rm migrate` las aplica mientras la
+  versión anterior sigue atendiendo. Si fallan, detente ahí: no se ha
+  sustituido nada, y basta con volver al *tag* y al `IMAGE_TAG` anteriores. Sin ese paso,
+  `up` pararía `app`, `queue` y `scheduler` antes de ejecutar `migrate`, y una
+  migración fallida dejaría el foro sin servicio.
+- **Migraciones compatibles.** Como la versión anterior convive un momento con
+  el esquema nuevo, cada migración tiene que funcionar con las dos (añadir una
+  columna, sí; renombrarla o borrarla, en una versión posterior). Si no es
+  posible, o si una migración bloquea tablas grandes, activa antes el modo
+  mantenimiento (`dcp exec app php artisan down`) y desactívalo al final
+  (`dcp exec app php artisan up`).
+- **La sustitución.** `up` recrea los contenedores cuya imagen cambió (el
+  servicio `migrate` vuelve a ejecutarse, ya sin nada pendiente). Horizon termina
+  los trabajos en curso antes de pararse (dispone de 200 s) y, mientras se
+  sustituye `app`, hay una breve interrupción.
+
+Volver a la versión anterior es repetir los mismos pasos con su *tag*. Las
 migraciones **no** se deshacen solas: escríbelas compatibles con la versión
 anterior o restaura la copia de seguridad.
 
@@ -258,3 +279,54 @@ docker build --secret id=composer_auth,env=COMPOSER_AUTH --target app -t ghcr.io
 - **Límites de recursos.** `deploy.resources.limits` de cada servicio en
   `compose.prod.yaml`; ajústalos a la memoria del servidor. Son topes, no
   reservas.
+
+## 10. Publicar una versión
+
+El *workflow* `release.yml` publica cada *tag* `v*`:
+
+```bash
+git tag -a v1.2.3 -m "Versión 1.2.3"
+git push origin v1.2.3
+```
+
+**Las imágenes.** Construye `app`, `web` y `ssr` y las sube a GitHub Container
+Registry con los nombres que espera `compose.prod.yaml`
+(`ghcr.io/jaisato/laravel-forum-app`, `-web` y `-ssr`), etiquetadas `1.2.3`,
+`1.2` y `latest` (estas dos, solo en las versiones estables: un `v1.3.0-rc.1`
+publica solo `1.3.0-rc.1`), con procedencia y SBOM. Los paquetes nuevos de
+GHCR son privados: hazlos públicos en la configuración de cada paquete o, en
+el servidor, inicia sesión con un *token* que tenga `read:packages`:
+
+```bash
+echo "<token>" | docker login ghcr.io -u <usuario> --password-stdin
+```
+
+**El despliegue automático (opcional).** Si el repositorio lo tiene
+configurado, después de publicar las imágenes el *workflow* entra por SSH en el
+servidor y ejecuta los pasos de la [sección 4](#4-actualizar) con ese *tag*:
+`git checkout`, `IMAGE_TAG`, `pull`, `run --rm migrate` y
+`up -d --wait --remove-orphans`. Si las migraciones fallan, el *job* falla y la
+versión anterior sigue en marcha, aunque el servidor ya tenga el código y el
+`IMAGE_TAG` nuevos: para dejarlo como estaba, vuelve al *tag* anterior como en
+la sección 4.
+
+Se configura en *Settings* → *Environments* → `production`, un entorno que
+conviene proteger (con revisores obligatorios, o que solo lo usen los *tags*
+`v*`):
+
+| Tipo | Nombre | Valor |
+|---|---|---|
+| Variable | `DEPLOY_HOST` | El servidor (sin ella, el despliegue no se ejecuta y la versión son solo las imágenes) |
+| Variable | `DEPLOY_USER` | Un usuario del servidor que pueda usar Docker |
+| Variable | `DEPLOY_PATH` | El clon del repositorio con su `.env.production` (sección 3) |
+| Secreto | `DEPLOY_SSH_KEY` | La clave privada de un par creado solo para esto, cuya clave pública está en el `authorized_keys` de ese usuario |
+| Secreto | `DEPLOY_KNOWN_HOSTS` | La línea del servidor que da `ssh-keyscan`, comprobada antes contra la huella del propio servidor |
+
+```bash
+ssh-keygen -t ed25519 -N "" -C "despliegue del foro" -f deploy_key   # DEPLOY_SSH_KEY: deploy_key
+ssh-keyscan -t ed25519 foro.example.com                              # DEPLOY_KNOWN_HOSTS
+ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub                     # en el servidor: la huella
+```
+
+La conexión nunca acepta una clave de servidor desconocida, y el *workflow*
+rechaza un *tag* que no sea una versión antes de que llegue al servidor.

@@ -83,8 +83,11 @@ jobs:
     permissions: {}
     steps:
       # The server checks out the tag (compose.prod.yaml and the Caddyfile of
-      # that version), points IMAGE_TAG at it, pulls the images and waits for
-      # the stack to be healthy: the migrations run first (migrate).
+      # that version), points IMAGE_TAG at it and pulls the images. The new
+      # migrations run on their own first, while the current version still
+      # serves: `up` would stop app, queue and scheduler before its one-shot
+      # migrate, so a failing migration would leave the forum down. Then the
+      # stack comes up and the job waits for it to be healthy.
       - name: Deploy the tagged version
         env:
           DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
@@ -113,5 +116,6 @@ jobs:
           git checkout --quiet "$2"
           sed -i "s/^IMAGE_TAG=.*/IMAGE_TAG=${2#v}/" .env.production
           docker compose -f compose.prod.yaml --env-file .env.production pull
+          docker compose -f compose.prod.yaml --env-file .env.production run --rm migrate
           docker compose -f compose.prod.yaml --env-file .env.production up -d --wait --remove-orphans
           REMOTE
