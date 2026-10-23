@@ -204,6 +204,28 @@ describe('threads/Show', () => {
         );
     });
 
+    it('lists the related threads once they arrive', () => {
+        expect(show().find('[data-test="related-threads"]').exists()).toBe(
+            false,
+        );
+
+        const wrapper = show({
+            similar: [
+                {
+                    id: 9,
+                    title: 'Horizon no procesa nada',
+                    slug: 'horizon-no-procesa-nada',
+                    replies_count: 2,
+                    is_solved: false,
+                },
+            ],
+        });
+
+        expect(wrapper.get('[data-test="related-threads"]').text()).toContain(
+            'Horizon no procesa nada',
+        );
+    });
+
     it('shows the summary once it arrives', () => {
         const wrapper = show({
             summary: {

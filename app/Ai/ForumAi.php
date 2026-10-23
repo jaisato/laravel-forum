@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Ai;
 
+use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
 /**
@@ -51,6 +52,15 @@ final class ForumAi
         $model = config("forum.ai.{$feature}.model");
 
         return filled($model) ? (string) $model : (string) config('forum.ai.text.model');
+    }
+
+    /**
+     * Similar threads come from embeddings (pgvector) while the feature is
+     * on and the database is PostgreSQL; otherwise from keyword search.
+     */
+    public function usesVectorSearch(): bool
+    {
+        return $this->enabled('similar') && DB::connection()->getDriverName() === 'pgsql';
     }
 
     public function embeddingsProvider(): string

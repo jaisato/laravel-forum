@@ -4,6 +4,12 @@ import ThreadCreate from '@/pages/threads/Create.vue';
 import { forms, succeed } from '../support/fakeForm';
 
 const router = vi.hoisted(() => ({ reload: vi.fn(), visit: vi.fn() }));
+const http = vi.hoisted(() => ({ post: vi.fn() }));
+const page = vi.hoisted(() => ({
+    props: {
+        features: { ai: { summaries: false, similar: false, tags: false } },
+    },
+}));
 
 vi.mock('@inertiajs/vue3', async () => {
     const { fakeUseForm } = await import('../support/fakeForm');
@@ -16,7 +22,11 @@ vi.mock('@inertiajs/vue3', async () => {
     return {
         router,
         useForm: fakeUseForm,
-        useHttp: () => ({ body: '', post: vi.fn() }),
+        useHttp: (data: Record<string, unknown> = {}) => ({
+            ...data,
+            post: http.post,
+        }),
+        usePage: () => page,
         Head,
         Link: defineComponent({
             props: { href: { type: String, required: true } },
@@ -56,6 +66,8 @@ function create(props: Record<string, unknown> = {}) {
 beforeEach(() => {
     forms.length = 0;
     router.reload.mockClear();
+    http.post.mockReset();
+    page.props.features.ai.tags = false;
     window.localStorage.clear();
     document.body.replaceChildren();
 });
@@ -168,6 +180,25 @@ describe('threads/Create', () => {
         );
         expect(wrapper.text()).toContain(
             'The tags field must not have more than 5 items.',
+        );
+    });
+
+    it('suggests tags with the AI, among the forum ones', async () => {
+        page.props.features.ai.tags = true;
+        http.post.mockResolvedValue({ tags: [tags[0]] });
+        const wrapper = create();
+
+        await wrapper.get('#thread-title').setValue('¿Cómo testear las colas?');
+        await wrapper.get('[data-test="suggest-tags"]').trigger('click');
+        await flushPromises();
+
+        expect(http.post).toHaveBeenCalledWith('/ai/tag-suggestions');
+        expect(forms.at(-1)!.tags).toEqual([7]);
+    });
+
+    it('offers no suggestions while AI tags are off', () => {
+        expect(create().find('[data-test="suggest-tags"]').exists()).toBe(
+            false,
         );
     });
 });

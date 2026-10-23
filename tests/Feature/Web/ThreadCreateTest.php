@@ -110,6 +110,11 @@ describe('the form', function () {
             /** @param  list<string>  $searched */
             public function __construct(private array &$searched) {}
 
+            public function similarTo(Thread $thread, int $limit = 5): Collection
+            {
+                return collect();
+            }
+
             public function forText(string $text, int $limit = 5, ?int $exceptThreadId = null): Collection
             {
                 $this->searched[] = $text;

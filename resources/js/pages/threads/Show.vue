@@ -9,6 +9,7 @@ import EmptyState from '@/components/forum/EmptyState.vue';
 import Pagination from '@/components/forum/Pagination.vue';
 import PostCard from '@/components/forum/PostCard.vue';
 import RelativeTime from '@/components/forum/RelativeTime.vue';
+import SimilarThreads from '@/components/forum/SimilarThreads.vue';
 import ReplyForm from '@/components/forum/ReplyForm.vue';
 import SubscriptionButton from '@/components/forum/SubscriptionButton.vue';
 import TagBadge from '@/components/forum/TagBadge.vue';
@@ -28,6 +29,7 @@ import type {
     PageMeta,
     Paginated,
     Post,
+    SimilarThread,
     TagOption,
     Thread,
     ThreadAbilities,
@@ -47,6 +49,8 @@ const props = defineProps<{
     tagOptions?: TagOption[];
     /** Deferred; null while AI summaries are off or none was generated. */
     summary?: AiSummary | null;
+    /** Deferred: the public threads most like this one. */
+    similar?: SimilarThread[];
 }>();
 
 const page = usePage();
@@ -292,4 +296,6 @@ watch(() => props.focus, scrollToFocus);
             {{ $t(blockerMessages[replyBlocker]) }}
         </p>
     </section>
+
+    <SimilarThreads v-if="similar" :threads="similar" />
 </template>

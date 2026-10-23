@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { Head, router, useForm } from '@inertiajs/vue3';
+import { Head, router, useForm, useHttp, usePage } from '@inertiajs/vue3';
+import { Sparkles } from '@lucide/vue';
 import { watchDebounced } from '@vueuse/core';
+import { ref } from 'vue';
 import MarkdownEditor from '@/components/forum/MarkdownEditor.vue';
 import SimilarThreadsHint from '@/components/forum/SimilarThreadsHint.vue';
 import TagSelect from '@/components/forum/TagSelect.vue';
@@ -9,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useDraft } from '@/composables/useDraft';
+import { tagSuggestions } from '@/routes/ai';
 import { store } from '@/routes/threads';
 import type { CategoryOption, SimilarThread, TagOption } from '@/types/forum';
 
@@ -24,6 +27,11 @@ const props = defineProps<{
 
 /** Shorter titles say too little to look for similar threads. */
 const SIMILAR_MIN_LENGTH = 10;
+
+/** forum.threads.max_tags, as TagSelect. */
+const MAX_TAGS = 5;
+
+const page = usePage();
 
 // What the member writes survives a reload until the thread is published.
 const title = useDraft('new-thread-title');
@@ -55,6 +63,42 @@ watchDebounced(
     },
     { debounce: 400 },
 );
+
+// "Suggest tags": the AI picks among the forum's tags from what the member
+// wrote so far; they are added to the ones already chosen.
+const suggestions = useHttp<
+    { title: string; body: string },
+    { tags: TagOption[] }
+>({
+    title: '',
+    body: '',
+});
+const suggestionNote = ref<string | null>(null);
+
+async function suggestTags(): Promise<void> {
+    suggestions.title = title.text.value;
+    suggestions.body = body.text.value;
+    suggestionNote.value = null;
+
+    try {
+        const { tags } = await suggestions.post(tagSuggestions.url());
+        const chosen = [...form.tags];
+
+        for (const tag of tags) {
+            if (!chosen.includes(tag.id) && chosen.length < MAX_TAGS) {
+                chosen.push(tag.id);
+            }
+        }
+
+        form.tags = chosen;
+
+        if (tags.length === 0) {
+            suggestionNote.value = 'No tag fits what you wrote yet.';
+        }
+    } catch {
+        suggestionNote.value = 'Tag suggestions are not available right now.';
+    }
+}
 
 function submit(): void {
     if (form.processing) {
@@ -133,14 +177,38 @@ function submit(): void {
         </div>
 
         <div class="grid gap-1.5">
-            <span id="thread-tags" class="text-sm font-medium">
-                {{ $t('Tags') }}
-            </span>
+            <div class="flex items-center justify-between gap-2">
+                <span id="thread-tags" class="text-sm font-medium">
+                    {{ $t('Tags') }}
+                </span>
+                <Button
+                    v-if="page.props.features.ai.tags"
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    data-test="suggest-tags"
+                    :disabled="
+                        suggestions.processing || title.text.value.trim() === ''
+                    "
+                    @click="suggestTags"
+                >
+                    <Sparkles aria-hidden="true" />
+                    {{ $t('Suggest tags') }}
+                </Button>
+            </div>
             <TagSelect
                 v-model="form.tags"
                 :tags="tags"
+                :max="MAX_TAGS"
                 labelled-by="thread-tags"
             />
+            <p
+                v-if="suggestionNote"
+                aria-live="polite"
+                class="text-xs text-muted-foreground"
+            >
+                {{ $t(suggestionNote) }}
+            </p>
             <InputError :message="form.errors.tags" />
         </div>
 

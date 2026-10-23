@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Ai\ForumAi;
 use App\Models\Category;
 use App\Models\Conversation;
 use App\Models\ConversationParticipant;
@@ -20,11 +21,13 @@ use App\Models\UserNotification;
 use App\Notifications\Channels\ForumDatabaseChannel;
 use App\Services\Ai\KeywordSimilarThreadFinder;
 use App\Services\Ai\SimilarThreadFinder;
+use App\Services\Ai\VectorSimilarThreadFinder;
 use Carbon\CarbonImmutable;
 use Dedoc\Scramble\Scramble;
 use Dedoc\Scramble\Support\Generator\OpenApi;
 use Dedoc\Scramble\Support\Generator\SecurityScheme;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\Request;
@@ -47,7 +50,10 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->bind(DatabaseChannel::class, ForumDatabaseChannel::class);
-        $this->app->bind(SimilarThreadFinder::class, KeywordSimilarThreadFinder::class);
+        // Decided at each resolution: the feature and the database may change.
+        $this->app->bind(SimilarThreadFinder::class, fn (Application $app): SimilarThreadFinder => $app->make(ForumAi::class)->usesVectorSearch()
+            ? $app->make(VectorSimilarThreadFinder::class)
+            : $app->make(KeywordSimilarThreadFinder::class));
     }
 
     /**

@@ -8,6 +8,7 @@ use App\Actions\Ai\ApplyModerationVerdict;
 use App\Ai\Agents\ContentModerator;
 use App\Ai\Data\ModerationResult;
 use App\Ai\ForumAi;
+use App\Ai\UntrustedText;
 use App\Enums\PostStatus;
 use App\Models\Post;
 use App\Models\Thread;
@@ -72,16 +73,6 @@ final class ModeratePost implements ShouldQueue
 
     private function prompt(string $title, string $body): string
     {
-        return "Moderate this post.\n\n".$this->delimit('thread_title', $title)."\n\n".$this->delimit('post', $body);
-    }
-
-    /**
-     * The content between its tags, which it may not close or open itself.
-     */
-    private function delimit(string $tag, string $content): string
-    {
-        $content = str_ireplace(["<{$tag}>", "</{$tag}>"], ["&lt;{$tag}&gt;", "&lt;/{$tag}&gt;"], $content);
-
-        return "<{$tag}>\n{$content}\n</{$tag}>";
+        return "Moderate this post.\n\n".UntrustedText::wrap('thread_title', $title)."\n\n".UntrustedText::wrap('post', $body);
     }
 }

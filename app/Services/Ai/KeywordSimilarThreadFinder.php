@@ -16,6 +16,11 @@ use Illuminate\Support\Collection;
  */
 final class KeywordSimilarThreadFinder implements SimilarThreadFinder
 {
+    public function similarTo(Thread $thread, int $limit = 5): Collection
+    {
+        return $this->forText($thread->title, $limit, $thread->id);
+    }
+
     public function forText(string $text, int $limit = 5, ?int $exceptThreadId = null): Collection
     {
         $text = trim($text);

@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\V1\PostController;
 use App\Http\Controllers\Api\V1\PostReactionController;
 use App\Http\Controllers\Api\V1\PostReportController;
 use App\Http\Controllers\Api\V1\SearchController;
+use App\Http\Controllers\Api\V1\SimilarThreadController;
 use App\Http\Controllers\Api\V1\TagController;
 use App\Http\Controllers\Api\V1\ThreadController;
 use App\Http\Controllers\Api\V1\ThreadPostController;
@@ -60,6 +61,7 @@ Route::prefix('v1')->name('api.v1.')->where([
         Route::get('threads/{thread:id}', [ThreadController::class, 'show'])->withTrashed()->name('threads.show');
         Route::get('threads/{thread:id}/posts', [ThreadPostController::class, 'index'])->withTrashed()->name('threads.posts.index');
         Route::get('threads/{thread:id}/summary', [ThreadSummaryController::class, 'show'])->name('threads.summary.show');
+        Route::get('threads/{thread:id}/similar', SimilarThreadController::class)->name('threads.similar');
         Route::get('posts/{post}', [PostController::class, 'show'])->name('posts.show');
 
         Route::get('users/{user:username}', [UserController::class, 'show'])->name('users.show');

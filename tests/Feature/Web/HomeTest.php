@@ -32,7 +32,7 @@ it('shows the categories in order with their counters and latest public thread',
     $deleted = forumThread(category: $general);
     app(DeleteThread::class)->handle($deleted, $deleted->author);
 
-    $this->get(route('home'))->assertInertia(fn (Assert $page) => $page
+    $this->get(route('home'))->assertOk()->assertInertia(fn (Assert $page) => $page
         ->has('categories', 2)
         ->where('categories.0.slug', $help->slug)
         ->where('categories.0.latest_thread', null)
@@ -50,7 +50,7 @@ it('shows the ten latest public threads', function () {
         ->map(fn (int $minutes) => $this->travelTo(now()->subMinutes(30 - $minutes), fn () => forumThread()));
     Thread::factory()->hidden()->create();
 
-    $this->get(route('home'))->assertInertia(fn (Assert $page) => $page
+    $this->get(route('home'))->assertOk()->assertInertia(fn (Assert $page) => $page
         ->has('threads', 10)
         ->where('threads.0.id', $threads->last()->id)
         ->where('threads.9.id', $threads->get(2)->id));
@@ -60,7 +60,7 @@ it('shows the forum statistics', function () {
     forumReply(forumThread());
     $member = User::factory()->create(['last_seen_at' => now()]);
 
-    $this->get(route('home'))->assertInertia(fn (Assert $page) => $page
+    $this->get(route('home'))->assertOk()->assertInertia(fn (Assert $page) => $page
         ->where('stats.members', 3)
         ->where('stats.threads', 1)
         ->where('stats.posts', 2)

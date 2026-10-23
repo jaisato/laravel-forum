@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Actions\Ai;
 
 use App\Ai\Agents\ThreadSummarizer;
+use App\Ai\UntrustedText;
 use App\Enums\PostStatus;
 use App\Models\Post;
 use App\Models\Thread;
@@ -67,23 +68,17 @@ final class SummarizeThread
             array_unshift($blocks, $this->post($opening, $thread));
         }
 
-        return "Summarize this thread.\n\n<thread>\n<title>".$this->escape($thread->title)."</title>\n"
+        return "Summarize this thread.\n\n<thread>\n".UntrustedText::wrap('title', $thread->title)."\n"
             .implode("\n", $blocks)."\n</thread>";
     }
 
     private function post(Post $post, Thread $thread): string
     {
         $author = $post->author === null || $post->author->trashed() ? 'deleted-user' : $post->author->username;
-        $solution = (int) $thread->solution_post_id === $post->id ? ' solution="yes"' : '';
 
-        return "<post author=\"{$author}\"{$solution}>\n".$this->escape($post->body)."\n</post>";
-    }
-
-    /**
-     * Members' text may not open or close the tags around it.
-     */
-    private function escape(string $text): string
-    {
-        return str_replace(['<', '>'], ['&lt;', '&gt;'], $text);
+        return UntrustedText::wrap('post', $post->body, [
+            'author' => $author,
+            ...((int) $thread->solution_post_id === $post->id ? ['solution' => 'yes'] : []),
+        ]);
     }
 }

@@ -16,6 +16,7 @@ use App\Http\Controllers\RobotsController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\SitemapController;
 use App\Http\Controllers\TagController;
+use App\Http\Controllers\TagSuggestionController;
 use App\Http\Controllers\ThreadController;
 use App\Http\Controllers\ThreadSolutionController;
 use App\Http\Controllers\ThreadSubscriptionController;
@@ -73,6 +74,10 @@ Route::middleware('auth')->group(function () {
         ->name('markdown.preview');
 
     Route::get('threads/create', [ThreadController::class, 'create'])->name('threads.create');
+    // Each suggestion may reach the AI provider.
+    Route::post('ai/tag-suggestions', TagSuggestionController::class)
+        ->middleware('throttle:10,1')
+        ->name('ai.tag-suggestions');
     Route::post('threads', [ThreadController::class, 'store'])
         ->middleware('throttle:forum-threads')
         ->name('threads.store');

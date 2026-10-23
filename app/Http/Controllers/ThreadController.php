@@ -147,6 +147,7 @@ final class ThreadController extends Controller
         ViewCounter $views,
         ThreadSubscriptions $subscriptions,
         ThreadPosts $threadPosts,
+        SimilarThreadFinder $finder,
         MarkdownRenderer $markdown,
         ForumAi $ai,
     ): Response {
@@ -180,9 +181,9 @@ final class ThreadController extends Controller
             ],
             ...($can['move'] ? ['moveTargets' => $this->moveTargets()] : []),
             ...($can['update'] ? ['tagOptions' => $this->tagOptions()] : []),
-            // Filled by the similar threads (Task 19) and summaries (Task 28)
-            // features; deferred so they never hold the page back.
-            'similar' => Inertia::defer(fn (): array => []),
+            // Related threads and the AI summary: deferred so they never hold
+            // the page back.
+            'similar' => Inertia::defer(fn (): array => $this->similarThreads($finder->similarTo($thread, (int) config('forum.ai.similar.limit')))),
             'summary' => Inertia::defer(fn (): ?array => $this->summary($thread, $markdown, $ai)),
         ]);
     }
