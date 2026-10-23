@@ -9,6 +9,7 @@ export default defineConfig(({ isSsrBuild }) => ({
     plugins: [
         laravel({
             input: ['resources/css/app.css', 'resources/js/app.ts'],
+            ssr: 'resources/js/ssr.ts',
             refresh: true,
         }),
         inertia(),
@@ -25,7 +26,9 @@ export default defineConfig(({ isSsrBuild }) => ({
             formVariants: true,
             // The Docker asset stage has no PHP: it receives the generated
             // files from the PHP stage and sets WAYFINDER_COMMAND to a no-op.
-            command: process.env.WAYFINDER_COMMAND ?? 'php artisan wayfinder:generate',
+            command:
+                process.env.WAYFINDER_COMMAND ??
+                'php artisan wayfinder:generate',
         }),
     ],
     build: {
@@ -46,6 +49,11 @@ export default defineConfig(({ isSsrBuild }) => ({
                       },
                   },
         },
+    },
+    ssr: {
+        // A self-contained bundle: the ssr image ships bootstrap/ssr alone,
+        // without node_modules.
+        noExternal: true,
     },
     server: {
         watch: {

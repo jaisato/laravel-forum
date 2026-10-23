@@ -1,0 +1,15 @@
+#!/bin/sh
+# Healthcheck of the PHP-FPM images (dev and app): asks the pool's ping
+# endpoint over FastCGI (zz-forum.conf: ping.path = /ping) for its "pong".
+set -eu
+
+response="$(SCRIPT_NAME=/ping SCRIPT_FILENAME=/ping REQUEST_METHOD=GET \
+    cgi-fcgi -bind -connect 127.0.0.1:9000)"
+
+case "$response" in
+    *pong*) exit 0 ;;
+    *)
+        echo "php-fpm did not answer its ping" >&2
+        exit 1
+        ;;
+esac

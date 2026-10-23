@@ -1,0 +1,5 @@
+# hadolint (CI and `make lint`): the rules the Dockerfile ignores on purpose.
+ignored:
+  # Alpine keeps only the current version of each package in a release:
+  # the image tags pin the release and the packages follow its fixes.
+  - DL3018
