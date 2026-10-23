@@ -176,8 +176,13 @@ return [
      */
     'flatten_deep_query_parameters' => true,
 
+    // The document is generated once, when the app container starts
+    // (scramble:cache in docker/entrypoint/app-entrypoint.sh); without that
+    // cache every request would run the whole static analysis again. Either
+    // way, each visitor gets 30 a minute.
     'middleware' => [
         'web',
+        'throttle:30,1',
         RestrictedDocsAccess::class,
     ],
 

@@ -36,7 +36,12 @@ final class ConversationMessageController extends Controller
             ->orderBy('id')
             ->paginate((int) config('forum.pagination.messages'));
 
-        $markRead->handle($conversation, $member);
+        // Oldest first: the page read so far, not the messages after it.
+        $lastShown = $messages->getCollection()->last();
+
+        if ($lastShown !== null) {
+            $markRead->handle($conversation, $member, $lastShown->id);
+        }
 
         return MessageResource::collection($messages);
     }

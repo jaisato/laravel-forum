@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Actions\Messaging\StartConversation;
 use App\Actions\Moderation\HidePost;
 use App\Models\User;
 use Illuminate\Support\Str;
@@ -101,4 +102,30 @@ it('finds only the member\'s own notifications', function () {
     $this->withToken($token)->putJson('/api/v1/notifications/123/read')->assertNotFound();
 
     expect($notification->fresh()->read_at)->toBeNull();
+});
+
+it('keeps private messages out of reach of a token without the messages ability', function () {
+    $member = User::factory()->create();
+    app(StartConversation::class)->handle(User::factory()->create(), collect([$member]), 'Asunto privado', 'Un secreto.');
+    forumReply(forumThread($member), body: 'Una respuesta pública');
+    $private = $member->notifications()->where('type', 'new_private_message')->sole();
+    $readOnly = apiToken($member, ['read']);
+
+    $this->withToken($readOnly)
+        ->getJson('/api/v1/notifications')
+        ->assertOk()
+        ->assertJsonCount(1, 'data')
+        ->assertJsonPath('meta.total', 1)
+        ->assertJsonPath('data.0.type', 'thread_replied')
+        ->assertDontSee('Asunto privado')
+        ->assertDontSee('Un secreto');
+
+    $this->withToken($readOnly)->putJson("/api/v1/notifications/{$private->id}/read")->assertNotFound();
+    $this->withToken($readOnly)->putJson('/api/v1/notifications/read')->assertNoContent();
+
+    expect($private->fresh()->read_at)->toBeNull();
+
+    $this->withToken(apiToken($member, ['read', 'messages']))
+        ->getJson('/api/v1/notifications')
+        ->assertJsonCount(2, 'data');
 });

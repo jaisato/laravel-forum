@@ -17,6 +17,9 @@ use Illuminate\Http\Resources\Json\JsonResource;
 final class UserProfileResource extends JsonResource
 {
     /**
+     * The fields of UserResource, written out so the API documentation knows
+     * them, and the public profile.
+     *
      * @return array<string, mixed>
      */
     public function toArray(Request $request): array
@@ -25,10 +28,14 @@ final class UserProfileResource extends JsonResource
         $user = $this->resource;
 
         return [
-            ...(new UserResource($user))->resolve($request),
+            'id' => $user->id,
+            'name' => $user->name,
+            'username' => $user->username,
+            'avatar_url' => $user->avatar_url,
+            'role' => $user->role->value,
             'bio' => $user->bio,
             'location' => $user->location,
-            'website' => $this->website($user->website),
+            'website' => self::website($user->website),
             'reputation' => $user->reputation,
             'threads_count' => $user->threads_count,
             'posts_count' => $user->posts_count,
@@ -41,7 +48,7 @@ final class UserProfileResource extends JsonResource
      * Only web addresses: the profile links it, and a javascript: or data:
      * address would run in the visitor's browser.
      */
-    private function website(?string $website): ?string
+    public static function website(?string $website): ?string
     {
         $scheme = $website === null ? null : parse_url($website, PHP_URL_SCHEME);
 

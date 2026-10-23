@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Resources;
 
+use App\Http\Resources\Concerns\ResolvesNestedResources;
 use App\Models\Conversation;
 use App\Models\ConversationParticipant;
 use App\Models\User;
@@ -21,6 +22,8 @@ use Illuminate\Http\Resources\Json\JsonResource;
  */
 final class ConversationResource extends JsonResource
 {
+    use ResolvesNestedResources;
+
     private const int EXCERPT_LENGTH = 140;
 
     /**
@@ -41,14 +44,12 @@ final class ConversationResource extends JsonResource
             'subject' => $conversation->subject,
             'last_message_at' => $conversation->last_message_at?->toIso8601String(),
             'is_unread' => (int) $conversation->last_message_id > $membership->last_read_message_id,
-            'participants' => $conversation->participants
+            'participants' => UserResource::collection($conversation->participants
                 ->reject(fn (User $participant): bool => $participant->is($member))
-                ->map(fn (User $participant): array => (new UserResource($participant))->resolve($request))
-                ->values()
-                ->all(),
+                ->values()),
             'last_message' => $last === null ? null : [
                 'excerpt' => app(MarkdownRenderer::class)->excerpt(mb_substr($last->body, 0, 600), self::EXCERPT_LENGTH),
-                'author' => UserResource::orErased($last->author)?->resolve($request),
+                'author' => UserResource::orErased($last->author),
             ],
         ];
     }

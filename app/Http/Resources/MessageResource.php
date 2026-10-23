@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Resources;
 
+use App\Http\Resources\Concerns\ResolvesNestedResources;
 use App\Models\Message;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -15,6 +16,8 @@ use Illuminate\Http\Resources\Json\JsonResource;
  */
 final class MessageResource extends JsonResource
 {
+    use ResolvesNestedResources;
+
     /**
      * @return array<string, mixed>
      */
@@ -27,7 +30,7 @@ final class MessageResource extends JsonResource
             'id' => $message->id,
             'body_html' => $message->body_html,
             'created_at' => $message->created_at?->toIso8601String(),
-            'author' => UserResource::orErased($message->author)?->resolve($request),
+            'author' => UserResource::orErased($message->author),
             'is_own' => $message->user_id === $request->user()?->getAuthIdentifier(),
         ];
     }

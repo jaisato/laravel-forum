@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Actions\Messaging\SendMessage;
 use App\Actions\Messaging\StartConversation;
 use App\Models\Conversation;
 use App\Models\User;
@@ -88,6 +89,28 @@ it('shows a conversation and reads its messages, which marks it read', function 
     $this->withToken($token)
         ->getJson("/api/v1/conversations/{$conversation->id}")
         ->assertJsonPath('data.is_unread', false);
+});
+
+it('marks read only as far as the page the member read', function () {
+    config(['forum.pagination.messages' => 2]);
+    $sender = User::factory()->create();
+    $member = User::factory()->create();
+    $conversation = apiConversation($sender, $member, 'Mensaje 1');
+    app(SendMessage::class)->handle($conversation, $sender, 'Mensaje 2');
+    app(SendMessage::class)->handle($conversation, $sender, 'Mensaje 3');
+    $token = apiToken($member, ['messages']);
+
+    $this->withToken($token)->getJson("/api/v1/conversations/{$conversation->id}/messages")->assertJsonCount(2, 'data');
+
+    // The third message is on page 2, still unread.
+    $this->withToken($token)->getJson("/api/v1/conversations/{$conversation->id}")->assertJsonPath('data.is_unread', true);
+
+    $this->withToken($token)->getJson("/api/v1/conversations/{$conversation->id}/messages?page=2")->assertJsonCount(1, 'data');
+    $this->withToken($token)->getJson("/api/v1/conversations/{$conversation->id}")->assertJsonPath('data.is_unread', false);
+
+    // Reading page 1 again does not move the mark back.
+    $this->withToken($token)->getJson("/api/v1/conversations/{$conversation->id}/messages");
+    $this->withToken($token)->getJson("/api/v1/conversations/{$conversation->id}")->assertJsonPath('data.is_unread', false);
 });
 
 it('replies', function () {

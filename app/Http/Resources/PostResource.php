@@ -6,6 +6,7 @@ namespace App\Http\Resources;
 
 use App\Enums\PostStatus;
 use App\Enums\ReactionType;
+use App\Http\Resources\Concerns\ResolvesNestedResources;
 use App\Models\Post;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -21,6 +22,8 @@ use Illuminate\Support\Facades\Gate;
  */
 final class PostResource extends JsonResource
 {
+    use ResolvesNestedResources;
+
     /**
      * @return array<string, mixed>
      */
@@ -60,7 +63,7 @@ final class PostResource extends JsonResource
             'is_deleted' => $post->trashed(),
             'created_at' => $post->created_at?->toIso8601String(),
             'edited_at' => $post->edited_at?->toIso8601String(),
-            'author' => UserResource::orErased($post->author)?->resolve($request),
+            'author' => UserResource::orErased($post->author),
             'reply_to' => $this->replyTo($post, $viewer, $request),
             'reactions' => self::reactionSummary($post),
             'can' => [
@@ -85,7 +88,7 @@ final class PostResource extends JsonResource
     /**
      * The quoted post, unless the viewer may no longer see it.
      *
-     * @return array{id: int, author: array<string, mixed>|null}|null
+     * @return array{id: int, author: UserResource|null}|null
      */
     private function replyTo(Post $post, ?User $viewer, Request $request): ?array
     {
@@ -97,7 +100,7 @@ final class PostResource extends JsonResource
 
         return [
             'id' => $quoted->id,
-            'author' => UserResource::orErased($quoted->author)?->resolve($request),
+            'author' => UserResource::orErased($quoted->author),
         ];
     }
 

@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\NotificationResource;
 use App\Models\User;
 use App\Models\UserNotification;
+use App\Notifications\NewPrivateMessage;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -17,7 +18,7 @@ use Illuminate\Http\Response;
  * The member's notifications, newest first (?unread=1 for the unread ones
  * alone), and marking them read. They are the member's own state, so the
  * read ability is enough: a token that forwards them elsewhere need not be
- * able to post.
+ * able to post. Those about private messages need the messages ability too.
  */
 final class NotificationController extends Controller
 {
@@ -25,7 +26,7 @@ final class NotificationController extends Controller
     {
         $unread = $request->boolean('unread');
 
-        $notifications = $this->member($request)->notifications()->withPost()
+        $notifications = $this->reachable($request)->withPost()
             ->when($unread, fn (Builder $notifications) => $notifications->whereNull('read_at'))
             ->paginate((int) config('forum.pagination.notifications'))
             ->appends(array_filter(['unread' => $unread ? 1 : null]));
@@ -39,7 +40,7 @@ final class NotificationController extends Controller
     public function read(Request $request, string $notification): NotificationResource
     {
         /** @var UserNotification $opened */
-        $opened = $this->member($request)->notifications()->withPost()->findOrFail($notification);
+        $opened = $this->reachable($request)->withPost()->findOrFail($notification);
 
         $opened->markAsRead();
 
@@ -48,9 +49,26 @@ final class NotificationController extends Controller
 
     public function readAll(Request $request): Response
     {
-        $this->member($request)->unreadNotifications()->update(['read_at' => now()]);
+        $this->reachable($request)->whereNull('read_at')->update(['read_at' => now()]);
 
         return response()->noContent();
+    }
+
+    /**
+     * The member's notifications this token may reach: those about private
+     * messages (their subject, sender and first words) need the messages
+     * ability, as the conversations themselves do.
+     *
+     * @return Builder<UserNotification>
+     */
+    private function reachable(Request $request): Builder
+    {
+        $member = $this->member($request);
+        $notifications = $member->notifications()->getQuery();
+
+        return $member->tokenCan('messages')
+            ? $notifications
+            : $notifications->where('type', '!=', NewPrivateMessage::TYPE);
     }
 
     private function member(Request $request): User

@@ -25,9 +25,28 @@ final class AccountResource extends JsonResource
         /** @var User $user */
         $user = $this->resource;
 
+        // UserProfileResource and CurrentUserResource, written out so the
+        // API documentation knows every field.
         return [
-            ...(new UserProfileResource($user))->resolve($request),
-            ...(new CurrentUserResource($user))->resolve($request),
+            'id' => $user->id,
+            'name' => $user->name,
+            'username' => $user->username,
+            'avatar_url' => $user->avatar_url,
+            'role' => $user->role->value,
+            'bio' => $user->bio,
+            'location' => $user->location,
+            'website' => UserProfileResource::website($user->website),
+            'reputation' => $user->reputation,
+            'threads_count' => $user->threads_count,
+            'posts_count' => $user->posts_count,
+            'created_at' => $user->created_at?->toIso8601String(),
+            'last_seen_at' => $user->last_seen_at?->toIso8601String(),
+            'email' => $user->email,
+            'is_staff' => $user->isStaff(),
+            'is_banned' => $user->isBanned(),
+            'email_verified' => $user->hasVerifiedEmail(),
+            'unread_notifications' => $user->unreadNotifications()->count(),
+            'unread_conversations' => $user->unreadConversationsCount(),
             'locale' => $user->locale,
         ];
     }

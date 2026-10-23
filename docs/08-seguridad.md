@@ -74,8 +74,10 @@ roles y lo que puede hacer cada uno están en
 - **Tokens de la API.** Cada uno lleva sus *abilities*: `read`, `write`,
   `messages` y, solo para el *staff*, `moderate`. Pedir uno con el email (o
   el usuario) y la contraseña exige el segundo factor si la cuenta lo tiene
-  activo. No caducan
-  solos: se revocan desde los ajustes, al banear la cuenta o al borrarla.
+  activo. No caducan solos: se revocan desde los ajustes, al banear la
+  cuenta, al borrarla y al cambiar o restablecer la contraseña (quien se hizo
+  con ella pierde también sus *tokens*). Sin el permiso `messages`, un
+  *token* tampoco ve las notificaciones de mensajes privados.
 
 ## 3. Lo que escriben los miembros
 

@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\V1\MeController;
 use App\Http\Controllers\Api\V1\Moderation\PostModerationController;
 use App\Http\Controllers\Api\V1\Moderation\ReportController;
 use App\Http\Controllers\Api\V1\Moderation\ThreadModerationController;
+use App\Http\Controllers\Api\V1\Moderation\UserBanController;
 use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\PostController;
 use App\Http\Controllers\Api\V1\PostReactionController;
@@ -126,6 +127,9 @@ Route::prefix('v1')->name('api.v1.')->where([
             Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
             Route::post('reports/{report}/resolve', [ReportController::class, 'resolve'])->name('reports.resolve');
             Route::post('reports/{report}/dismiss', [ReportController::class, 'dismiss'])->name('reports.dismiss');
+
+            Route::put('users/{user:username}/ban', [UserBanController::class, 'update'])->name('users.ban.update');
+            Route::delete('users/{user:username}/ban', [UserBanController::class, 'destroy'])->name('users.ban.destroy');
         });
 
         // Taking part. Who may (verified, not banned, the thread open…) is

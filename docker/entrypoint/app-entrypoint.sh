@@ -7,4 +7,14 @@ set -eu
 
 php artisan optimize --no-interaction
 
+# The container that answers requests also caches the API documentation
+# (/docs/api): generating it takes seconds of static analysis, which every
+# request for it would otherwise pay again.
+# A failure here is no reason to keep the forum down: the documentation is
+# then generated on request.
+if [ "${1:-}" = "php-fpm" ]; then
+    php artisan scramble:cache --no-interaction \
+        || echo "The API documentation could not be cached; it will be generated on request." >&2
+fi
+
 exec docker-php-entrypoint "$@"

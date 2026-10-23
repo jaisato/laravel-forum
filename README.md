@@ -77,7 +77,7 @@ tarea a tarea, el [plan](docs/plans/2026-10-22-reconstruccion-foro.md).
   un miembro no puede ver responde 404, nunca 403.
 - Notificaciones (`read`), mensajes privados (`messages`) y moderación para el
   *staff* (`moderate`): fijar, cerrar, mover y restaurar hilos; ocultar,
-  aprobar y restaurar mensajes, y la cola de reportes.
+  aprobar y restaurar mensajes; la cola de reportes, y banear y desbanear.
 - Documentación OpenAPI 3.1 generada desde el código en `/docs/api` (y
   `/docs/api.json`); la guía está en [docs/05-api.md](docs/05-api.md).
 - Resúmenes de IA (`GET`/`POST /api/v1/threads/{id}/summary`) e hilos

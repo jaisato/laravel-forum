@@ -105,6 +105,20 @@ class User extends Authenticatable implements FilamentUser, HasAvatar, HasLocale
     ];
 
     /**
+     * A new password locks out whoever had the old one: API tokens never
+     * expire, so they go with it, whether the password was reset (after it
+     * was stolen, say) or changed from the settings.
+     */
+    protected static function booted(): void
+    {
+        static::updated(function (self $user): void {
+            if ($user->wasChanged('password')) {
+                $user->tokens()->delete();
+            }
+        });
+    }
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>

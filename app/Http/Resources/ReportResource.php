@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Resources;
 
+use App\Http\Resources\Concerns\ResolvesNestedResources;
 use App\Models\Report;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -18,6 +19,8 @@ use Illuminate\Http\Resources\Json\JsonResource;
  */
 final class ReportResource extends JsonResource
 {
+    use ResolvesNestedResources;
+
     /**
      * @return array<string, mixed>
      */
@@ -37,15 +40,15 @@ final class ReportResource extends JsonResource
             'created_at' => $report->created_at?->toIso8601String(),
             'resolved_at' => $report->resolved_at?->toIso8601String(),
             'resolution_note' => $report->resolution_note,
-            'reporter' => UserResource::orErased($report->reporter)?->resolve($request),
-            'resolver' => UserResource::orErased($report->resolver)?->resolve($request),
+            'reporter' => UserResource::orErased($report->reporter),
+            'resolver' => UserResource::orErased($report->resolver),
             'post' => $post === null ? null : [
                 'id' => $post->id,
                 'status' => $post->status->value,
                 'is_deleted' => $post->trashed(),
                 'body_html' => $post->body_html,
                 'created_at' => $post->created_at?->toIso8601String(),
-                'author' => UserResource::orErased($post->author)?->resolve($request),
+                'author' => UserResource::orErased($post->author),
                 'thread' => $post->thread === null ? null : [
                     'id' => $post->thread->id,
                     'title' => $post->thread->title,

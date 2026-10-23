@@ -39,7 +39,7 @@ final class AuthTokenController extends Controller
         return response()->json([
             'token' => $token->plainTextToken,
             'abilities' => $abilities,
-            'user' => (new AccountResource($user))->resolve($request),
+            'user' => new AccountResource($user),
         ], 201);
     }
 

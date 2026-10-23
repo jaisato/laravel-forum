@@ -28,6 +28,7 @@ use App\Services\Ai\VectorSimilarThreadFinder;
 use Carbon\CarbonImmutable;
 use Dedoc\Scramble\Scramble;
 use Dedoc\Scramble\Support\Generator\OpenApi;
+use Dedoc\Scramble\Support\Generator\SecurityRequirement;
 use Dedoc\Scramble\Support\Generator\SecurityScheme;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Contracts\Foundation\Application;
@@ -149,6 +150,17 @@ class AppServiceProvider extends ServiceProvider
     {
         Scramble::configure()->withDocumentTransformers(function (OpenApi $openApi): void {
             $openApi->secure(SecurityScheme::http('bearer')->as('bearerAuth'));
+
+            // @unauthenticated reads still take a token, which makes the
+            // member's view (staff see hidden content): an optional bearer.
+            // Asking for a token takes none.
+            foreach ($openApi->paths as $path) {
+                foreach ($path->operations as $operation) {
+                    if ($operation->security === [] && ltrim($path->path, '/') !== 'auth/token') {
+                        $operation->security = [new SecurityRequirement([]), new SecurityRequirement(['bearerAuth' => []])];
+                    }
+                }
+            }
         });
     }
 

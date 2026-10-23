@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Resources;
 
+use App\Http\Resources\Concerns\ResolvesNestedResources;
 use App\Models\Tag;
 use App\Models\Thread;
 use App\Models\User;
@@ -20,6 +21,8 @@ use Illuminate\Http\Resources\Json\JsonResource;
  */
 final class ThreadResource extends JsonResource
 {
+    use ResolvesNestedResources;
+
     private const int EXCERPT_LENGTH = 200;
 
     private bool $detailed = false;
@@ -68,8 +71,8 @@ final class ThreadResource extends JsonResource
             'created_at' => $thread->created_at?->toIso8601String(),
             'last_posted_at' => $thread->last_posted_at?->toIso8601String(),
             'excerpt' => $this->excerpt($thread),
-            'author' => UserResource::orErased($thread->author)?->resolve($request),
-            'last_poster' => UserResource::orErased($thread->lastPost?->author)?->resolve($request),
+            'author' => UserResource::orErased($thread->author),
+            'last_poster' => UserResource::orErased($thread->lastPost?->author),
             'category' => [
                 'id' => $thread->category->id,
                 'name' => $thread->category->name,

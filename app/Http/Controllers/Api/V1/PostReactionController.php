@@ -22,6 +22,11 @@ use Illuminate\Support\Facades\Gate;
  */
 final class PostReactionController extends Controller
 {
+    /**
+     * Gives the reaction.
+     *
+     * @response array{data: list<array{type: string, emoji: string, count: int, reacted: bool}>}
+     */
     public function update(Request $request, Post $post, ReactionType $type, ReactToPost $reactions, ThreadPosts $threadPosts): JsonResponse
     {
         $member = $this->member($request, $post);
@@ -31,6 +36,11 @@ final class PostReactionController extends Controller
         return $this->summary($post, $member, $threadPosts);
     }
 
+    /**
+     * Takes the reaction back.
+     *
+     * @response array{data: list<array{type: string, emoji: string, count: int, reacted: bool}>}
+     */
     public function destroy(Request $request, Post $post, ReactionType $type, ReactToPost $reactions, ThreadPosts $threadPosts): JsonResponse
     {
         $member = $this->member($request, $post);

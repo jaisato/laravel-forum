@@ -206,3 +206,58 @@ it('settles the reports of posts the AI held: dismissing publishes them again, r
         ->and($kept->fresh()->status)->toBe(PostStatus::PendingReview)
         ->and($hidden->fresh()->status)->toBe(PostStatus::Hidden);
 });
+
+describe('bans', function () {
+    it('bans a member, for good or until a date, and lifts the ban', function () {
+        $member = User::factory()->create(['username' => 'ana']);
+        $member->createToken('Un script', ['read']);
+        $token = moderatorToken();
+        $until = now()->addWeek()->startOfSecond();
+
+        $this->withToken($token)
+            ->putJson('/api/v1/moderation/users/ana/ban', ['reason' => 'Spam reiterado', 'until' => $until->toIso8601String()])
+            ->assertOk()
+            ->assertJsonPath('data.username', 'ana')
+            ->assertJsonPath('data.reason', 'Spam reiterado')
+            ->assertJsonPath('data.banned_until', $until->toIso8601String());
+
+        expect($member->fresh()->isBanned())->toBeTrue()
+            ->and($member->tokens()->count())->toBe(0);
+
+        $this->withToken($token)
+            ->putJson('/api/v1/moderation/users/ana/ban', ['reason' => 'Para siempre'])
+            ->assertOk()
+            ->assertJsonPath('data.banned_until', null);
+
+        $this->withToken($token)->deleteJson('/api/v1/moderation/users/ana/ban')->assertNoContent();
+        $this->withToken($token)->deleteJson('/api/v1/moderation/users/ana/ban')->assertNoContent();
+
+        expect($member->fresh()->isBanned())->toBeFalse();
+    });
+
+    it('validates the ban', function (array $sent, string $field) {
+        User::factory()->create(['username' => 'ana']);
+
+        $this->withToken(moderatorToken())
+            ->putJson('/api/v1/moderation/users/ana/ban', $sent)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors($field);
+    })->with([
+        'no reason' => [[], 'reason'],
+        'a long reason' => [['reason' => str_repeat('a', 501)], 'reason'],
+        'a past date' => [['reason' => 'Spam', 'until' => '2020-01-01T00:00:00+00:00'], 'until'],
+    ]);
+
+    it('lets moderators ban members only, and nobody themselves', function () {
+        $moderator = User::factory()->moderator()->create(['username' => 'mod']);
+        User::factory()->moderator()->create(['username' => 'otro']);
+        $token = moderatorToken($moderator);
+
+        $this->withToken($token)->putJson('/api/v1/moderation/users/otro/ban', ['reason' => 'Spam'])->assertForbidden();
+        $this->withToken($token)->putJson('/api/v1/moderation/users/mod/ban', ['reason' => 'Spam'])->assertForbidden();
+        $this->withToken($token)->deleteJson('/api/v1/moderation/users/otro/ban')->assertForbidden();
+        $this->withToken(apiToken(User::factory()->create()))
+            ->putJson('/api/v1/moderation/users/otro/ban', ['reason' => 'Spam'])
+            ->assertForbidden();
+    });
+});

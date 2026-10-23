@@ -78,6 +78,22 @@ it('updates the password', function () {
     expect(Hash::check('new-password', $user->refresh()->password))->toBeTrue();
 });
 
+it('revokes the API tokens when the password changes', function () {
+    $user = User::factory()->create();
+    $user->createToken('Un script', ['read']);
+
+    actingAs($user)
+        ->from(route('security.edit'))
+        ->put(route('user-password.update'), [
+            'current_password' => 'password',
+            'password' => 'new-password',
+            'password_confirmation' => 'new-password',
+        ])
+        ->assertSessionHasNoErrors();
+
+    expect($user->tokens()->count())->toBe(0);
+});
+
 it('requires the current password to update the password', function () {
     actingAs(User::factory()->create())
         ->from(route('security.edit'))

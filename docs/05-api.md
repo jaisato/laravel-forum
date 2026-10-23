@@ -12,6 +12,9 @@ está en:
   peticiones;
 - `/docs/api.json`: el documento OpenAPI, para generar clientes.
 
+El contenedor `app` la genera al arrancar (`php artisan scramble:cache`) y se
+sirve desde esa caché, con un límite de 30 peticiones por minuto y visitante.
+
 Esta guía explica lo que la referencia no cuenta: cómo autenticarse, qué
 permiso pide cada grupo de rutas, las convenciones y los límites.
 
@@ -56,17 +59,17 @@ Hay dos maneras de conseguir un token:
 
 `DELETE /auth/token` revoca el token con el que se llama; los demás siguen
 funcionando. Los tokens no caducan solos (`sanctum.expiration` es `null`): se
-revocan desde los ajustes, con esa ruta o al banear al miembro, que pierde
-todos los suyos.
+revocan desde los ajustes, con esa ruta, al banear al miembro o al cambiar o
+restablecer su contraseña, y en esos dos últimos casos se pierden todos.
 
 ### Permisos (*abilities*)
 
 | Permiso | Para qué sirve |
 |---|---|
-| `read` | Leer como el miembro del token (incluidas las lecturas públicas), su perfil (`/me`) y sus notificaciones, que también puede marcar como leídas |
+| `read` | Leer como el miembro del token (incluidas las lecturas públicas), su perfil (`/me`) y sus notificaciones, que también puede marcar como leídas (las de mensajes privados, solo con `messages`) |
 | `write` | Participar: hilos, respuestas, ediciones, reacciones, solución, suscripciones, reportes y cambios en el perfil propio |
 | `messages` | Mensajes privados: leer conversaciones, empezarlas, responder y abandonarlas |
-| `moderate` | Moderación (solo *staff*): fijar, cerrar, mover y restaurar hilos; ocultar, aprobar y restaurar mensajes; la cola de reportes |
+| `moderate` | Moderación (solo *staff*): fijar, cerrar, mover y restaurar hilos; ocultar, aprobar y restaurar mensajes; la cola de reportes; banear y desbanear |
 
 El permiso dice lo que el token puede intentar; las *policies* deciden
 después con el estado actual del miembro. Un moderador al que se le quita el
@@ -174,7 +177,7 @@ responde `429` con `Retry-After`.
 
 | Método y ruta | Qué hace |
 |---|---|
-| `GET /notifications` | Las notificaciones, de la más reciente a la más antigua (`?unread=1`, solo las no leídas). `post_id` lleva al mensaje, salvo que ya no se pueda ver |
+| `GET /notifications` | Las notificaciones, de la más reciente a la más antigua (`?unread=1`, solo las no leídas). `post_id` lleva al mensaje, salvo que ya no se pueda ver. Las de mensajes privados solo aparecen con el permiso `messages` |
 | `PUT /notifications/{id}/read` | Marca una como leída |
 | `PUT /notifications/read` | Marca todas como leídas → `204` |
 
@@ -185,7 +188,7 @@ responde `429` con `Retry-After`.
 | `GET /conversations` | La bandeja: conversaciones no abandonadas, con lo no leído marcado |
 | `POST /conversations` | Empieza una (`recipients`: nombres de usuario, `subject`, `body`) → `201` |
 | `GET /conversations/{id}` | Una conversación |
-| `GET /conversations/{id}/messages` | Sus mensajes; leerlos la marca como leída |
+| `GET /conversations/{id}/messages` | Sus mensajes, del más antiguo al más reciente; quedan leídos hasta el último de la página |
 | `POST /conversations/{id}/messages` | Responde (`body`) → `201` |
 | `POST /conversations/{id}/leave` | La abandona → `204` |
 
@@ -205,6 +208,8 @@ Solo sus participantes encuentran una conversación; el *staff* tampoco.
 | `GET /moderation/reports` | La cola: los reportes abiertos, del más antiguo al más reciente (`?status=resolved` o `dismissed` para el historial) |
 | `POST /moderation/reports/{id}/resolve` | Lo resuelve con los demás reportes abiertos del mensaje (`hide_post`, `note`); un mensaje retenido para revisión queda oculto salvo con `hide_post: false` |
 | `POST /moderation/reports/{id}/dismiss` | Lo descarta (`note`); un mensaje retenido para revisión se publica de nuevo salvo con `approve_post: false` |
+| `PUT /moderation/users/{username}/ban` | Banea al miembro (`reason`, obligatorio; `until`, opcional: sin fecha es para siempre) o cambia su baneo, y revoca sus tokens. Los moderadores banean miembros; la administración, a cualquiera salvo a otros administradores |
+| `DELETE /moderation/users/{username}/ban` | Levanta el baneo → `204` |
 
 Todas las acciones quedan en el registro de moderación, como las de la web.
 
