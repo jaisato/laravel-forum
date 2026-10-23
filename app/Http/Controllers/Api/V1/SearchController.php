@@ -17,6 +17,11 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
  */
 final class SearchController extends Controller
 {
+    /**
+     * Threads matching the words.
+     *
+     * @unauthenticated
+     */
     public function threads(SearchRequest $request, ForumSearch $search): AnonymousResourceCollection
     {
         return ThreadResource::collection($search
@@ -24,6 +29,11 @@ final class SearchController extends Controller
             ->appends($request->appends()));
     }
 
+    /**
+     * Posts matching the words.
+     *
+     * @unauthenticated
+     */
     public function posts(SearchRequest $request, ForumSearch $search): AnonymousResourceCollection
     {
         return PostSummaryResource::collection($search

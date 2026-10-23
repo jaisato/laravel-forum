@@ -8,7 +8,6 @@ use App\Http\Controllers\Concerns\FlashesToasts;
 use App\Http\Resources\NotificationResource;
 use App\Models\User;
 use App\Models\UserNotification;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -89,8 +88,6 @@ final class NotificationController extends Controller
         /** @var User $member */
         $member = $request->user();
 
-        return $member->notifications()->with([
-            'post.thread' => fn (BelongsTo $threads) => $threads->withTrashed(),
-        ]);
+        return $member->notifications()->withPost();
     }
 }

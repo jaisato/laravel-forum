@@ -23,6 +23,8 @@ final class AuthTokenController extends Controller
      * abilities asked for. Who may hold one is the settings page's rule:
      * members who have verified their email and are not banned (banning
      * revokes the tokens they had).
+     *
+     * @unauthenticated
      */
     public function store(IssueTokenRequest $request): JsonResponse
     {

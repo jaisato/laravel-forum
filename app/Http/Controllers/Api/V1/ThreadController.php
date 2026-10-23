@@ -30,6 +30,11 @@ use Illuminate\Support\Facades\Gate;
  */
 final class ThreadController extends Controller
 {
+    /**
+     * The threads, sorted and narrowed like the web listings.
+     *
+     * @unauthenticated
+     */
     public function index(ThreadIndexRequest $request, ThreadListing $listing): AnonymousResourceCollection
     {
         $filters = $request->listing();
@@ -42,6 +47,8 @@ final class ThreadController extends Controller
     /**
      * The thread and whether the member follows it; its posts are read
      * from /threads/{thread}/posts. The visit counts, as on the web.
+     *
+     * @unauthenticated
      */
     public function show(Request $request, Thread $thread, ViewCounter $views, ThreadSubscriptions $subscriptions): ThreadResource
     {

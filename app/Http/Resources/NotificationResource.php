@@ -36,6 +36,8 @@ final class NotificationResource extends JsonResource
             'title' => $withheld ? __('This content is no longer available.') : ($notification->data['title'] ?? ''),
             'excerpt' => $withheld ? null : ($notification->data['excerpt'] ?? null),
             'url' => $withheld ? null : $notification->path(),
+            // The API reads the post from GET /api/v1/posts/{id}.
+            'post_id' => $withheld ? null : $notification->post_id,
             'actor' => $withheld ? null : ($notification->data['actor'] ?? null),
             'read_at' => $notification->read_at?->toIso8601String(),
             'created_at' => $notification->created_at?->toIso8601String(),

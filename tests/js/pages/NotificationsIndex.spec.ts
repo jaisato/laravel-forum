@@ -60,6 +60,7 @@ const reply: ForumNotification = {
     title: 'Ana López replied to "Colas en Laravel"',
     excerpt: 'Prueba con esto',
     url: '/t/colas-en-laravel?post=3#post-3',
+    post_id: 3,
     actor: { username: 'ana', avatar_url: null },
     read_at: null,
     created_at: '2026-10-22T10:00:00+00:00',

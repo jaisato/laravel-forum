@@ -13,9 +13,8 @@ use App\Http\Resources\ConversationResource;
 use App\Http\Resources\MessageResource;
 use App\Http\Resources\UserResource;
 use App\Models\Conversation;
-use App\Models\ConversationParticipant;
 use App\Models\User;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use App\Queries\MemberConversations;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -36,20 +35,13 @@ final class ConversationController extends Controller
      * The member's conversations, the latest activity first; those they left
      * are gone from it.
      */
-    public function index(Request $request): Response
+    public function index(Request $request, MemberConversations $inbox): Response
     {
         /** @var User $member */
         $member = $request->user();
 
-        $conversations = $member->conversations()
-            ->wherePivotNull('left_at')
-            ->with(['participants' => $this->activeParticipants(...), 'lastMessage.author'])
-            ->orderByDesc('conversations.last_message_at')
-            ->orderByDesc('conversations.id')
-            ->paginate((int) config('forum.pagination.conversations'));
-
         return Inertia::render('conversations/Index', [
-            'conversations' => ConversationResource::collection($conversations),
+            'conversations' => ConversationResource::collection($inbox->paginate($member)),
         ]);
     }
 
@@ -110,7 +102,7 @@ final class ConversationController extends Controller
 
         $markRead->handle($conversation, $member);
 
-        $conversation->load(['participants' => $this->activeParticipants(...)]);
+        $conversation->load(['participants' => MemberConversations::activeParticipants(...)]);
 
         return Inertia::render('conversations/Show', [
             'conversation' => [
@@ -138,16 +130,5 @@ final class ConversationController extends Controller
         $this->toast('You left the conversation.');
 
         return to_route('conversations.index');
-    }
-
-    /**
-     * The participants still in the conversation, in the order they joined
-     * (whoever started it first).
-     *
-     * @param  BelongsToMany<User, Conversation, ConversationParticipant>  $participants
-     */
-    private function activeParticipants(BelongsToMany $participants): void
-    {
-        $participants->wherePivotNull('left_at')->orderBy('conversation_participants.id');
     }
 }

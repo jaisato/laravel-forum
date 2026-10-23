@@ -14,11 +14,21 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
  */
 final class TagController extends Controller
 {
+    /**
+     * The tags, by name.
+     *
+     * @unauthenticated
+     */
     public function index(): AnonymousResourceCollection
     {
         return TagResource::collection(Tag::query()->orderBy('name')->get());
     }
 
+    /**
+     * A tag, by its slug.
+     *
+     * @unauthenticated
+     */
     public function show(Tag $tag): TagResource
     {
         return new TagResource($tag);

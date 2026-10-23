@@ -26,6 +26,8 @@ final class ThreadPostController extends Controller
     /**
      * A page of the posts the viewer may see; a member's become read, as on
      * the thread page.
+     *
+     * @unauthenticated
      */
     public function index(Request $request, Thread $thread, ThreadPosts $threadPosts, ReadTracker $reads): AnonymousResourceCollection
     {

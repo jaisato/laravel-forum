@@ -21,6 +21,9 @@ use App\Notifications\Channels\ForumDatabaseChannel;
 use App\Services\Ai\KeywordSimilarThreadFinder;
 use App\Services\Ai\SimilarThreadFinder;
 use Carbon\CarbonImmutable;
+use Dedoc\Scramble\Scramble;
+use Dedoc\Scramble\Support\Generator\OpenApi;
+use Dedoc\Scramble\Support\Generator\SecurityScheme;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
@@ -56,6 +59,7 @@ class AppServiceProvider extends ServiceProvider
         $this->configureModels();
         $this->configureAuthorization();
         $this->configureRateLimiting();
+        $this->configureApiDocs();
     }
 
     /**
@@ -124,6 +128,18 @@ class AppServiceProvider extends ServiceProvider
         // The API is public, so is its documentation (Scramble only opens it
         // in the local environment by default).
         Gate::define('viewApiDocs', fn (?User $user = null): bool => true);
+    }
+
+    /**
+     * The OpenAPI document (Scramble, /docs/api): every operation takes a
+     * Sanctum bearer token unless its method says @unauthenticated (signing
+     * in and the public reads, where a token stays optional).
+     */
+    protected function configureApiDocs(): void
+    {
+        Scramble::configure()->withDocumentTransformers(function (OpenApi $openApi): void {
+            $openApi->secure(SecurityScheme::http('bearer')->as('bearerAuth'));
+        });
     }
 
     /**

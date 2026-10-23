@@ -15,11 +15,21 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
  */
 final class CategoryController extends Controller
 {
+    /**
+     * The categories, in order.
+     *
+     * @unauthenticated
+     */
     public function index(): AnonymousResourceCollection
     {
         return CategoryResource::collection(Category::query()->ordered()->with('latestThread.lastPost.author')->get());
     }
 
+    /**
+     * A category, by its slug.
+     *
+     * @unauthenticated
+     */
     public function show(Category $category): CategoryResource
     {
         return new CategoryResource($category->load('latestThread.lastPost.author'));

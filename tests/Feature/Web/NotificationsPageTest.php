@@ -9,6 +9,8 @@ use App\Actions\Moderation\HidePost;
 use App\Models\Post;
 use App\Models\Thread;
 use App\Models\User;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Collection;
 use Inertia\Testing\AssertableInertia as Assert;
 
 it('is for members only', function () {
@@ -41,6 +43,7 @@ describe('the list', function () {
                     'title' => 'Ana López replied to "A thread about testing the forum"',
                     'excerpt' => 'Otra respuesta',
                     'url' => "/t/{$thread->slug}?post={$latest->id}#post-{$latest->id}",
+                    'post_id' => $latest->id,
                     'actor' => ['username' => 'ana', 'avatar_url' => null],
                     'read_at' => null,
                     'created_at' => $notification->created_at->toIso8601String(),
@@ -151,18 +154,24 @@ describe('content that is no longer public', function () {
 
         $retract($reply, $thread, User::factory()->moderator()->create());
 
+        // Found by id: hiding the thread hides the member's own opening post
+        // too, whose notice may share the second this notification was sent.
         $this->actingAs($member)
             ->get(route('notifications.index'))
-            ->assertInertia(fn (Assert $page) => $page->where('notifications.data.0', [
-                'id' => $notification->id,
-                'type' => 'thread_replied',
-                'title' => 'This content is no longer available.',
-                'excerpt' => null,
-                'url' => null,
-                'actor' => null,
-                'read_at' => null,
-                'created_at' => $notification->created_at->toIso8601String(),
-            ]));
+            ->assertInertia(fn (Assert $page) => $page->where(
+                'notifications.data',
+                fn (Collection $notifications): bool => Arr::sortRecursive($notifications->firstWhere('id', $notification->id) ?? []) === Arr::sortRecursive([
+                    'id' => $notification->id,
+                    'type' => 'thread_replied',
+                    'title' => 'This content is no longer available.',
+                    'excerpt' => null,
+                    'url' => null,
+                    'post_id' => null,
+                    'actor' => null,
+                    'read_at' => null,
+                    'created_at' => $notification->created_at->toIso8601String(),
+                ]),
+            ));
 
         // Opening it only marks it read.
         $this->actingAs($member)

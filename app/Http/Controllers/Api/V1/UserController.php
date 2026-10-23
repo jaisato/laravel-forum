@@ -21,16 +21,31 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
  */
 final class UserController extends Controller
 {
+    /**
+     * A public profile, by username.
+     *
+     * @unauthenticated
+     */
     public function show(User $user): UserProfileResource
     {
         return new UserProfileResource($user);
     }
 
+    /**
+     * The threads the member started, newest first.
+     *
+     * @unauthenticated
+     */
     public function threads(Request $request, User $user, ThreadListing $listing): AnonymousResourceCollection
     {
         return ThreadResource::collection($listing->byAuthor($user, $request->user()));
     }
 
+    /**
+     * The replies the member wrote, newest first.
+     *
+     * @unauthenticated
+     */
     public function posts(Request $request, User $user, MemberReplies $replies): AnonymousResourceCollection
     {
         return PostSummaryResource::collection($replies->paginate($user, $request->user()));

@@ -30,6 +30,7 @@ return [
         'notifications' => 20,
         'conversations' => 20,
         'messages' => 30,
+        'reports' => 20,
     ],
 
     /*

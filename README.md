@@ -72,6 +72,11 @@ página describe lo que ya funciona.
   mensajes, responder, reacciones y suscripción (`PUT`/`DELETE`
   idempotentes), solución y reportes, con las mismas reglas que la web. Lo que
   un miembro no puede ver responde 404, nunca 403.
+- Notificaciones (`read`), mensajes privados (`messages`) y moderación para el
+  *staff* (`moderate`): fijar, cerrar, mover y restaurar hilos; ocultar,
+  aprobar y restaurar mensajes, y la cola de reportes.
+- Documentación OpenAPI 3.1 generada desde el código en `/docs/api` (y
+  `/docs/api.json`); la guía está en [docs/05-api.md](docs/05-api.md).
 - Límites: 120 peticiones por minuto por miembro, 60 por dirección para los
   invitados y cinco intentos por minuto al pedir un token.
 
@@ -169,6 +174,8 @@ Todos los pasos (requisitos, actualizaciones, copias de seguridad y ajustes) en
 - [03 · Desarrollo local](docs/03-desarrollo-local.md): el entorno con Docker
   Compose.
 - [04 · Despliegue](docs/04-despliegue.md): producción con `compose.prod.yaml`.
+- [05 · API](docs/05-api.md): autenticación, permisos, convenciones, límites y
+  rutas de la API REST v1.
 
 ## Aviso de seguridad: credenciales en el historial
 

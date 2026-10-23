@@ -2,7 +2,13 @@
 
 use App\Http\Controllers\Api\V1\AuthTokenController;
 use App\Http\Controllers\Api\V1\CategoryController;
+use App\Http\Controllers\Api\V1\ConversationController;
+use App\Http\Controllers\Api\V1\ConversationMessageController;
 use App\Http\Controllers\Api\V1\MeController;
+use App\Http\Controllers\Api\V1\Moderation\PostModerationController;
+use App\Http\Controllers\Api\V1\Moderation\ReportController;
+use App\Http\Controllers\Api\V1\Moderation\ThreadModerationController;
+use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\PostController;
 use App\Http\Controllers\Api\V1\PostReactionController;
 use App\Http\Controllers\Api\V1\PostReportController;
@@ -28,7 +34,12 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-Route::prefix('v1')->name('api.v1.')->where(['thread' => '[0-9]+', 'post' => '[0-9]+'])->group(function (): void {
+Route::prefix('v1')->name('api.v1.')->where([
+    'thread' => '[0-9]+',
+    'post' => '[0-9]+',
+    'conversation' => '[0-9]+',
+    'report' => '[0-9]+',
+])->group(function (): void {
     // Signing in: five tries a minute per login and address, besides the
     // general limit.
     Route::post('auth/token', [AuthTokenController::class, 'store'])
@@ -62,6 +73,56 @@ Route::prefix('v1')->name('api.v1.')->where(['thread' => '[0-9]+', 'post' => '[0
 
         Route::get('me', [MeController::class, 'show'])->middleware('abilities:read')->name('me.show');
         Route::patch('me', [MeController::class, 'update'])->middleware('abilities:write')->name('me.update');
+
+        // The member's own notifications: reading them, and marking them
+        // read, takes the read ability alone.
+        Route::middleware('abilities:read')->group(function (): void {
+            Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
+            Route::put('notifications/read', [NotificationController::class, 'readAll'])->name('notifications.read-all');
+            // Notification ids are UUIDs: anything else is not found before it
+            // reaches a uuid column (PostgreSQL rejects other values).
+            Route::put('notifications/{notification}/read', [NotificationController::class, 'read'])
+                ->whereUuid('notification')
+                ->name('notifications.read');
+        });
+
+        // Private messages, reading them included, take their own ability.
+        Route::middleware('abilities:messages')->group(function (): void {
+            Route::get('conversations', [ConversationController::class, 'index'])->name('conversations.index');
+            Route::post('conversations', [ConversationController::class, 'store'])
+                ->middleware('throttle:forum-messages')
+                ->name('conversations.store');
+            Route::get('conversations/{conversation}', [ConversationController::class, 'show'])->name('conversations.show');
+            Route::post('conversations/{conversation}/leave', [ConversationController::class, 'leave'])->name('conversations.leave');
+            Route::get('conversations/{conversation}/messages', [ConversationMessageController::class, 'index'])
+                ->name('conversations.messages.index');
+            Route::post('conversations/{conversation}/messages', [ConversationMessageController::class, 'store'])
+                ->middleware('throttle:forum-messages')
+                ->name('conversations.messages.store');
+        });
+
+        // Moderation: staff tokens with the moderate ability (only staff may
+        // give it); the policies check the role on every request.
+        Route::middleware('abilities:moderate')->prefix('moderation')->name('moderation.')->group(function (): void {
+            Route::controller(ThreadModerationController::class)->prefix('threads/{thread:id}')->name('threads.')->group(function (): void {
+                Route::put('pin', 'pin')->name('pin');
+                Route::delete('pin', 'unpin')->name('unpin');
+                Route::put('lock', 'lock')->name('lock');
+                Route::delete('lock', 'unlock')->name('unlock');
+                Route::post('move', 'move')->name('move');
+                Route::post('restore', 'restore')->withTrashed()->name('restore');
+            });
+
+            Route::controller(PostModerationController::class)->prefix('posts/{post}')->name('posts.')->group(function (): void {
+                Route::post('hide', 'hide')->name('hide');
+                Route::post('approve', 'approve')->name('approve');
+                Route::post('restore', 'restore')->withTrashed()->name('restore');
+            });
+
+            Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
+            Route::post('reports/{report}/resolve', [ReportController::class, 'resolve'])->name('reports.resolve');
+            Route::post('reports/{report}/dismiss', [ReportController::class, 'dismiss'])->name('reports.dismiss');
+        });
 
         // Taking part. Who may (verified, not banned, the thread open…) is
         // the policies' call, as on the web, and so are the forum's limits.

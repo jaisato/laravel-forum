@@ -22,6 +22,11 @@ use Illuminate\Support\Facades\Gate;
  */
 final class PostController extends Controller
 {
+    /**
+     * A post, by its id.
+     *
+     * @unauthenticated
+     */
     public function show(Request $request, Post $post, ThreadPosts $threadPosts): PostResource
     {
         Gate::authorize('view', $post);

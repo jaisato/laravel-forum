@@ -265,6 +265,8 @@ export type ForumNotification = {
     excerpt: string | null;
     /** A path on this forum; null when it no longer leads anywhere. */
     url: string | null;
+    /** The post it is about, unless it is withheld. */
+    post_id: number | null;
     actor: { username: string; avatar_url: string | null } | null;
     read_at: string | null;
     created_at: string;

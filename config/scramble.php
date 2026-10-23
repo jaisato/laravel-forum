@@ -19,7 +19,7 @@ return [
      * Multiple includes or wildcards → server defaults to / and paths stay full (/api/users).
      * Override with `servers`, or use Scramble::registerApi() for separate bases.
      */
-    'api_path' => 'api',
+    'api_path' => 'api/v1',
 
     /*
      * Your API domain. By default, app domain is used. This is also a part of the default API routes
@@ -51,12 +51,34 @@ return [
         /*
          * API version.
          */
-        'version' => env('API_VERSION', '0.0.1'),
+        'version' => env('API_VERSION', '1.0.0'),
 
         /*
          * Description rendered on the home page of the API documentation (`/docs/api`).
          */
-        'description' => '',
+        'description' => <<<'MD'
+            API REST del foro. Las rutas cuelgan de `/api/v1` y responden JSON;
+            los listados se paginan con `data`, `links` y `meta`, y los errores
+            siguen el formato de Laravel (`message` y, en las validaciones,
+            `errors`).
+
+            **Autenticación.** Tokens Bearer de Sanctum: se crean en los ajustes
+            de la cuenta o con `POST /auth/token` (email o nombre de usuario,
+            contraseña y, con la verificación en dos pasos activada, el código
+            de la app o uno de recuperación). Cada token lleva permisos: `read`
+            (leer como su miembro y sus notificaciones), `write` (participar),
+            `messages` (mensajes privados) y, solo para el *staff*,
+            `moderate`.
+
+            **Lectura pública.** Las rutas de lectura no piden token; con uno,
+            se lee como su miembro (lo que el *staff* ve, por ejemplo). Lo que
+            quien pregunta no puede ver responde 404.
+
+            **Límites.** 120 peticiones por minuto por miembro y 60 por
+            dirección para los invitados, más los límites del foro al publicar,
+            reaccionar, reportar y escribir mensajes privados. Las cabeceras
+            `X-RateLimit-*` dicen cuánto queda.
+            MD,
     ],
 
     'ui' => [

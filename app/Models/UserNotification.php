@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Notifications\DatabaseNotification;
 
@@ -32,6 +33,18 @@ final class UserNotification extends DatabaseNotification
     public function post(): BelongsTo
     {
         return $this->belongsTo(Post::class)->withTrashed();
+    }
+
+    /**
+     * With what isWithheldFrom() reads: the post and its thread, deleted
+     * ones included.
+     *
+     * @param  Builder<self>  $query
+     * @return Builder<self>
+     */
+    public function scopeWithPost(Builder $query): Builder
+    {
+        return $query->with(['post.thread' => fn (BelongsTo $threads) => $threads->withTrashed()]);
     }
 
     /**
