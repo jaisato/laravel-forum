@@ -46,7 +46,7 @@ final class ReplyToThread
 
             // The request was authorised on the copy it loaded: a moderator
             // may have locked or hidden the thread since.
-            if (! $thread->acceptsRepliesFrom($author)) {
+            if (! $thread->acceptsRepliesFrom($author->current())) {
                 throw new AuthorizationException(__('This thread no longer accepts replies.'));
             }
 

@@ -83,7 +83,7 @@ final class ReactToPost
             $stored = Post::withTrashed()->whereKey($post->id)->lockForUpdate()->firstOrFail();
             $stored->setRelation('thread', $thread);
 
-            if (! $stored->mayBeReactedToBy($user)) {
+            if (! $stored->mayBeReactedToBy($user->current())) {
                 throw new AuthorizationException(__('This post no longer accepts reactions.'));
             }
 

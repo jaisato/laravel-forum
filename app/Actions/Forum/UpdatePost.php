@@ -44,7 +44,7 @@ final class UpdatePost
 
             // The request was authorised on the copy it loaded: a moderator
             // may have hidden the post or locked the thread since.
-            if (! $stored->mayBeChangedBy($editor)) {
+            if (! $stored->mayBeChangedBy($editor->current())) {
                 throw new AuthorizationException(__('This post can no longer be changed.'));
             }
 

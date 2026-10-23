@@ -35,7 +35,7 @@ final class UpdateThread
             // hidden the thread since): the tag counters follow the real state.
             $thread = Thread::query()->whereKey($thread->id)->lockForUpdate()->firstOrFail();
 
-            if (! $thread->mayBeChangedBy($editor)) {
+            if (! $thread->mayBeChangedBy($editor->current())) {
                 throw new AuthorizationException(__('This thread can no longer be changed.'));
             }
 
@@ -47,8 +47,7 @@ final class UpdateThread
             $tags = $thread->tags()->sync(Tag::existingIds($tagIds));
 
             if ($this->counters->countsThread($thread)) {
-                $this->counters->applyTags($tags['attached'], 1);
-                $this->counters->applyTags($tags['detached'], -1);
+                $this->counters->applyTagChanges($tags['attached'], $tags['detached']);
             }
 
             if (! $thread->wasChanged('title') && $tags['attached'] === [] && $tags['detached'] === []) {

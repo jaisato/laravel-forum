@@ -118,6 +118,11 @@ final class ForumCounters
             ->where('status', PostStatus::Published)
             ->count();
 
+        // Both rows locked in id order first: two moderators moving threads
+        // both ways between the same categories queue up instead of each
+        // holding the row the other needs (a deadlock).
+        Category::query()->whereKey([$fromCategoryId, $toCategoryId])->orderBy('id')->lockForUpdate()->pluck('id');
+
         Category::query()->whereKey($fromCategoryId)->toBase()->incrementEach(['threads_count' => -1, 'posts_count' => -$posts]);
         Category::query()->whereKey($toCategoryId)->toBase()->incrementEach(['threads_count' => 1, 'posts_count' => $posts]);
     }
@@ -133,6 +138,25 @@ final class ForumCounters
             Category::query()->whereKey($thread->category_id)->toBase()->increment('posts_count', $direction);
             User::withTrashed()->whereKey($post->user_id)->toBase()->increment('posts_count', $direction);
         }
+    }
+
+    /**
+     * The tag counters of a visible thread whose tags changed, with the rows
+     * locked in id order first (see moveThread).
+     *
+     * @param  array<int, int>  $attached
+     * @param  array<int, int>  $detached
+     */
+    public function applyTagChanges(array $attached, array $detached): void
+    {
+        if ($attached === [] && $detached === []) {
+            return;
+        }
+
+        Tag::query()->whereKey([...$attached, ...$detached])->orderBy('id')->lockForUpdate()->pluck('id');
+
+        $this->applyTags($attached, 1);
+        $this->applyTags($detached, -1);
     }
 
     /**

@@ -53,7 +53,7 @@ final class DeletePost
 
             // The request was authorised on the copy it loaded: a moderator
             // may have hidden the reply or locked the thread since.
-            if (! $post->mayBeChangedBy($actor)) {
+            if (! $post->mayBeChangedBy($actor->current())) {
                 throw new AuthorizationException(__('This post can no longer be changed.'));
             }
 

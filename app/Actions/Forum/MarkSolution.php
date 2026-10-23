@@ -33,7 +33,7 @@ final class MarkSolution
             $thread = Thread::query()->whereKey($thread->id)->lockForUpdate()->firstOrFail();
             // The request was authorised on the copy it loaded: a moderator
             // may have locked or hidden the thread since.
-            if (! $thread->mayBeChangedBy($actor)) {
+            if (! $thread->mayBeChangedBy($actor->current())) {
                 throw new AuthorizationException(__('This thread can no longer be changed.'));
             }
 

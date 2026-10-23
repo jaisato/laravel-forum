@@ -169,6 +169,16 @@ class User extends Authenticatable implements FilamentUser, HasLocalePreference,
     }
 
     /**
+     * The member as stored now. Actions authorised at the start of a request
+     * check their rules again on this under lock: a moderator may have
+     * banned the member while the request ran.
+     */
+    public function current(): static
+    {
+        return $this->fresh() ?? $this;
+    }
+
+    /**
      * Whether the member may post, react, report or send private messages.
      */
     public function canParticipate(): bool

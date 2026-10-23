@@ -35,7 +35,7 @@ final class DeleteThread
 
             // The request was authorised on the copy it loaded: somebody may
             // have replied since, and authors may only delete unanswered threads.
-            if (! $thread->mayBeDeletedBy($actor)) {
+            if (! $thread->mayBeDeletedBy($actor->current())) {
                 throw new AuthorizationException(__('This thread can no longer be deleted.'));
             }
 

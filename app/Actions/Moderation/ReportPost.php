@@ -33,7 +33,7 @@ final class ReportPost
             $stored = Post::withTrashed()->whereKey($post->id)->sharedLock()->firstOrFail();
             $stored->setRelation('thread', $thread);
 
-            if (! $stored->mayBeReportedBy($reporter)) {
+            if (! $stored->mayBeReportedBy($reporter->current())) {
                 throw new AuthorizationException(__('This post can no longer be reported.'));
             }
 
