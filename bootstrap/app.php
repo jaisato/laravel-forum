@@ -24,10 +24,12 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        // The proxies come from config/trustedproxy.php. Caddy passes the
-        // Host header on as it is, so X-Forwarded-Host is never believed.
+        // The proxies come from config/trustedproxy.php. Caddy overwrites
+        // X-Forwarded-For, -Proto and -Host, but passes a client's
+        // X-Forwarded-Port through as it came: the port is never believed
+        // (with HTTPS and a host without one, it is 443), nor the forwarded
+        // host (Caddy passes the Host header on as it is).
         $middleware->trustProxies(headers: Request::HEADER_X_FORWARDED_FOR
-            | Request::HEADER_X_FORWARDED_PORT
             | Request::HEADER_X_FORWARDED_PROTO);
 
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);

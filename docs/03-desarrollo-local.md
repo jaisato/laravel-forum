@@ -8,7 +8,8 @@ datos) vive en contenedores, así que en tu equipo basta con Docker.
 ## 1. Requisitos
 
 - **Docker Engine 25 o posterior con Docker Compose v2.** En macOS y Windows,
-  Docker Desktop. Probado con Docker Engine 29.9 y Compose 5.6.
+  Docker Desktop. La configuración se ha comprobado con Docker Engine 29.9 y
+  Compose 5.6, y CI construye la imagen `dev` en cada *pull request*.
 - **GNU Make** y **Git**.
 - Unos 4 GB de memoria libres para los contenedores.
 - Libres en `127.0.0.1`: los puertos 8080 (foro), 5173 (Vite), 5432

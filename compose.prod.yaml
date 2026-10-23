@@ -218,7 +218,9 @@ services:
 
   meilisearch:
     <<: *service
-    image: getmeili/meilisearch:v1.24
+    # An exact version: Meilisearch only opens a database written by its own
+    # version (upgrading: docs/04-despliegue.md, section 11).
+    image: getmeili/meilisearch:v1.24.0
     environment:
       MEILI_ENV: production
       MEILI_MASTER_KEY: ${MEILISEARCH_KEY:?Set MEILISEARCH_KEY in .env.production}

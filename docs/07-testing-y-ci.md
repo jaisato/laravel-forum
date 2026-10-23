@@ -40,8 +40,11 @@ tiene la extensión `vector`); cada proceso paralelo crea y usa su propia copia:
 
 ```bash
 DB_CONNECTION=pgsql DB_HOST=127.0.0.1 DB_PORT=5432 DB_DATABASE=forum_testing \
-DB_USERNAME=forum DB_PASSWORD=forum vendor/bin/pest --parallel
+DB_USERNAME=forum DB_PASSWORD=forum-dev-password vendor/bin/pest --parallel
 ```
+
+(Los valores de `.env.example` para el PostgreSQL de `compose.yaml`; CI usa los
+suyos.)
 
 La suite no necesita `.env` ni `APP_KEY`: lee el `.env.testing` versionado
 (SQLite en memoria, caché y colas en el propio proceso, Scout con el driver
@@ -144,7 +147,7 @@ imágenes (`packages: write`).
 | Job | Qué hace | Para reproducirlo |
 |---|---|---|
 | PHP · Pint y Larastan | `composer validate --strict`, Pint y Larastan | `make lint` |
-| PHP 8.4 · PostgreSQL + cobertura | La suite sobre PostgreSQL 18 + pgvector con pcov y el mínimo del 95 % | `make test-pgsql` y `make coverage` |
+| PHP 8.4 · PostgreSQL + cobertura | La suite sobre PostgreSQL 18 + pgvector con pcov y el mínimo del 95 % | `make test-pgsql`, y el comando de la sección 2 con `--coverage --min=95` (`make coverage` la mide en SQLite) |
 | PHP 8.5 · SQLite | La suite con la siguiente versión de PHP | `composer test` con PHP 8.5 |
 | JS · ESLint, Prettier, vue-tsc y Vitest | Genera las rutas de Wayfinder y pasa los cuatro | `make lint` y `make test-js` |
 | Build · Vite (cliente y SSR) | `npm run build:ssr` | el mismo comando |
@@ -169,7 +172,9 @@ aviso tolerado recibe un parche que no rompe nada.
 Cada lunes, una *pull request* por ecosistema (composer, npm, GitHub Actions,
 las imágenes base del `Dockerfile` y las de los servicios de Compose) con sus
 actualizaciones menores y de parche, y una aparte para cada versión mayor. CI
-las juzga como cualquier otra.
+las juzga como cualquier otra. PostgreSQL y Meilisearch quedan fuera: sus datos
+no se abren con otra versión tal cual y los volúmenes vacíos de CI no lo
+notarían ([04-despliegue.md](04-despliegue.md#11-actualizar-postgresql-y-meilisearch)).
 
 ### `release.yml`: publicar una versión
 

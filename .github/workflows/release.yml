@@ -6,11 +6,14 @@ name: Release
 # repository configures it, deploys that version over SSH to the protected
 # "production" environment (docs/04-despliegue.md, docs/07-testing-y-ci.md).
 #
-# The deployment needs, in the "production" environment:
-#   variables DEPLOY_HOST, DEPLOY_USER and DEPLOY_PATH (a clone of this
-#   repository with its .env.production), and secrets DEPLOY_SSH_KEY (a
-#   private key allowed on the server) and DEPLOY_KNOWN_HOSTS (the server's
-#   line from `ssh-keyscan`, checked, never trusted on first use).
+# The deployment needs:
+#   the repository variable DEPLOY_HOST (a repository one: the job's `if`
+#   is read before the environment's variables exist, so one set there would
+#   always skip the job); and, in the "production" environment, the
+#   variables DEPLOY_USER and DEPLOY_PATH (a clone of this repository with
+#   its .env.production) and the secrets DEPLOY_SSH_KEY (a private key
+#   allowed on the server) and DEPLOY_KNOWN_HOSTS (the server's line from
+#   `ssh-keyscan`, checked, never trusted on first use).
 # Without DEPLOY_HOST the job is skipped and the images are the release.
 
 on:

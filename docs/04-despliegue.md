@@ -58,8 +58,10 @@ termina con éxito, arrancan `app`, `queue` y `scheduler`, después `web` y por
 
 ## 2. Requisitos
 
-- Un servidor Linux con **Docker Engine 25 o posterior y Docker Compose v2**.
-  Para una comunidad pequeña bastan 2 vCPU y 4 GB de memoria.
+- Un servidor Linux **x86_64 (amd64)** con **Docker Engine 25 o posterior y
+  Docker Compose v2**. Para una comunidad pequeña bastan 2 vCPU y 4 GB de
+  memoria. Las imágenes publicadas son solo para amd64: en un servidor arm64,
+  constrúyelas allí mismo (sección 8).
 - Un dominio cuyos registros DNS (A/AAAA) apunten al servidor, y abiertos los
   puertos 80/TCP y 443/TCP (y 443/UDP para HTTP/3).
 - Un servidor SMTP para el correo.
@@ -89,7 +91,9 @@ chmod 600 .env.production
 | `MAIL_*` | Tu servidor SMTP |
 | `IMAGE_PREFIX`, `IMAGE_TAG` | De dónde vienen las imágenes y qué versión |
 
-Para generar los secretos:
+Compose interpreta los `$` de `.env.production` (lo lee con `--env-file`): un
+valor que lleve uno, como una contraseña de SMTP, va entre comillas simples
+(`MAIL_PASSWORD='Xy$z9Q'`). Para generar los secretos:
 
 ```bash
 echo "base64:$(openssl rand -base64 32)"   # APP_KEY
@@ -132,7 +136,7 @@ dcp exec app php artisan forum:make-admin tu-email@example.com
 **6. La comprobación.**
 
 ```bash
-dcp ps
+dcp ps -a
 curl -fsS https://foro.example.com/up
 ```
 
@@ -236,9 +240,10 @@ volver a pedir los certificados) y, sobre todo, `.env.production`: sin su
 - Las imágenes propias no se ejecutan como root (`www-data`, `nginx` y `node`).
 - Caddy añade HSTS; Nginx, `X-Content-Type-Options`, `X-Frame-Options`,
   `Referrer-Policy` y `Permissions-Policy`, y no anuncia versiones.
-- Laravel solo cree la IP y el esquema que llegan en `X-Forwarded-For`,
-  `-Proto` y `-Port` cuando vienen de `TRUSTED_PROXIES` (las redes privadas de
-  Docker, en la plantilla), y nunca `X-Forwarded-Host`.
+- Laravel solo cree la IP y el esquema que llegan en `X-Forwarded-For` y
+  `-Proto` cuando vienen de `TRUSTED_PROXIES` (las redes privadas de Docker,
+  en la plantilla), y nunca `X-Forwarded-Host` ni `-Port`: Caddy deja pasar el
+  puerto que mande el cliente, que acabaría en los enlaces de los emails.
 - `.env.production` contiene todos los secretos: permisos `600` y fuera de git
   (`.gitignore` lo excluye). Para cambiar `APP_KEY` sin invalidar lo cifrado,
   deja la anterior en `APP_PREVIOUS_KEYS` hasta que ya no haga falta.
@@ -310,17 +315,20 @@ versión anterior sigue en marcha, aunque el servidor ya tenga el código y el
 `IMAGE_TAG` nuevos: para dejarlo como estaba, vuelve al *tag* anterior como en
 la sección 4.
 
-Se configura en *Settings* → *Environments* → `production`, un entorno que
-conviene proteger (con revisores obligatorios, o que solo lo usen los *tags*
-`v*`):
+Se activa con la variable **del repositorio** `DEPLOY_HOST` (*Settings* →
+*Secrets and variables* → *Actions* → *Variables*): la condición del *job* se
+evalúa antes de entrar en el entorno, así que una `DEPLOY_HOST` definida solo
+en el entorno lo saltaría siempre. Lo demás va en *Settings* → *Environments*
+→ `production`, un entorno que conviene proteger (con revisores obligatorios,
+o que solo lo usen los *tags* `v*`):
 
-| Tipo | Nombre | Valor |
+| Dónde | Nombre | Valor |
 |---|---|---|
-| Variable | `DEPLOY_HOST` | El servidor (sin ella, el despliegue no se ejecuta y la versión son solo las imágenes) |
-| Variable | `DEPLOY_USER` | Un usuario del servidor que pueda usar Docker |
-| Variable | `DEPLOY_PATH` | El clon del repositorio con su `.env.production` (sección 3) |
-| Secreto | `DEPLOY_SSH_KEY` | La clave privada de un par creado solo para esto, cuya clave pública está en el `authorized_keys` de ese usuario |
-| Secreto | `DEPLOY_KNOWN_HOSTS` | La línea del servidor que da `ssh-keyscan`, comprobada antes contra la huella del propio servidor |
+| Variable del repositorio | `DEPLOY_HOST` | El servidor (sin ella, el despliegue no se ejecuta y la versión son solo las imágenes) |
+| Variable del entorno | `DEPLOY_USER` | Un usuario del servidor que pueda usar Docker |
+| Variable del entorno | `DEPLOY_PATH` | El clon del repositorio con su `.env.production` (sección 3) |
+| Secreto del entorno | `DEPLOY_SSH_KEY` | La clave privada de un par creado solo para esto, cuya clave pública está en el `authorized_keys` de ese usuario |
+| Secreto del entorno | `DEPLOY_KNOWN_HOSTS` | La línea del servidor que da `ssh-keyscan`, comprobada antes contra la huella del propio servidor |
 
 ```bash
 ssh-keygen -t ed25519 -N "" -C "despliegue del foro" -f deploy_key   # DEPLOY_SSH_KEY: deploy_key
@@ -330,3 +338,29 @@ ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub                     # en el ser
 
 La conexión nunca acepta una clave de servidor desconocida, y el *workflow*
 rechaza un *tag* que no sea una versión antes de que llegue al servidor.
+
+## 11. Actualizar PostgreSQL y Meilisearch
+
+Las dos guardan sus datos en un formato de su versión, así que cambiar de
+imagen no basta y Dependabot no las propone (las demás imágenes sí).
+
+**Meilisearch** solo abre una base de datos escrita por su misma versión,
+también entre parches, y por eso `compose.prod.yaml` fija una exacta
+(`v1.24.0`). El índice se rehace desde PostgreSQL, así que actualizar es
+cambiar la etiqueta, empezar con un volumen vacío y volver a indexar (mientras
+tanto la búsqueda devuelve resultados incompletos):
+
+```bash
+dcp rm -sf meilisearch
+docker volume rm laravel-forum-prod_meilisearch
+dcp up -d --wait meilisearch
+dcp exec app php artisan scout:sync-index-settings
+dcp exec app php artisan scout:import "App\Models\Thread"
+dcp exec app php artisan scout:import "App\Models\Post"
+```
+
+**PostgreSQL** se actualiza solo dentro de su versión mayor (la imagen
+`pgvector/pgvector:pg18` recibe los parches al hacer `pull`). Pasar a otra
+mayor (`pg19`) es volcar la base de datos con la versión actual, arrancar la
+nueva con un volumen vacío y restaurarla (sección 6).
+

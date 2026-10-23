@@ -20,9 +20,15 @@ beforeEach(function () {
         'ip' => $request->ip(),
         'secure' => $request->isSecure(),
         'host' => $request->getHost(),
+        'url' => $request->url(),
     ]);
 });
 
+/**
+ * A request as a trusted proxy forwards it, with a forwarded host and port
+ * of its choosing: Caddy passes a client's X-Forwarded-Port through as it
+ * came.
+ */
 function requestThroughProxy(): TestResponse
 {
     return test()
@@ -31,6 +37,7 @@ function requestThroughProxy(): TestResponse
             'X-Forwarded-For' => '203.0.113.9',
             'X-Forwarded-Proto' => 'https',
             'X-Forwarded-Host' => 'evil.example',
+            'X-Forwarded-Port' => '666',
         ])
         ->getJson('/_test/client');
 }
@@ -42,16 +49,20 @@ it('ignores forwarded headers when no proxy is trusted', function () {
         'ip' => '172.18.0.5',
         'secure' => false,
         'host' => 'localhost',
+        'url' => 'http://localhost/_test/client',
     ]);
 });
 
-it('takes the client and the scheme from a trusted proxy but never its host', function () {
+it('takes the client and the scheme from a trusted proxy but never its host or port', function () {
     config(['trustedproxy.proxies' => '10.0.0.0/8,172.16.0.0/12,192.168.0.0/16']);
 
+    // The port would end up in every link the forum writes: password reset
+    // emails, the sitemap…
     requestThroughProxy()->assertExactJson([
         'ip' => '203.0.113.9',
         'secure' => true,
         'host' => 'localhost',
+        'url' => 'https://localhost/_test/client',
     ]);
 });
 

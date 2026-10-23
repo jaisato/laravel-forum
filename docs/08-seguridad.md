@@ -105,9 +105,12 @@ resúmenes de la IA siguen el mismo camino que los mensajes.
 
 - **Email.** Solo lo ve su dueño (en sus ajustes y en `/api/v1/me`) y, en el
   panel, la administración; los moderadores no.
-- **Direcciones IP.** No se guardan: las sesiones viven en Redis. Con
-  `SESSION_DRIVER=database`, Laravel guardaría la IP y el navegador de cada
-  sesión.
+- **Direcciones IP.** La base de datos no las guarda: las sesiones viven en
+  Redis (con `SESSION_DRIVER=database`, Laravel guardaría la IP y el navegador
+  de cada sesión). Los logs de acceso de Nginx sí registran la de cada
+  petición, en los logs de Docker (3 ficheros de 10 MB por contenedor, que se
+  rotan): si no la necesitas, quítala del `log_format` de
+  `docker/nginx/nginx.conf`, y menciona los logs en la política de privacidad.
 - **Avatares.** Se vuelven a codificar como WebP de 256×256 con GD, que no
   copia los metadatos de la foto (EXIF, ubicación GPS), y se guardan con un
   nombre aleatorio.
@@ -147,8 +150,10 @@ Lo que ya trae `compose.prod.yaml` (más detalle en
   puede ganar privilegios (`no-new-privileges`), las imágenes propias no se
   ejecutan como root, y `web` y `ssr` tienen el sistema de ficheros en solo
   lectura.
-- **Proxies de confianza.** Laravel solo cree `X-Forwarded-For`, `-Proto` y
-  `-Port` cuando llegan de `TRUSTED_PROXIES`, y nunca `X-Forwarded-Host`.
+- **Proxies de confianza.** Laravel solo cree `X-Forwarded-For` y `-Proto`
+  cuando llegan de `TRUSTED_PROXIES`, y nunca `X-Forwarded-Host` ni `-Port`
+  (Caddy deja pasar el puerto que mande el cliente, que acabaría en los
+  enlaces de los emails y del *sitemap*).
 - **Sin depuración.** `APP_DEBUG=false` en la plantilla: un error muestra la
   página de error del foro, sin trazas.
 - **Base de datos a salvo de despistes.** En producción, Laravel se niega a

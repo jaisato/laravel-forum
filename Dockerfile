@@ -119,7 +119,7 @@ RUN set -eux; \
     mkdir -p storage/app/public storage/framework/cache/data \
         storage/framework/sessions storage/framework/testing \
         storage/framework/views storage/logs bootstrap/cache; \
-    composer dump-autoload --no-dev --optimize --no-interaction; \
+    composer dump-autoload --no-dev --classmap-authoritative --no-interaction; \
     php artisan wayfinder:generate --with-form
 
 # ----------------------------------------------------------------------------
