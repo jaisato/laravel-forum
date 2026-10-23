@@ -10,8 +10,10 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 use Laravel\Sanctum\Http\Middleware\CheckAbilities;
 use Laravel\Sanctum\Http\Middleware\CheckForAnyAbility;
+use Symfony\Component\HttpFoundation\Response;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -47,4 +49,33 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );
+
+        // Pages answer errors with the forum's own Error page (unless
+        // debugging), and an expired form goes back to its page with a
+        // warning instead of a dead end.
+        $exceptions->respond(function (Response $response, Throwable $exception, Request $request): Response {
+            if ($request->is('api/*') || $request->expectsJson()) {
+                return $response;
+            }
+
+            $status = $response->getStatusCode();
+
+            if ($status === 419) {
+                Inertia::flash('toast', ['type' => 'error', 'message' => __('The page expired. Please try again.')]);
+
+                return back();
+            }
+
+            if (config('app.debug') || ! in_array($status, [403, 404, 429, 500, 503], true)) {
+                return $response;
+            }
+
+            // Maintenance mode answers before the web middleware has shared
+            // anything: the page still needs the layout's props.
+            Inertia::share(app(HandleInertiaRequests::class)->share($request));
+
+            return Inertia::render('Error', ['status' => $status])
+                ->toResponse($request)
+                ->setStatusCode($status);
+        });
     })->create();

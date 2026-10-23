@@ -52,6 +52,9 @@ página describe lo que ya funciona.
   soluciones aceptadas y moderación. Una notificación sobre un mensaje que se
   oculta o se borra después deja de mostrar su contenido.
 - Límites de frecuencia por miembro al publicar, reaccionar y reportar.
+- SEO: páginas renderizadas en el servidor con título, descripción, URL
+  canónica y Open Graph; `sitemap.xml` y `robots.txt` generados; páginas de
+  error propias (404, 403, 429, 500 y mantenimiento).
 - Interfaz en español e inglés con selector de idioma.
 
 ## Stack

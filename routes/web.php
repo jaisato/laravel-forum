@@ -12,7 +12,9 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PostController;
 use App\Http\Controllers\PostReactionController;
 use App\Http\Controllers\PostReportController;
+use App\Http\Controllers\RobotsController;
 use App\Http\Controllers\SearchController;
+use App\Http\Controllers\SitemapController;
 use App\Http\Controllers\TagController;
 use App\Http\Controllers\ThreadController;
 use App\Http\Controllers\ThreadSolutionController;
@@ -33,6 +35,9 @@ Route::get('u/{user:username}', [UserProfileController::class, 'show'])->name('u
 Route::get('search', SearchController::class)->middleware('throttle:60,1')->name('search');
 
 Route::post('locale', [LocaleController::class, 'update'])->name('locale.update');
+
+Route::get('sitemap.xml', SitemapController::class)->name('sitemap');
+Route::get('robots.txt', RobotsController::class)->name('robots');
 
 // Permissions are checked by the policies (verified and not banned to take
 // part), so the routes only ask for a signed in member.
@@ -111,3 +116,10 @@ Route::middleware('auth')->group(function () {
 });
 
 require __DIR__.'/settings.php';
+
+// Unknown addresses go through the web middleware too, so their 404 page
+// knows the member, the language and the rest of the shared props. Every
+// method, as Route::fallback() alone would answer 405 to anything but GET.
+Route::any('{fallbackPlaceholder}', fn () => abort(404))
+    ->where('fallbackPlaceholder', '.*')
+    ->fallback();

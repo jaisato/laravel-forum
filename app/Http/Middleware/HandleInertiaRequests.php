@@ -60,6 +60,19 @@ class HandleInertiaRequests extends Middleware
             ],
             'locale' => app()->getLocale(),
             'locales' => Locale::supported(),
+            'canonical' => fn (): string => $this->canonical($request),
         ];
+    }
+
+    /**
+     * The address search engines should index the page under (SeoHead):
+     * the page itself with its page number, without sorts, filters or
+     * anything else in the query.
+     */
+    private function canonical(Request $request): string
+    {
+        $page = filter_var($request->query('page'), FILTER_VALIDATE_INT, ['options' => ['min_range' => 2]]);
+
+        return $request->url().($page === false ? '' : '?page='.$page);
     }
 }
