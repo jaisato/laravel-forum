@@ -67,15 +67,7 @@ class ThreadPolicy
 
     public function reply(User $user, Thread $thread): bool
     {
-        if ($user->canModerate()) {
-            return true;
-        }
-
-        return $user->canParticipate()
-            && $thread->status === ThreadStatus::Published
-            && ! $thread->trashed()
-            && ! $thread->is_locked
-            && ! $thread->category->is_locked;
+        return $thread->acceptsRepliesFrom($user);
     }
 
     public function markSolution(User $user, Thread $thread): bool

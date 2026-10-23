@@ -3,9 +3,13 @@
 declare(strict_types=1);
 
 use App\Actions\Forum\ReplyToThread;
+use App\Actions\Moderation\LockThread;
 use App\Events\PostCreated;
+use App\Models\Post;
+use App\Models\Thread;
 use App\Models\ThreadRead;
 use App\Models\User;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\Event;
 
 it('adds the reply as the latest post of the thread', function () {
@@ -69,4 +73,23 @@ it('announces the reply once committed', function () {
     $reply = forumReply($thread);
 
     Event::assertDispatched(PostCreated::class, fn (PostCreated $event): bool => $event->post->is($reply));
+});
+
+it('refuses the reply when the thread was locked after the request was authorised', function () {
+    $thread = forumThread();
+    $moderator = User::factory()->moderator()->create();
+    // The copy the request authorised the reply on, before a moderator locked it.
+    $authorised = Thread::query()->findOrFail($thread->id);
+    app(LockThread::class)->handle($thread, $moderator);
+
+    expect(fn () => app(ReplyToThread::class)->handle($authorised, User::factory()->create(), 'Respuesta válida.'))
+        ->toThrow(AuthorizationException::class);
+
+    expect($thread->fresh()->replies_count)->toBe(0)
+        ->and(Post::query()->count())->toBe(1);
+
+    // Staff may still reply to a locked thread.
+    app(ReplyToThread::class)->handle($authorised, $moderator, 'Cerramos el hilo.');
+
+    expect($thread->fresh()->replies_count)->toBe(1);
 });

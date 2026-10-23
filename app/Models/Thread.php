@@ -241,6 +241,25 @@ class Thread extends Model
             || ($this->status === ThreadStatus::PendingReview && $viewer !== null && $this->isAuthoredBy($viewer));
     }
 
+    /**
+     * Whether the user may reply (ThreadPolicy::reply, and ReplyToThread
+     * again under lock): staff always may; members who may take part while
+     * the thread is published, not deleted, and neither it nor its category
+     * is locked.
+     */
+    public function acceptsRepliesFrom(User $user): bool
+    {
+        if ($user->canModerate()) {
+            return true;
+        }
+
+        return $user->canParticipate()
+            && $this->status === ThreadStatus::Published
+            && ! $this->trashed()
+            && ! $this->is_locked
+            && ! $this->category->is_locked;
+    }
+
     public function isAuthoredBy(User $user): bool
     {
         return (int) $this->user_id === $user->id;

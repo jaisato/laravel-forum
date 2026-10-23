@@ -12,6 +12,7 @@ use App\Services\ForumCounters;
 use App\Services\ReadTracker;
 use App\Services\ThreadSubscriptions;
 use App\Support\Markdown\MarkdownRenderer;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
@@ -39,6 +40,12 @@ final class ReplyToThread
 
         return DB::transaction(function () use ($thread, $author, $body, $bodyHtml, $replyTo): Post {
             $thread = Thread::query()->whereKey($thread->id)->lockForUpdate()->firstOrFail();
+
+            // The request was authorised on the copy it loaded: a moderator
+            // may have locked or hidden the thread since.
+            if (! $thread->acceptsRepliesFrom($author)) {
+                throw new AuthorizationException(__('This thread no longer accepts replies.'));
+            }
 
             $post = $thread->posts()->create([
                 'user_id' => $author->id,

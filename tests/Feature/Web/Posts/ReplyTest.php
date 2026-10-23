@@ -3,7 +3,9 @@
 declare(strict_types=1);
 
 use App\Actions\Moderation\LockThread;
+use App\Http\Requests\StorePostRequest;
 use App\Models\Post;
+use App\Models\Thread;
 use App\Models\User;
 
 it('sends guests to the login page', function () {
@@ -68,6 +70,20 @@ it('refuses replies to a locked thread', function () {
     $this->actingAs(User::factory()->create())
         ->post(route('posts.store', $thread), ['body' => 'Respuesta válida.'])
         ->assertForbidden();
+});
+
+it('refuses a reply when the thread is locked while the request is handled', function () {
+    $thread = forumThread();
+    $moderator = User::factory()->moderator()->create();
+
+    // Runs once the request has been authorised and validated.
+    app()->afterResolving(StorePostRequest::class, fn () => app(LockThread::class)->handle(Thread::query()->findOrFail($thread->id), $moderator));
+
+    $this->actingAs(User::factory()->create())
+        ->post(route('posts.store', $thread), ['body' => 'Respuesta válida.'])
+        ->assertForbidden();
+
+    expect($thread->fresh())->is_locked->toBeTrue()->replies_count->toBe(0);
 });
 
 it('refuses replies from members who may not post', function (string $role) {
