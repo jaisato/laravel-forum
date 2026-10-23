@@ -9,6 +9,7 @@ use App\Models\Thread;
 use App\Models\ThreadEmbedding;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Queue\Attributes\Queue;
 use Illuminate\Support\Str;
 use Laravel\Ai\Embeddings;
 
@@ -18,6 +19,7 @@ use Laravel\Ai\Embeddings;
  * sent again (content_hash) unless forced. Threads of any status are
  * embedded; the search shows public ones only.
  */
+#[Queue('ai')]
 final class GenerateThreadEmbedding implements ShouldQueue
 {
     use Queueable;

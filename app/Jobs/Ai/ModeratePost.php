@@ -14,6 +14,7 @@ use App\Models\Post;
 use App\Models\Thread;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Queue\Attributes\Queue;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -22,6 +23,7 @@ use Illuminate\Support\Facades\Log;
  * stays as it is and the job tries again; an answer the forum cannot vouch
  * for is logged and ignored.
  */
+#[Queue('ai')]
 final class ModeratePost implements ShouldQueue
 {
     use Queueable;

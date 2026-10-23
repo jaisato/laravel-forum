@@ -10,12 +10,14 @@ use App\Models\Thread;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Queue\Attributes\Queue;
 
 /**
  * Writes a thread's summary in the queue, once at a time per thread, and
  * only if it is still wanted when its turn comes: the feature on, the
  * thread public with enough replies and its summary stale.
  */
+#[Queue('ai')]
 final class GenerateThreadSummary implements ShouldBeUnique, ShouldQueue
 {
     use Queueable;
