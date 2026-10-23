@@ -50,3 +50,41 @@ it('slugs categories and tags from their names', function () {
     expect(Category::factory()->create(['name' => 'Fuera de tema'])->slug)->toBe('fuera-de-tema')
         ->and(Tag::factory()->create(['name' => 'Vue.js'])->slug)->toBe('vuejs');
 });
+
+it('takes the next slug when another request claims it at the same moment', function () {
+    // The rival request committed first…
+    Category::factory()->create(['name' => 'Ayuda con Docker']);
+
+    // …after this one had already checked that the slug was free.
+    $late = new class extends Category
+    {
+        protected $table = 'categories';
+
+        private bool $checked = false;
+
+        protected function uniqueSlug(string $source): string
+        {
+            if (! $this->checked) {
+                $this->checked = true;
+
+                return 'ayuda-con-docker';
+            }
+
+            return parent::uniqueSlug($source);
+        }
+    };
+    $late->fill(['name' => 'Ayuda con Docker', 'color' => '#000000'])->save();
+
+    expect($late->slug)->toBe('ayuda-con-docker-2')
+        ->and(Category::query()->count())->toBe(2);
+});
+
+it('keeps suffixed slugs within the column length', function () {
+    // Cyrillic transliterates to several letters per character.
+    $name = str_repeat('Щ', 40);
+    Category::factory()->create(['name' => $name]);
+    $second = Category::factory()->create(['name' => $name]);
+
+    expect(mb_strlen($second->slug))->toBeLessThanOrEqual(80)
+        ->and($second->slug)->toEndWith('-2');
+});
