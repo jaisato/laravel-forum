@@ -18,14 +18,19 @@ EXEC = $(COMPOSE) exec app
 help: ## List the shortcuts
 	@awk 'BEGIN { FS = ":.*## " } /^[a-z-]+:.*## / { printf "  \033[36m%-11s\033[0m %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
 
+# Safe to run again: the demo data only goes into a database without tables.
 setup: ## First start: .env, image, dependencies, database with demo data
 	@test -f .env || cp .env.example .env
 	$(COMPOSE) build
 	$(COMPOSE) up -d --wait postgres redis meilisearch mailpit
 	$(RUN) composer install
 	@grep -q '^APP_KEY=base64:' .env || $(RUN) php artisan key:generate
-	$(RUN) php artisan storage:link
-	$(RUN) php artisan migrate --seed
+	$(RUN) php artisan storage:link --force
+	@if $(RUN) php artisan migrate:status > /dev/null 2>&1; then \
+		$(RUN) php artisan migrate; \
+	else \
+		$(RUN) php artisan migrate --seed; \
+	fi
 	$(RUN) php artisan scout:sync-index-settings
 	$(RUN) npm ci
 	$(COMPOSE) up -d --wait
