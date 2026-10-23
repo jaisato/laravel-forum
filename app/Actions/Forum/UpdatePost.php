@@ -8,9 +8,11 @@ use App\Actions\Moderation\RecordModerationAction;
 use App\Enums\ModerationActionType;
 use App\Events\PostUpdated;
 use App\Models\Post;
+use App\Models\Thread;
 use App\Models\User;
 use App\Support\Markdown\MarkdownRenderer;
 use App\Support\Markdown\MentionParser;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -31,24 +33,40 @@ final class UpdatePost
             return $post;
         }
 
-        $previousMentions = $this->mentions->extract($post->body);
         $bodyHtml = $this->markdown->render($body);
 
-        return DB::transaction(function () use ($post, $editor, $body, $bodyHtml, $previousMentions): Post {
-            $post->forceFill([
-                'body' => $body,
-                'body_html' => $bodyHtml,
-                'edited_at' => now(),
-                'edited_by_id' => $editor->id,
-            ])->save();
+        return DB::transaction(function () use ($post, $editor, $body, $bodyHtml): Post {
+            // Thread first, then post: the lock order of every action.
+            $thread = Thread::withTrashed()->whereKey($post->thread_id)->lockForUpdate()->firstOrFail();
+            $stored = Post::withTrashed()->whereKey($post->id)->lockForUpdate()->firstOrFail();
+            $stored->setRelation('thread', $thread);
 
-            if (! $post->isAuthoredBy($editor)) {
-                $this->log->handle($editor, ModerationActionType::PostEdited, $post);
+            // The request was authorised on the copy it loaded: a moderator
+            // may have hidden the post or locked the thread since.
+            if (! $stored->mayBeChangedBy($editor)) {
+                throw new AuthorizationException(__('This post can no longer be changed.'));
             }
 
-            PostUpdated::dispatch($post, $previousMentions);
+            if ($body !== $stored->body) {
+                $previousMentions = $this->mentions->extract($stored->body);
 
-            return $post;
+                $stored->forceFill([
+                    'body' => $body,
+                    'body_html' => $bodyHtml,
+                    'edited_at' => now(),
+                    'edited_by_id' => $editor->id,
+                ])->save();
+
+                if (! $stored->isAuthoredBy($editor)) {
+                    $this->log->handle($editor, ModerationActionType::PostEdited, $stored);
+                }
+
+                PostUpdated::dispatch($stored, $previousMentions);
+            }
+
+            $post->setRawAttributes($stored->getAttributes(), sync: true);
+
+            return $stored;
         });
     }
 }

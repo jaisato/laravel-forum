@@ -261,6 +261,16 @@ class Thread extends Model
     }
 
     /**
+     * Whether the user may edit the thread or choose its solution
+     * (ThreadPolicy, and the actions again under lock): staff always may;
+     * its author while they may change it.
+     */
+    public function mayBeChangedBy(User $user): bool
+    {
+        return $user->canModerate() || $this->authorMayChange($user);
+    }
+
+    /**
      * Whether the user may delete the thread (ThreadPolicy::delete, and
      * DeleteThread again under lock): staff always may; its author only
      * while they may change it and nobody has replied.

@@ -3,10 +3,13 @@
 declare(strict_types=1);
 
 use App\Actions\Forum\DeletePost;
+use App\Actions\Moderation\HidePost;
 use App\Enums\ModerationActionType;
 use App\Events\PostDeleted;
 use App\Models\ModerationAction;
+use App\Models\Post;
 use App\Models\User;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\Event;
 
 it('takes a deleted reply out of every counter', function () {
@@ -89,4 +92,14 @@ it('announces the deletion once committed', function () {
     app(DeletePost::class)->handle($reply, $reply->author);
 
     Event::assertDispatched(PostDeleted::class, fn (PostDeleted $event): bool => $event->post->is($reply));
+});
+
+it('refuses the author once the reply was hidden after the request was authorised', function () {
+    $reply = forumReply(forumThread());
+    $authorised = Post::query()->findOrFail($reply->id);
+    app(HidePost::class)->handle($reply, User::factory()->moderator()->create());
+
+    expect(fn () => app(DeletePost::class)->handle($authorised, $reply->author))
+        ->toThrow(AuthorizationException::class);
+    expect($reply->fresh()->trashed())->toBeFalse();
 });

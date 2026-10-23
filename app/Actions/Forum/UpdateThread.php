@@ -11,6 +11,7 @@ use App\Models\Tag;
 use App\Models\Thread;
 use App\Models\User;
 use App\Services\ForumCounters;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -33,6 +34,11 @@ final class UpdateThread
             // The copy the editor loaded may be stale (a moderator may have
             // hidden the thread since): the tag counters follow the real state.
             $thread = Thread::query()->whereKey($thread->id)->lockForUpdate()->firstOrFail();
+
+            if (! $thread->mayBeChangedBy($editor)) {
+                throw new AuthorizationException(__('This thread can no longer be changed.'));
+            }
+
             $previousTitle = $thread->title;
 
             $thread->fill(['title' => $title])->save();

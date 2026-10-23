@@ -262,6 +262,31 @@ class Post extends Model
         return $this->relationLoaded('thread') ? $this->thread : $this->thread()->with('tags')->first();
     }
 
+    /**
+     * Whether the user may edit the post, or delete it when it is a reply
+     * (PostPolicy, and the actions again under lock): staff always may;
+     * its author while they may change it.
+     */
+    public function mayBeChangedBy(User $user): bool
+    {
+        return $user->canModerate() || $this->authorMayChange($user);
+    }
+
+    /**
+     * Whether its author may still change the post: they may take part, the
+     * post is neither hidden nor deleted, and its thread is visible to them
+     * and not locked.
+     */
+    public function authorMayChange(User $user): bool
+    {
+        return $user->canParticipate()
+            && $this->isAuthoredBy($user)
+            && $this->status !== PostStatus::Hidden
+            && ! $this->trashed()
+            && $this->thread?->isVisibleTo($user) === true
+            && ! $this->thread->is_locked;
+    }
+
     public function isAuthoredBy(User $user): bool
     {
         return (int) $this->user_id === $user->id;

@@ -5,9 +5,12 @@ declare(strict_types=1);
 use App\Actions\Forum\MarkSolution;
 use App\Actions\Forum\UnmarkSolution;
 use App\Actions\Moderation\HidePost;
+use App\Actions\Moderation\LockThread;
 use App\Events\SolutionMarked;
 use App\Models\Post;
+use App\Models\Thread;
 use App\Models\User;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\Event;
 
 it('marks a reply as the solution and rewards its author', function () {
@@ -119,3 +122,23 @@ it('stops solving the thread once its answer is hidden', function (bool $byModer
         ->and($thread->fresh()->isSolved())->toBeFalse()
         ->and($answer->author->fresh()->reputation)->toBe(0);
 })->with(['by a moderator' => true, 'by the AI' => false]);
+
+it('refuses the author once the thread was locked after the request was authorised', function () {
+    $thread = forumThread();
+    $answer = forumReply($thread);
+    $moderator = User::factory()->moderator()->create();
+    // The copy the request authorised the change on, before a moderator locked it.
+    $authorised = Thread::query()->findOrFail($thread->id);
+    app(LockThread::class)->handle($thread, $moderator);
+
+    expect(fn () => app(MarkSolution::class)->handle($authorised, $answer, $thread->author))
+        ->toThrow(AuthorizationException::class);
+    expect($thread->fresh()->solution_post_id)->toBeNull();
+
+    // Staff may still choose it, and the author may no longer undo it.
+    app(MarkSolution::class)->handle($authorised, $answer, $moderator);
+
+    expect(fn () => app(UnmarkSolution::class)->handle($authorised, $thread->author))
+        ->toThrow(AuthorizationException::class);
+    expect($thread->fresh()->solution_post_id)->toBe($answer->id);
+});

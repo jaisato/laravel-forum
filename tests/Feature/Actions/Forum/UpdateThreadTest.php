@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 use App\Actions\Forum\UpdateThread;
 use App\Actions\Moderation\HidePost;
+use App\Actions\Moderation\LockThread;
 use App\Enums\ModerationActionType;
 use App\Events\ThreadUpdated;
 use App\Models\ModerationAction;
 use App\Models\Tag;
+use App\Models\Thread;
 use App\Models\User;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\Event;
 
 it('renames the thread but keeps its address', function () {
@@ -61,16 +64,27 @@ it('announces the change once committed', function () {
 it('decides the tag counters on the current state of the thread, not a stale copy', function () {
     $tag = Tag::factory()->create();
     $thread = forumThread(tagIds: [$tag->id]);
-    // The author's edit form loaded the thread…
+    // A moderator's edit form loaded the thread…
     $stale = $thread->fresh();
-    // …then a moderator hid it, which took it out of the tag counters.
+    // …then another moderator hid it, which took it out of the tag counters.
+    // (Its author may no longer edit it at all.)
     app(HidePost::class)->handle($thread->firstPost, User::factory()->moderator()->create());
 
     $other = Tag::factory()->create();
-    app(UpdateThread::class)->handle($stale, $thread->author, $thread->title, [$other->id]);
+    app(UpdateThread::class)->handle($stale, User::factory()->moderator()->create(), $thread->title, [$other->id]);
 
     expect($tag->fresh()->threads_count)->toBe(0)
         ->and($other->fresh()->threads_count)->toBe(0);
 
     $this->artisan('forum:recount')->expectsOutputToContain('All counters were already right');
+});
+
+it('refuses the author once the thread was locked after the request was authorised', function () {
+    $thread = forumThread();
+    $authorised = Thread::query()->findOrFail($thread->id);
+    app(LockThread::class)->handle($thread, User::factory()->moderator()->create());
+
+    expect(fn () => app(UpdateThread::class)->handle($authorised, $thread->author, 'Otro título distinto', []))
+        ->toThrow(AuthorizationException::class);
+    expect($thread->fresh()->title)->toBe($authorised->title);
 });

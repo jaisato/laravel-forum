@@ -8,6 +8,7 @@ use App\Models\Post;
 use App\Models\Thread;
 use App\Models\User;
 use App\Services\Reputation;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -20,8 +21,14 @@ final class UnmarkSolution
 
     public function handle(Thread $thread, User $actor): void
     {
-        DB::transaction(function () use ($thread): void {
+        DB::transaction(function () use ($thread, $actor): void {
             $thread = Thread::query()->whereKey($thread->id)->lockForUpdate()->firstOrFail();
+
+            // The request was authorised on the copy it loaded: a moderator
+            // may have locked or hidden the thread since.
+            if (! $thread->mayBeChangedBy($actor)) {
+                throw new AuthorizationException(__('This thread can no longer be changed.'));
+            }
 
             if ($thread->solution_post_id === null) {
                 return;

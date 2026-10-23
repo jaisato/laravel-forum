@@ -32,7 +32,7 @@ class ThreadPolicy
 
     public function update(User $user, Thread $thread): bool
     {
-        return $user->canModerate() || $thread->authorMayChange($user);
+        return $thread->mayBeChangedBy($user);
     }
 
     /**
@@ -70,7 +70,7 @@ class ThreadPolicy
 
     public function markSolution(User $user, Thread $thread): bool
     {
-        return $user->canModerate() || $thread->authorMayChange($user);
+        return $thread->mayBeChangedBy($user);
     }
 
     public function subscribe(User $user, Thread $thread): bool

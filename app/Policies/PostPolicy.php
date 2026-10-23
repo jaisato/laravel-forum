@@ -27,7 +27,7 @@ class PostPolicy
 
     public function update(User $user, Post $post): bool
     {
-        return $user->canModerate() || $this->authorMayChange($user, $post);
+        return $post->mayBeChangedBy($user);
     }
 
     /**
@@ -44,7 +44,7 @@ class PostPolicy
             return $post->thread !== null && $user->can('delete', $post->thread);
         }
 
-        return $this->authorMayChange($user, $post);
+        return $post->authorMayChange($user);
     }
 
     public function restore(User $user, Post $post): bool
@@ -70,16 +70,6 @@ class PostPolicy
     public function report(User $user, Post $post): bool
     {
         return $this->mayEngageWith($user, $post);
-    }
-
-    private function authorMayChange(User $user, Post $post): bool
-    {
-        return $user->canParticipate()
-            && $post->isAuthoredBy($user)
-            && $post->status !== PostStatus::Hidden
-            && ! $post->trashed()
-            && $post->thread?->isVisibleTo($user) === true
-            && ! $post->thread->is_locked;
     }
 
     private function mayEngageWith(User $user, Post $post): bool

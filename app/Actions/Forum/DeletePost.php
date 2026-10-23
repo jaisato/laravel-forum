@@ -12,6 +12,7 @@ use App\Models\Thread;
 use App\Models\User;
 use App\Services\ForumCounters;
 use App\Services\Reputation;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -46,6 +47,14 @@ final class DeletePost
 
             if ($post === null) {
                 return;
+            }
+
+            $post->setRelation('thread', $thread);
+
+            // The request was authorised on the copy it loaded: a moderator
+            // may have hidden the reply or locked the thread since.
+            if (! $post->mayBeChangedBy($actor)) {
+                throw new AuthorizationException(__('This post can no longer be changed.'));
             }
 
             $counted = $this->counters->isVisibleReply($post, $thread);

@@ -3,10 +3,13 @@
 declare(strict_types=1);
 
 use App\Actions\Forum\UpdatePost;
+use App\Actions\Moderation\HidePost;
 use App\Enums\ModerationActionType;
 use App\Events\PostUpdated;
 use App\Models\ModerationAction;
+use App\Models\Post;
 use App\Models\User;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\Event;
 
 it('re-renders the body and marks the post as edited', function () {
@@ -56,4 +59,14 @@ it('logs edits made by staff on posts of others', function () {
         ->and($action->moderator->is($moderator))->toBeTrue()
         ->and($action->subject->is($reply))->toBeTrue()
         ->and($reply->fresh()->edited_by_id)->toBe($reply->user_id);
+});
+
+it('refuses the author once the post was hidden after the request was authorised', function () {
+    $reply = forumReply(forumThread(), body: 'Texto original.');
+    $authorised = Post::query()->findOrFail($reply->id);
+    app(HidePost::class)->handle($reply, User::factory()->moderator()->create());
+
+    expect(fn () => app(UpdatePost::class)->handle($authorised, $reply->author, 'Texto cambiado.'))
+        ->toThrow(AuthorizationException::class);
+    expect($reply->fresh()->body)->toBe('Texto original.');
 });
