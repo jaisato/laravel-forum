@@ -14,7 +14,7 @@ camino de una versión hasta GHCR.
 | `tests/Arch` | Reglas de arquitectura (sección 6) | Ninguna |
 | `tests/js` | Componentes del foro, *composables*, utilidades y páginas, con Vitest y `@vue/test-utils` | — |
 
-Son unos 1120 tests de PHP y 234 de TypeScript. En SQLite se omiten los 7
+Son unos 1170 tests de PHP y 238 de TypeScript. En SQLite se omiten los 7
 que necesitan pgvector; en PostgreSQL, 1 (el que comprueba precisamente la
 alternativa sin pgvector).
 
@@ -104,8 +104,8 @@ mide la cobertura. Diferencias que ya han mordido:
 
 | Suite | Mínimo | Ahora | Dónde se mide |
 |---|---|---|---|
-| PHP (`app/`) | 95 % de líneas | 98,8 % en PostgreSQL y 97,5 % en SQLite | `composer test:coverage` (pcov); en CI, el job de PostgreSQL |
-| TypeScript (`components/forum`, `composables`, `lib`) | 90 % de líneas, sentencias y funciones; 85 % de ramas | 96,31 %, 95,95 %, 94,66 % y 91,25 % | `npm run test:coverage` (umbrales en `vitest.config.ts`) |
+| PHP (`app/`) | 95 % de líneas | 98,9 % en PostgreSQL y 97,6 % en SQLite | `composer test:coverage` (pcov); en CI, el job de PostgreSQL |
+| TypeScript (`components/forum`, `composables`, `lib`) | 90 % de líneas, sentencias y funciones; 85 % de ramas | 96,40 %, 96,05 %, 94,78 % y 91,35 % | `npm run test:coverage` (umbrales en `vitest.config.ts`) |
 
 El informe de Vitest queda en `coverage/js/index.html`; el de PHP, en CI, como
 artefacto `coverage-php` (formato Clover) del job de PostgreSQL.
