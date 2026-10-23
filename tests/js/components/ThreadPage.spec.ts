@@ -52,6 +52,7 @@ function post(overrides: Partial<Post> = {}): Post {
         reactions: [],
         can: {
             update: false,
+            quote: false,
             delete: false,
             restore: false,
             react: false,
@@ -160,7 +161,6 @@ describe('PostActions', () => {
             props: {
                 post: post(overrides),
                 threadSlug: 'hilo',
-                canQuote: false,
                 canManageSolution: false,
                 ...props,
             },
@@ -173,7 +173,7 @@ describe('PostActions', () => {
     });
 
     it('quotes and edits through events', async () => {
-        const wrapper = actions({ can: allowed('update') }, { canQuote: true });
+        const wrapper = actions({ can: allowed('quote', 'update') });
 
         await wrapper.get('[data-test="post-action-quote"]').trigger('click');
         await wrapper.get('[data-test="post-action-edit"]').trigger('click');
@@ -426,7 +426,6 @@ describe('PostCard', () => {
             props: {
                 post: post(overrides),
                 threadSlug: 'hilo',
-                canQuote: false,
                 canManageSolution: false,
                 focused: false,
                 ...props,
@@ -508,7 +507,7 @@ describe('PostCard', () => {
     });
 
     it('passes a quote request up with the post', async () => {
-        const wrapper = card({}, { canQuote: true });
+        const wrapper = card({ can: allowed('quote') });
 
         await wrapper.get('[data-test="post-action-quote"]').trigger('click');
 

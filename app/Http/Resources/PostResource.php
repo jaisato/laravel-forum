@@ -35,14 +35,20 @@ final class PostResource extends JsonResource
         $may = fn (string $ability, mixed $subject = null): bool => $viewer !== null
             && Gate::forUser($viewer)->allows($ability, $subject ?? $post);
 
-        $mayEdit = $may('update');
+        // A deleted post is only restored, and only a post everybody can see
+        // may be quoted (StorePostRequest checks reply_to_id the same way).
+        $mayEdit = ! $post->trashed() && $may('update');
+        $mayQuote = $thread !== null
+            && ! $post->trashed()
+            && $post->status === PostStatus::Published
+            && $may('reply', $thread);
 
         return [
             'id' => $post->id,
             'thread_id' => $post->thread_id,
             'body_html' => $post->body_html,
             // The Markdown source, only for those who may edit or quote it.
-            'body' => $this->when($mayEdit || ($thread !== null && $may('reply', $thread)), $post->body),
+            'body' => $this->when($mayEdit || $mayQuote, $post->body),
             'status' => $post->status->value,
             'is_first' => $post->isFirst(),
             'is_solution' => $thread !== null && (int) $thread->solution_post_id === $post->id,
@@ -54,6 +60,7 @@ final class PostResource extends JsonResource
             'reactions' => $this->reactions($post),
             'can' => [
                 'update' => $mayEdit,
+                'quote' => $mayQuote,
                 'delete' => ! $post->trashed() && $may('delete'),
                 'restore' => $post->trashed() && $may('restore'),
                 'react' => $may('react'),

@@ -91,6 +91,7 @@ it('describes every post with what the viewer may do with it', function () {
             ],
             'can' => [
                 'update' => false,
+                'quote' => true,
                 'delete' => false,
                 'restore' => false,
                 'react' => true,
@@ -154,9 +155,17 @@ it('keeps hidden posts from members and shows staff everything, deleted posts in
             ->has('posts.data', 4)
             ->where('posts.data.1.id', $hidden->id)
             ->where('posts.data.1.status', 'hidden')
+            // Staff may edit a hidden post, but nobody may quote it.
+            ->where('posts.data.1.can.update', true)
+            ->where('posts.data.1.can.quote', false)
+            ->has('posts.data.1.body')
             ->where('posts.data.2.id', $deleted->id)
             ->where('posts.data.2.is_deleted', true)
-            ->where('posts.data.2.can.restore', true));
+            ->where('posts.data.2.can.restore', true)
+            // A deleted post is only restored: no edit form, no quote.
+            ->where('posts.data.2.can.update', false)
+            ->where('posts.data.2.can.quote', false)
+            ->missing('posts.data.2.body'));
 });
 
 it('opens the page of a linked post and focuses it', function () {

@@ -16,7 +16,6 @@ import type { Post } from '@/types/forum';
 const props = defineProps<{
     post: Post;
     threadSlug: string;
-    canQuote: boolean;
     canManageSolution: boolean;
     /** The post the page was opened at (?post= or ?unread=1). */
     focused: boolean;
@@ -167,7 +166,6 @@ function save(): void {
             <PostActions
                 :post="post"
                 :thread-slug="threadSlug"
-                :can-quote="canQuote && post.body !== undefined"
                 :can-manage-solution="canManageSolution"
                 @quote="emit('quote', post)"
                 @edit="edit"

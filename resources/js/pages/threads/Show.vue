@@ -209,7 +209,6 @@ watch(() => props.focus, scrollToFocus);
             :key="post.id"
             :post="post"
             :thread-slug="thread.slug"
-            :can-quote="can.reply"
             :can-manage-solution="can.mark_solution"
             :focused="post.id === focus"
             @quote="quote"

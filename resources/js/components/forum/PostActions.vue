@@ -25,8 +25,6 @@ import type { Post } from '@/types/forum';
 const props = defineProps<{
     post: Post;
     threadSlug: string;
-    /** May quote: the viewer may reply and got the Markdown source. */
-    canQuote: boolean;
     /** May change the thread's solution (its author or staff). */
     canManageSolution: boolean;
 }>();
@@ -50,7 +48,7 @@ function confirmDelete(question: string): void {
 <template>
     <div class="flex flex-wrap items-center justify-end gap-0.5">
         <Button
-            v-if="canQuote"
+            v-if="post.can.quote"
             data-test="post-action-quote"
             variant="ghost"
             size="sm"

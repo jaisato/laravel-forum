@@ -74,7 +74,11 @@ const thread = (overrides: Partial<Thread> = {}): Thread => ({
     ...overrides,
 });
 
-const post = (id: number, body: string): Post => ({
+const post = (
+    id: number,
+    body: string,
+    can: Partial<Post['can']> = {},
+): Post => ({
     id,
     thread_id: 4,
     body_html: `<p>${body}</p>`,
@@ -90,6 +94,7 @@ const post = (id: number, body: string): Post => ({
     reactions: [],
     can: {
         update: false,
+        quote: false,
         delete: false,
         restore: false,
         react: false,
@@ -97,6 +102,7 @@ const post = (id: number, body: string): Post => ({
         hide: false,
         approve: false,
         mark_solution: false,
+        ...can,
     },
 });
 
@@ -112,12 +118,15 @@ const nothing: ThreadAbilities = {
     subscribe: false,
 };
 
-function show(props: Record<string, unknown> = {}) {
+function show(
+    props: Record<string, unknown> = {},
+    posts: Post[] = [post(1, 'Primer mensaje'), post(2, 'Una respuesta')],
+) {
     return mount(ThreadShow, {
         props: {
             thread: thread(),
             posts: {
-                data: [post(1, 'Primer mensaje'), post(2, 'Una respuesta')],
+                data: posts,
                 links: { first: null, last: null, prev: null, next: null },
                 meta: {
                     current_page: 1,
@@ -179,7 +188,10 @@ describe('threads/Show', () => {
 
     it('lets members reply and quote a post', async () => {
         page.props.auth.user = member();
-        const wrapper = show({ can: { ...nothing, reply: true } });
+        const wrapper = show({ can: { ...nothing, reply: true } }, [
+            post(1, 'Primer mensaje', { quote: true }),
+            post(2, 'Una respuesta', { quote: true }),
+        ]);
 
         expect(wrapper.find('[data-test="reply-blocker"]').exists()).toBe(
             false,

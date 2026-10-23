@@ -171,6 +171,8 @@ export type ReactionSummary = {
 
 export type PostAbilities = {
     update: boolean;
+    /** Published and visible to the viewer, who may reply. */
+    quote: boolean;
     delete: boolean;
     restore: boolean;
     react: boolean;
