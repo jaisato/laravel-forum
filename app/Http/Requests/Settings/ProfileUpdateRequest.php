@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Http\Requests\Settings;
 
 use App\Concerns\ProfileValidationRules;
+use App\Models\User;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Validator;
 
 class ProfileUpdateRequest extends FormRequest
 {
@@ -52,6 +54,45 @@ class ProfileUpdateRequest extends FormRequest
             ],
             'remove_avatar' => ['sometimes', 'boolean'],
         ];
+    }
+
+    /**
+     * A banned member keeps their public profile as it is: they cannot
+     * post, so they cannot rewrite how every post they wrote is signed
+     * either. They may still clear what they told about themselves (and
+     * remove their picture), and change their email and language.
+     */
+    /**
+     * @return list<callable(Validator): void>
+     */
+    public function after(): array
+    {
+        return [function (Validator $validator): void {
+            /** @var User $member */
+            $member = $this->user();
+
+            if (! $member->isBanned()) {
+                return;
+            }
+
+            $message = __('Your account is suspended: your public profile stays as it is until the suspension ends.');
+
+            foreach (['name', 'username'] as $field) {
+                if ($this->has($field) && $this->input($field) !== $member->{$field}) {
+                    $validator->errors()->add($field, $message);
+                }
+            }
+
+            foreach (['bio', 'location', 'website'] as $field) {
+                if ($this->filled($field) && $this->input($field) !== $member->{$field}) {
+                    $validator->errors()->add($field, $message);
+                }
+            }
+
+            if ($this->hasFile('avatar')) {
+                $validator->errors()->add('avatar', $message);
+            }
+        }];
     }
 
     /**

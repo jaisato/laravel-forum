@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Actions\Users;
 
 use App\Models\Post;
+use App\Models\RetiredUsername;
 use App\Models\Thread;
 use App\Models\ThreadRead;
 use App\Models\ThreadSubscription;
@@ -18,7 +19,8 @@ use Illuminate\Support\Str;
  * Erases a member on request (spec §4.1): their personal data and their
  * ways in are gone, while their posts stay, credited to «Deleted user».
  * The account row survives as a soft deleted shell so the posts keep
- * their author, and the email and username become free again.
+ * their author. The email becomes free again; the username stays retired
+ * (RetiredUsername), so old mentions never point at someone else.
  */
 final class DeleteAccount
 {
@@ -34,6 +36,8 @@ final class DeleteAccount
             DatabaseNotification::query()->where('actor_id', $user->id)->delete();
             ThreadSubscription::query()->where('user_id', $user->id)->delete();
             ThreadRead::query()->where('user_id', $user->id)->delete();
+            // Old mentions link to the username: nobody else may take it.
+            RetiredUsername::retire($user, $user->username);
             // AI summaries name the members whose posts they sum up.
             Thread::forgetSummaries(Thread::query()->whereIn(
                 'id',

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Actions\Forum\DeletePost;
 use App\Actions\Forum\DeleteThread;
 use App\Actions\Moderation\HidePost;
 use App\Models\Category;
@@ -181,6 +182,25 @@ it('never finds what the public may not see, whoever searches', function (string
         ->has('posts.data', 1)
         ->where('posts.data.0.id', $publicReply->id));
 })->with(['guest', 'member', 'moderator']);
+
+it('never shows deleted threads or posts, even while the index still has them', function () {
+    $thread = forumThread();
+    $reply = forumReply($thread);
+    $deletedReply = forumReply($thread);
+    $deletedThread = forumThread();
+    app(DeletePost::class)->handle($deletedReply, $deletedReply->author);
+    app(DeleteThread::class)->handle($deletedThread, $deletedThread->author);
+    staleSearchIndex([$thread, $deletedThread, $reply, $deletedReply]);
+
+    $this->get('/search?q=forum&type=threads')->assertInertia(fn (Assert $page) => $page
+        ->has('threads.data', 1)
+        ->where('threads.data.0.id', $thread->id)
+        ->where('threads.meta.total', 1));
+
+    $this->get('/search?q=forum&type=posts')->assertInertia(fn (Assert $page) => $page
+        ->has('posts.data', 1)
+        ->where('posts.data.0.id', $reply->id));
+});
 
 it('slows down whoever searches too fast', function () {
     $searches = recordSearches();

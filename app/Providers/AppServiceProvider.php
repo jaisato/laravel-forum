@@ -13,6 +13,7 @@ use App\Models\ModerationAction;
 use App\Models\Post;
 use App\Models\Reaction;
 use App\Models\Report;
+use App\Models\RetiredUsername;
 use App\Models\Tag;
 use App\Models\Thread;
 use App\Models\ThreadEmbedding;
@@ -111,6 +112,7 @@ class AppServiceProvider extends ServiceProvider
             'post' => Post::class,
             'reaction' => Reaction::class,
             'report' => Report::class,
+            'retired_username' => RetiredUsername::class,
             'tag' => Tag::class,
             'thread' => Thread::class,
             'thread_embedding' => ThreadEmbedding::class,

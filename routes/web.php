@@ -22,6 +22,9 @@ use App\Http\Controllers\ThreadSolutionController;
 use App\Http\Controllers\ThreadSubscriptionController;
 use App\Http\Controllers\ThreadSummaryController;
 use App\Http\Controllers\UserProfileController;
+use App\Models\RetiredUsername;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
@@ -32,7 +35,17 @@ Route::get('threads', [ThreadController::class, 'index'])->name('threads.index')
 Route::get('t/{thread:slug}', [ThreadController::class, 'show'])->withTrashed()->name('threads.show');
 Route::get('c/{category:slug}', [CategoryController::class, 'show'])->name('categories.show');
 Route::get('tags/{tag:slug}', [TagController::class, 'show'])->name('tags.show');
-Route::get('u/{user:username}', [UserProfileController::class, 'show'])->name('users.show');
+Route::get('u/{user:username}', [UserProfileController::class, 'show'])
+    ->name('users.show')
+    // A username its member changed (RetiredUsername) leads to their profile
+    // now; anything else, an erased account included, is not found.
+    ->missing(function (Request $request): RedirectResponse {
+        $member = RetiredUsername::query()->where('username', (string) $request->route('user'))->first()?->user;
+
+        abort_if($member === null, 404);
+
+        return redirect()->route('users.show', [...$request->query(), 'user' => $member], 301);
+    });
 // Every search reaches the search engine.
 Route::get('search', SearchController::class)->middleware('throttle:60,1')->name('search');
 
@@ -134,6 +147,8 @@ require __DIR__.'/settings.php';
 // Unknown addresses go through the web middleware too, so their 404 page
 // knows the member, the language and the rest of the shared props. Every
 // method, as Route::fallback() alone would answer 405 to anything but GET.
+// Not those under /api: routes/api.php answers them, without a session or
+// CSRF.
 Route::any('{fallbackPlaceholder}', fn () => abort(404))
-    ->where('fallbackPlaceholder', '.*')
+    ->where('fallbackPlaceholder', '(?!api/).*')
     ->fallback();

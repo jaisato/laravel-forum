@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Actions\Users;
 
+use App\Models\RetiredUsername;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -15,7 +16,8 @@ use Throwable;
 /**
  * Updates what a member tells about themselves: name, username, email, the
  * public profile (biography, location, website), the interface language and
- * the avatar. A new email address is unverified until its link is followed
+ * the avatar. A username left behind is retired (RetiredUsername): nobody
+ * else may take it. A new email address is unverified until its link is followed
  * (members without one cannot post), so the link goes out at once. Avatars
  * are stored as 256×256 WebP whatever was uploaded, under a random name, and
  * the previous picture is deleted once the change is committed.
@@ -47,6 +49,10 @@ final class UpdateProfile
                     $user->avatar_path = $stored;
                 } elseif ($removeAvatar) {
                     $user->avatar_path = null;
+                }
+
+                if ($user->isDirty('username')) {
+                    RetiredUsername::retire($user, (string) $user->getOriginal('username'), $user->username);
                 }
 
                 $emailChanged = $user->isDirty('email');

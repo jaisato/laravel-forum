@@ -34,6 +34,15 @@ it('never suggests hidden or deleted threads', function () {
     expect(app(SimilarThreadFinder::class)->forText('testing the forum')->modelKeys())->toBe([$public->id]);
 });
 
+it('never suggests a deleted thread the index still has', function () {
+    $deleted = forumThread();
+    app(DeleteThread::class)->handle($deleted, $deleted->author);
+    $public = forumThread();
+    staleSearchIndex([$deleted, $public]);
+
+    expect(app(SimilarThreadFinder::class)->forText('testing the forum')->modelKeys())->toBe([$public->id]);
+});
+
 it('has nothing to say about an empty text', function () {
     forumThread();
 

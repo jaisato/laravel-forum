@@ -11,8 +11,9 @@ use Illuminate\Support\Collection;
 /**
  * Similar threads by their words, through the full text search (Scout):
  * Meilisearch ranks them, the collection driver matches the text. Results
- * are loaded with visibleTo(null), as in ForumSearch, so an index that lags
- * behind never suggests a thread that is no longer public.
+ * are loaded with visibleTo(null) and without the deleted ones, as in
+ * ForumSearch, so an index that lags behind never suggests a thread that is
+ * no longer public.
  */
 final class KeywordSimilarThreadFinder implements SimilarThreadFinder
 {
@@ -32,7 +33,7 @@ final class KeywordSimilarThreadFinder implements SimilarThreadFinder
         return Thread::search($text)
             ->query(function (Builder $threads): Builder {
                 /** @var Builder<Thread> $threads */
-                return $threads->visibleTo(null);
+                return $threads->withoutTrashed()->visibleTo(null);
             })
             // One more, in case the thread to leave out is among them.
             ->take($limit + 1)

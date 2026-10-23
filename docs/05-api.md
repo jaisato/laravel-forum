@@ -94,7 +94,8 @@ se le reconozca.
 - **Errores.** El formato estándar de Laravel: `message` y, en los `422`,
   `errors` por campo. A diferencia de la web, la API no ignora los
   parámetros que no entiende: un orden, filtro, categoría o etiqueta
-  desconocidos son un `422`.
+  desconocidos son un `422`. Una dirección desconocida bajo `/api/` responde
+  `404` en JSON, con cualquier método.
 - **Contenido oculto.** Lo que quien pregunta no puede ver (hilos o mensajes
   ocultos, pendientes de revisión o borrados, conversaciones ajenas) responde
   `404` antes que cualquier otra regla, nunca `403`: así no se revela que

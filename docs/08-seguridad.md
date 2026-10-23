@@ -20,8 +20,10 @@ con códigos de recuperación) y las *passkeys* (WebAuthn).
   (Have I Been Pwned por *k*-anonimato: del servidor solo sale el principio
   del *hash*). Fuera de producción bastan 8. Se guardan con bcrypt.
 - **La contraseña, otra vez.** La página de seguridad de los ajustes
-  (contraseña, verificación en dos pasos y *passkeys*) la pide si no se ha
-  confirmado en las últimas 3 horas (`AUTH_PASSWORD_TIMEOUT`, en segundos).
+  (contraseña, verificación en dos pasos y *passkeys*) y la de los *tokens* de
+  la API la piden si no se ha confirmado en las últimas 3 horas
+  (`AUTH_PASSWORD_TIMEOUT`, en segundos): una sesión robada no basta para
+  crear un *token* que no caduca.
   Activar la verificación en dos pasos exige además un código de la
   aplicación.
 - **Sesiones.** En Redis, con cookies `HttpOnly`, `SameSite=Lax` y, en
@@ -57,10 +59,13 @@ roles y lo que puede hacer cada uno están en
 - **Lo que no se puede ver no existe.** Un hilo o un mensaje oculto o
   borrado, o una conversación ajena, responde 404 y no 403: no se confirma
   que exista.
-- **Baneos.** Un miembro baneado sigue leyendo, pero toda ruta que escribe le
-  responde con un aviso (en la web) o un 403 (en la API), y sus *tokens* de la
-  API se revocan al banearlo. Un moderador o administrador baneado pierde
-  además sus permisos de *staff*, también en el panel y en Horizon.
+- **Baneos.** Un miembro baneado sigue leyendo, pero las *policies* le niegan
+  publicar, editar, reaccionar, reportar y escribir mensajes privados (403), y
+  su perfil público se queda como está mientras dure (puede vaciarlo, y cambiar
+  su email y su idioma). Sus *tokens* de la API se revocan al banearlo, así que
+  la API le responde 401, y no puede pedir otros hasta que termine. Un
+  moderador o administrador baneado pierde además sus permisos de *staff*,
+  también en el panel y en Horizon.
 - **Panel (`/admin`).** Los moderadores ven la moderación y los
   administradores, todo. Funciona en modo estricto: un recurso o una acción
   sin su método en la *policy* se deniega, en lugar de permitirse como haría
@@ -112,7 +117,12 @@ resúmenes de la IA siguen el mismo camino que los mensajes.
   las formas de entrar (contraseña, verificación en dos pasos, *passkeys* y
   *tokens*), las notificaciones (las suyas y las que causó a otros), las
   suscripciones y las lecturas. Sus mensajes se quedan, firmados por «Usuario
-  eliminado», y el email y el nombre de usuario quedan libres.
+  eliminado», y el email queda libre.
+- **Nombres de usuario retirados.** Las menciones enlazan a `/u/{usuario}` y
+  `@usuario` avisa a quien se llame así, de modo que un nombre que alguien deja
+  (al cambiarlo o al borrar su cuenta) no lo puede tomar nadie más: solo su
+  dueño puede recuperarlo, y la dirección antigua de su perfil lleva a la
+  nueva.
 - **IA.** Qué se envía a los proveedores y cómo se aíslan las instrucciones
   que pudiera esconder un mensaje:
   [06-ia.md](06-ia.md#9-privacidad-y-seguridad).

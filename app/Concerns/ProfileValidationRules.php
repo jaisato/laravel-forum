@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Concerns;
 
+use App\Models\RetiredUsername;
 use App\Models\User;
 use App\Support\Locale;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\In;
 use Illuminate\Validation\Rules\NotIn;
@@ -74,6 +76,10 @@ trait ProfileValidationRules
             $userId === null
                 ? Rule::unique(User::class)
                 : Rule::unique(User::class)->ignore($userId),
+            // Left behind by someone else (RetiredUsername): their owner may
+            // take theirs back, nobody else may.
+            Rule::unique(RetiredUsername::class, 'username')
+                ->where(fn (Builder $retired): Builder => $userId === null ? $retired : $retired->where('user_id', '!=', $userId)),
         ];
     }
 

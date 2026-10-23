@@ -195,6 +195,39 @@ describe('the public profile', function () {
             ->locale->toBeNull();
     });
 
+    it('keeps the public profile of a banned member as it is, except to clear it', function () {
+        $member = User::factory()->banned()->create(['bio' => 'Hola', 'location' => 'Sevilla']);
+        $unchanged = ['name' => $member->name, 'email' => $member->email];
+
+        foreach ([
+            'name' => ['name' => 'Otro nombre'],
+            'username' => ['username' => 'otro_nombre'],
+            'bio' => ['bio' => 'Visitad mi tienda.'],
+            'location' => ['location' => 'Cádiz'],
+            'website' => ['website' => 'https://tienda.example.com'],
+        ] as $field => $change) {
+            actingAs($member)
+                ->patch(route('profile.update'), [...$unchanged, 'bio' => 'Hola', 'location' => 'Sevilla', ...$change])
+                ->assertSessionHasErrors($field);
+        }
+
+        uploadAvatar($member, UploadedFile::fake()->image('foto.png', 300, 300))->assertSessionHasErrors('avatar');
+
+        // Their own data, though, they may take down, and their email and
+        // language stay theirs to change.
+        actingAs($member)
+            ->patch(route('profile.update'), [...$unchanged, 'email' => 'nueva@example.com', 'bio' => '', 'location' => '', 'locale' => 'en'])
+            ->assertSessionHasNoErrors();
+
+        expect($member->fresh())
+            ->name->toBe($unchanged['name'])
+            ->bio->toBeNull()
+            ->location->toBeNull()
+            ->avatar_path->toBeNull()
+            ->email->toBe('nueva@example.com')
+            ->locale->toBe('en');
+    });
+
     it('keeps usernames unique', function () {
         User::factory()->create(['username' => 'ana']);
         $user = User::factory()->create();

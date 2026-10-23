@@ -168,3 +168,10 @@ Route::prefix('v1')->name('api.v1.')->where([
         });
     });
 });
+
+// Unknown API addresses, whatever the method: a JSON 404 through the API
+// middleware (the web's fallback would start a session and ask for a CSRF
+// token).
+Route::any('{fallbackPlaceholder}', fn () => abort(404))
+    ->where('fallbackPlaceholder', '.*')
+    ->fallback();

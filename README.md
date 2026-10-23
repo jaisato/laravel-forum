@@ -25,7 +25,8 @@ tarea a tarea, el [plan](docs/plans/2026-10-22-reconstruccion-foro.md).
   *passkeys*), notificaciones por email, mensajes privados, tokens de API con
   permisos y apariencia (claro, oscuro o el del sistema).
 - Borrado de la cuenta con anonimización: los datos personales desaparecen y
-  los hilos y mensajes se quedan como «Usuario eliminado».
+  los hilos y mensajes se quedan como «Usuario eliminado». Un nombre de usuario
+  que se deja (al cambiarlo o al borrar la cuenta) no lo puede tomar nadie más.
 
 **Foro**
 

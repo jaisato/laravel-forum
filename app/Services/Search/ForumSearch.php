@@ -17,8 +17,9 @@ use Laravel\Scout\Builder as SearchBuilder;
  * Meilisearch filters on its indexed attributes, so pages and totals are
  * exact. The collection driver (local without Meilisearch, tests) searches
  * the database, where the filters are SQL. Either way, results are loaded
- * with visibleTo(null): an index that lags behind never shows anything that
- * is no longer public.
+ * with visibleTo(null) and without the deleted ones (Scout loads the hits of
+ * soft-deleting models with withTrashed()): an index that lags behind never
+ * shows anything that is no longer public.
  */
 final class ForumSearch
 {
@@ -40,7 +41,8 @@ final class ForumSearch
             : $this->withEngineFilters(Thread::search($query), $categoryId, $tagId))
             ->query(function (Builder $threads): Builder {
                 /** @var Builder<Thread> $threads */
-                return $threads->visibleTo(null)
+                return $threads->withoutTrashed()
+                    ->visibleTo(null)
                     ->withExcerptSource()
                     ->with(['category', 'author', 'tags', 'lastPost.author']);
             })
@@ -71,6 +73,7 @@ final class ForumSearch
             ->query(function (Builder $posts): Builder {
                 /** @var Builder<Post> $posts */
                 return $posts
+                    ->withoutTrashed()
                     ->visibleTo(null)
                     ->whereHas('thread', function (Builder $threads): Builder {
                         /** @var Builder<Thread> $threads */

@@ -114,18 +114,21 @@ it('keeps the posts and credits them to «Deleted user»', function () {
     expect(DB::table('posts')->where('user_id', $user->id)->count())->toBe(1);
 });
 
-it('frees the email and the username for a new account', function () {
+it('frees the email for a new account, but not the username old mentions point at', function () {
     $user = memberWithPersonalData();
 
     actingAs($user)->delete(route('profile.destroy'), ['password' => 'password']);
 
-    $this->post(route('register.store'), [
+    $register = fn (string $username) => $this->post(route('register.store'), [
         'name' => 'Ana de nuevo',
-        'username' => 'ana',
+        'username' => $username,
         'email' => 'ana@example.com',
         'password' => 'password',
         'password_confirmation' => 'password',
-    ])->assertSessionHasNoErrors()->assertRedirect(route('home', absolute: false));
+    ]);
+
+    $register('ana')->assertSessionHasErrors('username');
+    $register('ana_de_nuevo')->assertSessionHasNoErrors()->assertRedirect(route('home', absolute: false));
 
     expect(User::query()->where('email', 'ana@example.com')->exists())->toBeTrue();
 });

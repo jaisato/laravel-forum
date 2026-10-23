@@ -68,7 +68,9 @@ return Application::configure(basePath: dirname(__DIR__))
             if ($status === 419) {
                 Inertia::flash('toast', ['type' => 'error', 'message' => __('The page expired. Please try again.')]);
 
-                return back();
+                // 303, not 302: the browser follows it with a GET instead of
+                // repeating a PATCH, PUT or DELETE with the expired token.
+                return back(303);
             }
 
             if (config('app.debug') || ! in_array($status, [403, 404, 429, 500, 503], true)) {

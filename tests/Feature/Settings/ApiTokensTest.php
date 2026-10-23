@@ -10,6 +10,24 @@ use Laravel\Sanctum\PersonalAccessToken;
 use function Pest\Laravel\actingAs;
 use function Pest\Laravel\get;
 
+// Tokens never expire: the page asks for the password again first, as the
+// security page does (spec §4.1). The member here confirmed it just now.
+beforeEach(function () {
+    $this->withSession(['auth.password_confirmed_at' => time()]);
+});
+
+it('asks for the password again before showing or creating tokens', function () {
+    $member = User::factory()->create();
+    $this->withSession(['auth.password_confirmed_at' => null]);
+
+    actingAs($member)->get(route('api-tokens.index'))->assertRedirect(route('password.confirm'));
+    actingAs($member)
+        ->post(route('api-tokens.store'), ['name' => 'Mi script', 'abilities' => ['read']])
+        ->assertRedirect(route('password.confirm'));
+
+    expect($member->tokens()->count())->toBe(0);
+});
+
 it('is for verified members', function () {
     get(route('api-tokens.index'))->assertRedirect(route('login'));
 

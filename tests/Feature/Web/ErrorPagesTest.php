@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Models\User;
+use Illuminate\Http\Request;
 use Illuminate\Session\TokenMismatchException;
 use Illuminate\Support\Facades\Route;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -73,6 +74,17 @@ it('sends an expired form back to its page with a warning', function () {
         ->assertInertiaFlash('toast', ['type' => 'error', 'message' => 'The page expired. Please try again.']);
 });
 
+it('sends an expired edit back with a GET, so the browser never repeats it', function (string $method) {
+    Route::middleware('web')->{$method}('/_tests/expired', fn () => throw new TokenMismatchException);
+
+    // A 302 keeps PATCH, PUT and DELETE: the browser would send them again,
+    // with the same expired token, until it gave up.
+    $this->from('/threads')
+        ->call(strtoupper($method), '/_tests/expired')
+        ->assertStatus(303)
+        ->assertRedirect('/threads');
+})->with(['patch', 'put', 'delete']);
+
 it('leaves errors as they are while debugging', function () {
     config(['app.debug' => true]);
 
@@ -80,6 +92,17 @@ it('leaves errors as they are while debugging', function () {
 
     expect($response->getContent())->not->toContain('"component":"Error"');
 });
+
+it('answers unknown API addresses as the API, without the session or CSRF of the web', function (string $method) {
+    $route = app('router')->getRoutes()->match(Request::create('/api/v1/no-existe', strtoupper($method)));
+
+    expect($route->gatherMiddleware())->toContain('api')->not->toContain('web');
+
+    $this->call(strtoupper($method), '/api/v1/no-existe')
+        ->assertNotFound()
+        ->assertJsonStructure(['message'])
+        ->assertCookieMissing(config('session.cookie'));
+})->with(['get', 'post', 'patch', 'delete']);
 
 it('answers JSON to JSON requests', function () {
     $this->getJson('/no-existe')

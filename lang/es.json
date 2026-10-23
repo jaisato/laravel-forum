@@ -459,5 +459,6 @@
     "Your profile": "Tu perfil",
     "Your reply": "Tu respuesta",
     "Your tokens": "Tus tokens",
-    "your_username": "tu_usuario"
+    "your_username": "tu_usuario",
+    "Your account is suspended: your public profile stays as it is until the suspension ends.": "Tu cuenta está suspendida: tu perfil público se queda como está hasta que termine la suspensión."
 }
