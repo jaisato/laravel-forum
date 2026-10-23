@@ -25,15 +25,25 @@ final class ResolveReport
     public function handle(Report $report, User $moderator, bool $hidePost, ?string $note = null): void
     {
         DB::transaction(function () use ($report, $moderator, $hidePost, $note): void {
-            $report = Report::query()->whereKey($report->id)->lockForUpdate()->firstOrFail();
+            // Every open report of the post is locked, in id order, before
+            // any of them changes: two moderators resolving two reports of one
+            // post queue up on the same rows instead of each holding one the
+            // other needs (a deadlock).
+            $open = Report::query()
+                ->where('post_id', $report->post_id)
+                ->where('status', ReportStatus::Open)
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get();
 
-            if ($report->status !== ReportStatus::Open) {
+            $report = $open->firstWhere('id', $report->id);
+
+            if ($report === null) {
                 return;
             }
 
             $closed = Report::query()
-                ->where('post_id', $report->post_id)
-                ->where('status', ReportStatus::Open)
+                ->whereKey($open->modelKeys())
                 ->update([
                     'status' => ReportStatus::Resolved,
                     'resolved_by_id' => $moderator->id,

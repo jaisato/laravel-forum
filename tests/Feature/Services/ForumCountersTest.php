@@ -3,12 +3,15 @@
 declare(strict_types=1);
 
 use App\Actions\Forum\DeletePost;
+use App\Actions\Forum\DeleteThread;
 use App\Actions\Forum\RestorePost;
 use App\Actions\Moderation\ApprovePost;
 use App\Actions\Moderation\HidePost;
 use App\Models\Category;
 use App\Models\Thread;
 use App\Models\User;
+use Illuminate\Database\Events\QueryExecuted;
+use Illuminate\Support\Facades\DB;
 
 it('counts the replies a thread gets while it is not public', function () {
     $thread = forumThread();
@@ -51,6 +54,28 @@ it('keeps the public totals out of hidden threads while their replies come and g
         ->and(Category::query()->findOrFail($thread->category_id)->posts_count)->toBe(0)
         ->and($moderator->fresh()->posts_count)->toBe(0)
         ->and(Thread::query()->whereKey($thread->id)->value('status')->value)->toBe('hidden');
+
+    $this->artisan('forum:recount')->expectsOutputToContain('All counters were already right');
+});
+
+it('updates every author of a thread with one statement, whatever their number', function () {
+    $thread = forumThread();
+    forumReply($thread);
+    forumReply($thread);
+    forumReply($thread);
+    $updates = [];
+    DB::listen(function (QueryExecuted $query) use (&$updates): void {
+        if (str_starts_with($query->sql, 'update "users"')) {
+            $updates[] = $query->sql;
+        }
+    });
+
+    app(DeleteThread::class)->handle($thread, User::factory()->moderator()->create());
+
+    // One round trip for a busy thread, with the rows locked by id first so
+    // two moderators working on threads with the same people cannot
+    // deadlock on them.
+    expect($updates)->toHaveCount(1);
 
     $this->artisan('forum:recount')->expectsOutputToContain('All counters were already right');
 });

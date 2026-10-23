@@ -30,6 +30,9 @@ final class UpdateThread
     public function handle(Thread $thread, User $editor, string $title, array $tagIds): Thread
     {
         return DB::transaction(function () use ($thread, $editor, $title, $tagIds): Thread {
+            // The copy the editor loaded may be stale (a moderator may have
+            // hidden the thread since): the tag counters follow the real state.
+            $thread = Thread::query()->whereKey($thread->id)->lockForUpdate()->firstOrFail();
             $previousTitle = $thread->title;
 
             $thread->fill(['title' => $title])->save();

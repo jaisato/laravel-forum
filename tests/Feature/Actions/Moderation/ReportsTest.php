@@ -15,6 +15,8 @@ use App\Models\ModerationAction;
 use App\Models\Post;
 use App\Models\Report;
 use App\Models\User;
+use Illuminate\Database\Events\QueryExecuted;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 
 it('files a report from a member', function () {
@@ -136,4 +138,23 @@ it('leaves closed reports alone', function () {
     expect($report->fresh()->status)->toBe(ReportStatus::Dismissed)
         ->and($report->post->fresh()->status)->toBe(PostStatus::Published)
         ->and(ModerationAction::query()->count())->toBe(0);
+});
+
+it('locks every open report of the post in id order before closing them', function () {
+    $reply = forumReply(forumThread());
+    app(ReportPost::class)->handle($reply, User::factory()->create(), ReportReason::Spam);
+    $second = app(ReportPost::class)->handle($reply, User::factory()->create(), ReportReason::Abuse);
+    $queries = [];
+    DB::listen(function (QueryExecuted $query) use (&$queries): void {
+        $queries[] = $query->sql;
+    });
+
+    app(ResolveReport::class)->handle($second, User::factory()->moderator()->create(), hidePost: false);
+
+    // Locking only the report at hand and then updating its siblings made
+    // two moderators resolving two reports of one post wait for each other
+    // forever (a deadlock): both now queue on the same rows in the same order.
+    $lock = collect($queries)->first(fn (string $sql): bool => str_starts_with($sql, 'select') && str_contains($sql, 'from "reports"'));
+
+    expect($lock)->toContain('"post_id" = ?')->toContain('order by "id" asc');
 });

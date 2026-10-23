@@ -11,6 +11,7 @@ use App\Models\Post;
 use App\Models\Tag;
 use App\Models\Thread;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 
 /**
  * The one definition of the denormalised counters: only visible content
@@ -61,13 +62,46 @@ final class ForumCounters
             'posts_count' => $direction * $postsByAuthor->sum(),
         ]);
 
-        User::withTrashed()->whereKey($thread->user_id)->toBase()->increment('threads_count', $direction);
+        /** @var array<int, array{threads: int, posts: int}> $deltas */
+        $deltas = [(int) $thread->user_id => ['threads' => $direction, 'posts' => 0]];
 
         foreach ($postsByAuthor as $userId => $count) {
-            User::withTrashed()->whereKey($userId)->toBase()->increment('posts_count', $direction * $count);
+            $deltas[(int) $userId] = [
+                'threads' => $deltas[(int) $userId]['threads'] ?? 0,
+                'posts' => $direction * $count,
+            ];
         }
 
+        $this->applyUserCounts($deltas);
         $this->applyTags($thread->tags()->pluck('tags.id')->all(), $direction);
+    }
+
+    /**
+     * One statement for every member involved, however many took part in the
+     * thread. Their rows are locked in id order first: two moderation actions
+     * on threads with the same participants then queue up instead of each
+     * holding a row the other needs (a deadlock).
+     *
+     * @param  array<int, array{threads: int, posts: int}>  $deltas  by user id
+     */
+    private function applyUserCounts(array $deltas): void
+    {
+        ksort($deltas);
+
+        User::withTrashed()->whereKey(array_keys($deltas))->orderBy('id')->lockForUpdate()->pluck('id');
+
+        // Every value is an integer computed here, never user input.
+        $threads = $posts = 'case id';
+
+        foreach ($deltas as $userId => $delta) {
+            $threads .= sprintf(' when %d then %d', $userId, $delta['threads']);
+            $posts .= sprintf(' when %d then %d', $userId, $delta['posts']);
+        }
+
+        User::withTrashed()->whereKey(array_keys($deltas))->toBase()->update([
+            'threads_count' => DB::raw("threads_count + ({$threads} else 0 end)"),
+            'posts_count' => DB::raw("posts_count + ({$posts} else 0 end)"),
+        ]);
     }
 
     /**

@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Actions\Forum\UpdateThread;
+use App\Actions\Moderation\HidePost;
 use App\Enums\ModerationActionType;
 use App\Events\ThreadUpdated;
 use App\Models\ModerationAction;
@@ -55,4 +56,21 @@ it('announces the change once committed', function () {
     app(UpdateThread::class)->handle($thread, $thread->author, 'A much better title for the thread', []);
 
     Event::assertDispatched(ThreadUpdated::class, fn (ThreadUpdated $event): bool => $event->thread->is($thread));
+});
+
+it('decides the tag counters on the current state of the thread, not a stale copy', function () {
+    $tag = Tag::factory()->create();
+    $thread = forumThread(tagIds: [$tag->id]);
+    // The author's edit form loaded the thread…
+    $stale = $thread->fresh();
+    // …then a moderator hid it, which took it out of the tag counters.
+    app(HidePost::class)->handle($thread->firstPost, User::factory()->moderator()->create());
+
+    $other = Tag::factory()->create();
+    app(UpdateThread::class)->handle($stale, $thread->author, $thread->title, [$other->id]);
+
+    expect($tag->fresh()->threads_count)->toBe(0)
+        ->and($other->fresh()->threads_count)->toBe(0);
+
+    $this->artisan('forum:recount')->expectsOutputToContain('All counters were already right');
 });
