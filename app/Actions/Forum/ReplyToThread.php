@@ -53,7 +53,7 @@ final class ReplyToThread
                 'last_posted_at' => $post->created_at,
             ])->save();
 
-            if ($this->counters->countsReply($post, $thread)) {
+            if ($this->counters->isVisibleReply($post, $thread)) {
                 $this->counters->applyReply($post, $thread, 1);
             }
 

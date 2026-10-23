@@ -35,7 +35,7 @@ final class RestorePost
 
             $post->restore();
 
-            if ($this->counters->countsReply($post, $thread)) {
+            if ($this->counters->isVisibleReply($post, $thread)) {
                 $this->counters->applyReply($post, $thread, 1);
             }
 

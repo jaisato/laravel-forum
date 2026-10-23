@@ -43,7 +43,7 @@ final class ApprovePost
                 if ($this->counters->countsThread($thread)) {
                     $this->counters->applyThread($thread, 1);
                 }
-            } elseif ($this->counters->countsReply($post, $thread)) {
+            } elseif ($this->counters->isVisibleReply($post, $thread)) {
                 $this->counters->applyReply($post, $thread, 1);
             }
 

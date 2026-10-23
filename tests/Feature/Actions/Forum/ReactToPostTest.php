@@ -31,7 +31,9 @@ it('counts each reaction type separately', function () {
     reactions()->add($post, $member, ReactionType::Like);
     reactions()->add($post, $member, ReactionType::Insightful);
 
-    expect($post->reactions()->pluck('type')->sort()->values()->all())->toBe([ReactionType::Insightful, ReactionType::Like])
+    // Enum cases cannot be ordered, so compare their values.
+    expect($post->reactions()->pluck('type')->map(fn (ReactionType $type): string => $type->value)->sort()->values()->all())
+        ->toBe(['insightful', 'like'])
         ->and($post->author->fresh()->reputation)->toBe(2);
 });
 

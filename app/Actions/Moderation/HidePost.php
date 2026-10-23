@@ -48,7 +48,7 @@ final class HidePost
                 $thread->forceFill([
                     'status' => $status === PostStatus::Hidden ? ThreadStatus::Hidden : ThreadStatus::PendingReview,
                 ])->save();
-            } elseif ($this->counters->countsReply($post, $thread)) {
+            } elseif ($this->counters->isVisibleReply($post, $thread)) {
                 $this->counters->applyReply($post, $thread, -1);
             }
 

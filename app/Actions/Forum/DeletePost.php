@@ -48,7 +48,7 @@ final class DeletePost
                 return;
             }
 
-            $counted = $this->counters->countsReply($post, $thread);
+            $counted = $this->counters->isVisibleReply($post, $thread);
 
             $post->delete();
 

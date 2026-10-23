@@ -15,10 +15,12 @@ use App\Models\User;
 /**
  * The one definition of the denormalised counters: only visible content
  * counts, that is published threads that are not deleted and their
- * published posts that are not deleted (opening posts included). Actions
- * add (+1) or remove (-1) a contribution inside their own transaction, so
- * deleting and restoring are exact mirrors; forum:recount follows the same
- * rule from scratch.
+ * published posts that are not deleted (opening posts included). The one
+ * exception is a thread's own replies_count, which counts its visible
+ * replies whatever the state of the thread. Actions add (+1) or remove
+ * (-1) a contribution inside their own transaction, so deleting and
+ * restoring are exact mirrors; forum:recount follows the same rules from
+ * scratch.
  */
 final class ForumCounters
 {
@@ -27,10 +29,15 @@ final class ForumCounters
         return $thread->status === ThreadStatus::Published && ! $thread->trashed();
     }
 
-    public function countsReply(Post $post, Thread $thread): bool
+    /**
+     * A published reply that is not deleted. It counts in its thread's
+     * replies_count whatever the state of the thread (staff may answer a
+     * thread awaiting review), and in the category and author totals only
+     * while the thread is visible too.
+     */
+    public function isVisibleReply(Post $post, Thread $thread): bool
     {
-        return $this->countsThread($thread)
-            && $post->status === PostStatus::Published
+        return $post->status === PostStatus::Published
             && ! $post->trashed()
             && (int) $thread->first_post_id !== $post->id;
     }
@@ -78,13 +85,16 @@ final class ForumCounters
     }
 
     /**
-     * Adds or removes what a visible reply contributes.
+     * Adds or removes what a visible reply contributes (see isVisibleReply).
      */
     public function applyReply(Post $post, Thread $thread, int $direction): void
     {
         Thread::withTrashed()->whereKey($thread->id)->toBase()->increment('replies_count', $direction);
-        Category::query()->whereKey($thread->category_id)->toBase()->increment('posts_count', $direction);
-        User::withTrashed()->whereKey($post->user_id)->toBase()->increment('posts_count', $direction);
+
+        if ($this->countsThread($thread)) {
+            Category::query()->whereKey($thread->category_id)->toBase()->increment('posts_count', $direction);
+            User::withTrashed()->whereKey($post->user_id)->toBase()->increment('posts_count', $direction);
+        }
     }
 
     /**
