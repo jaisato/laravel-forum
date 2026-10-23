@@ -27,7 +27,10 @@ class AdminPanelProvider extends PanelProvider
             ->default()
             ->id('admin')
             ->path('admin')
-            ->login()
+            // No login form of its own: Filament would sign people in with the
+            // password alone, skipping Fortify's two-factor challenge and
+            // passkeys. Guests are sent to the forum login instead, and
+            // User::canAccessPanel() admits staff only.
             ->colors([
                 'primary' => Color::Amber,
             ])

@@ -7,6 +7,8 @@ namespace App\Models;
 use App\Enums\Role;
 use Carbon\CarbonImmutable;
 use Database\Factories\UserFactory;
+use Filament\Models\Contracts\FilamentUser;
+use Filament\Panel;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Contracts\Translation\HasLocalePreference;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -19,6 +21,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Laravel\Fortify\Contracts\PasskeyUser;
@@ -58,7 +61,7 @@ use Laravel\Sanctum\HasApiTokens;
  */
 #[Fillable(['name', 'username', 'email', 'password', 'locale', 'bio', 'location', 'website', 'preferences'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
-class User extends Authenticatable implements HasLocalePreference, MustVerifyEmail, PasskeyUser
+class User extends Authenticatable implements FilamentUser, HasLocalePreference, MustVerifyEmail, PasskeyUser
 {
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, Notifiable, PasskeyAuthenticatable, SoftDeletes, TwoFactorAuthenticatable;
@@ -208,6 +211,16 @@ class User extends Authenticatable implements HasLocalePreference, MustVerifyEma
     public function canAdminister(): bool
     {
         return $this->isAdmin() && ! $this->isBanned();
+    }
+
+    /**
+     * The admin panel is for staff (gate access-admin). Without this method
+     * Filament would admit any signed in user in a local environment and
+     * nobody at all in production.
+     */
+    public function canAccessPanel(Panel $panel): bool
+    {
+        return Gate::forUser($this)->allows('access-admin');
     }
 
     public function acceptsPrivateMessages(): bool
