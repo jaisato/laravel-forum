@@ -15,6 +15,15 @@ use Illuminate\Auth\Access\Response;
 class PostPolicy
 {
     /**
+     * The staff's list of posts in the admin panel; the forum shows posts
+     * through their threads.
+     */
+    public function viewAny(User $user): bool
+    {
+        return $user->canModerate();
+    }
+
+    /**
      * Posts the viewer may not see answer 404, so their existence does not
      * leak (Review Focus 2).
      */

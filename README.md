@@ -82,6 +82,23 @@ página describe lo que ya funciona.
 - Límites: 120 peticiones por minuto por miembro, 60 por dirección para los
   invitados y cinco intentos por minuto al pedir un token.
 
+**Panel de administración** (`/admin`, Filament 5)
+
+- Solo para el *staff*, con la cuenta del foro (verificación en dos pasos
+  incluida: el panel no tiene un formulario de acceso propio) y en el idioma
+  de cada uno.
+- Moderadores: la cola de reportes de miembros y de la IA (el más antiguo
+  primero) para resolver, ocultando el mensaje si hace falta, o descartar;
+  mensajes e hilos, también los borrados, para aprobar, ocultar, fijar,
+  cerrar, mover, borrar y restaurar; banear miembros (con motivo y, si se
+  quiere, fecha de fin) y levantar el baneo; y el registro de moderación.
+- Administradores, además: categorías (con su orden) y etiquetas, el rol de
+  cada miembro (nunca el propio), los emails y Horizon en `/horizon`.
+- Cada decisión pasa por las mismas acciones y *policies* que el foro y la API
+  y queda en el registro de moderación.
+- Escritorio con los miembros, hilos, mensajes y reportes abiertos, y la
+  actividad de los últimos 30 días.
+
 **Inteligencia artificial** (opcional, con laravel/ai)
 
 - Viene apagada: sin claves de ningún proveedor, el foro funciona entero y

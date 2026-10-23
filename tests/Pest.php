@@ -50,6 +50,7 @@ function forumUser(string $role): ?User
         'moderator' => User::factory()->moderator()->create(),
         'banned moderator' => User::factory()->moderator()->banned()->create(),
         'admin' => User::factory()->admin()->create(),
+        'banned admin' => User::factory()->admin()->banned()->create(),
     };
 }
 

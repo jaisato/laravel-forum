@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Enums;
 
+use Filament\Support\Contracts\HasLabel;
+
 /**
  * Every staff (or system) action recorded in the moderation log.
  */
-enum ModerationActionType: string
+enum ModerationActionType: string implements HasLabel
 {
     case ThreadPinned = 'thread_pinned';
     case ThreadUnpinned = 'thread_unpinned';
@@ -50,5 +52,13 @@ enum ModerationActionType: string
             self::UserUnbanned => __('User unbanned'),
             self::UserRoleChanged => __('Role changed'),
         };
+    }
+
+    /**
+     * The label the admin panel (Filament) shows: the same as everywhere else.
+     */
+    public function getLabel(): string
+    {
+        return $this->label();
     }
 }

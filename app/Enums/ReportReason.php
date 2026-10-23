@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Enums;
 
+use Filament\Support\Contracts\HasLabel;
+
 /**
  * Why a post was reported. The AI moderator maps its own categories onto
  * these, so the staff queue speaks a single vocabulary.
  */
-enum ReportReason: string
+enum ReportReason: string implements HasLabel
 {
     case Spam = 'spam';
     case Abuse = 'abuse';
@@ -25,5 +27,13 @@ enum ReportReason: string
             self::Illegal => __('Illegal content'),
             self::Other => __('Other'),
         };
+    }
+
+    /**
+     * The label the admin panel (Filament) shows: the same as everywhere else.
+     */
+    public function getLabel(): string
+    {
+        return $this->label();
     }
 }

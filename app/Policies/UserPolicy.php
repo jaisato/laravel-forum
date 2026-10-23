@@ -10,6 +10,23 @@ use App\Models\User;
 class UserPolicy
 {
     /**
+     * The staff's list of members in the admin panel; public profiles need
+     * no check.
+     */
+    public function viewAny(User $actor): bool
+    {
+        return $actor->canModerate();
+    }
+
+    /**
+     * A member's page in the admin panel.
+     */
+    public function view(User $actor, User $target): bool
+    {
+        return $actor->canModerate();
+    }
+
+    /**
      * Moderators ban members; administrators ban anyone but administrators.
      * Also used for lifting a ban.
      */

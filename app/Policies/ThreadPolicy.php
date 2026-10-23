@@ -16,6 +16,15 @@ use Illuminate\Auth\Access\Response;
 class ThreadPolicy
 {
     /**
+     * The staff's list of threads in the admin panel, deleted and hidden ones
+     * included; the forum's own lists need no check.
+     */
+    public function viewAny(User $user): bool
+    {
+        return $user->canModerate();
+    }
+
+    /**
      * Threads the viewer may not see answer 404, so their existence does not
      * leak (Review Focus 2).
      */

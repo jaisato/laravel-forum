@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Enums;
 
-enum Role: string
+use Filament\Support\Contracts\HasLabel;
+
+enum Role: string implements HasLabel
 {
     case Admin = 'admin';
     case Moderator = 'moderator';
@@ -17,6 +19,14 @@ enum Role: string
             self::Moderator => __('Moderator'),
             self::Member => __('Member'),
         };
+    }
+
+    /**
+     * The label the admin panel (Filament) shows: the same as everywhere else.
+     */
+    public function getLabel(): string
+    {
+        return $this->label();
     }
 
     /**

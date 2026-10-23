@@ -8,6 +8,7 @@ use App\Enums\Role;
 use Carbon\CarbonImmutable;
 use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
+use Filament\Models\Contracts\HasAvatar;
 use Filament\Panel;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Contracts\Translation\HasLocalePreference;
@@ -62,7 +63,7 @@ use Laravel\Sanctum\HasApiTokens;
  */
 #[Fillable(['name', 'username', 'email', 'password', 'locale', 'bio', 'location', 'website', 'preferences'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
-class User extends Authenticatable implements FilamentUser, HasLocalePreference, MustVerifyEmail, PasskeyUser
+class User extends Authenticatable implements FilamentUser, HasAvatar, HasLocalePreference, MustVerifyEmail, PasskeyUser
 {
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, Notifiable, PasskeyAuthenticatable, SoftDeletes, TwoFactorAuthenticatable;
@@ -268,6 +269,14 @@ class User extends Authenticatable implements FilamentUser, HasLocalePreference,
     }
 
     /**
+     * The member's own avatar in the admin panel (initials without one).
+     */
+    public function getFilamentAvatarUrl(): ?string
+    {
+        return $this->avatar_url;
+    }
+
+    /**
      * The abilities the member may give an API token: reading, writing,
      * private messages and, for staff, moderation.
      *
@@ -301,6 +310,21 @@ class User extends Authenticatable implements FilamentUser, HasLocalePreference,
             ->where(fn (Builder $query) => $query
                 ->whereNull('banned_at')
                 ->orWhere('banned_until', '<=', now()));
+    }
+
+    /**
+     * The SQL side of isBanned(): banned right now, for good or until a
+     * date still to come.
+     *
+     * @param  Builder<self>  $query
+     * @return Builder<self>
+     */
+    public function scopeBanned(Builder $query): Builder
+    {
+        return $query->whereNotNull('banned_at')
+            ->where(fn (Builder $query) => $query
+                ->whereNull('banned_until')
+                ->orWhere('banned_until', '>', now()));
     }
 
     /**
