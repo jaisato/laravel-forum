@@ -30,6 +30,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -85,7 +86,7 @@ final class ThreadController extends Controller
             'category' => $categories->firstWhere('slug', $request->query('category'))?->id,
             'similar' => fn (): array => mb_strlen($title) < self::SIMILAR_MIN_LENGTH
                 ? []
-                : $this->similarThreads($finder->forText($title)),
+                : $this->similarHints($member, $title, $finder),
         ]);
     }
 
@@ -182,9 +183,10 @@ final class ThreadController extends Controller
             ...($can['move'] ? ['moveTargets' => $this->moveTargets()] : []),
             ...($can['update'] ? ['tagOptions' => $this->tagOptions()] : []),
             // Related threads and the AI summary: deferred so they never hold
-            // the page back.
-            'similar' => Inertia::defer(fn (): array => $this->similarThreads($finder->similarTo($thread, (int) config('forum.ai.similar.limit')))),
-            'summary' => Inertia::defer(fn (): ?array => $this->summary($thread, $markdown, $ai)),
+            // the page back, and left out if they fail (the search engine is
+            // down, say) rather than taking the thread off the screen.
+            'similar' => Inertia::defer(fn (): array => $this->similarThreads($finder->similarTo($thread, (int) config('forum.ai.similar.limit'))), rescue: true),
+            'summary' => Inertia::defer(fn (): ?array => $this->summary($thread, $markdown, $ai), rescue: true),
         ]);
     }
 
@@ -273,6 +275,29 @@ final class ThreadController extends Controller
     }
 
     /**
+     * The threads like the title being typed on the new thread form. Each
+     * lookup reaches the search engine (and, with vector search, the
+     * embeddings provider), so a member gets forum.rate_limits.similar_hints
+     * of them; past that, or when the lookup fails, the form just shows none.
+     *
+     * @return list<array{id: int, title: string, slug: string, replies_count: int, is_solved: bool}>
+     */
+    private function similarHints(User $member, string $title, SimilarThreadFinder $finder): array
+    {
+        $limit = config('forum.rate_limits.similar_hints');
+
+        /** @var list<array{id: int, title: string, slug: string, replies_count: int, is_solved: bool}>|false $hints */
+        $hints = RateLimiter::attempt(
+            "similar-hints:{$member->id}",
+            (int) $limit['attempts'],
+            fn (): array => rescue(fn (): array => $this->similarThreads($finder->forText($title)), []),
+            (int) $limit['minutes'] * 60,
+        );
+
+        return $hints === false ? [] : $hints;
+    }
+
+    /**
      * @param  Collection<int, Thread>  $threads
      * @return list<array{id: int, title: string, slug: string, replies_count: int, is_solved: bool}>
      */
@@ -288,14 +313,15 @@ final class ThreadController extends Controller
     }
 
     /**
-     * The stored AI summary, rendered with the posts' sanitising Markdown
-     * (the model's output is not trusted), and whether it is stale.
+     * The stored AI summary while the thread still qualifies for one,
+     * rendered with the posts' sanitising Markdown (the model's output is
+     * not trusted), and whether it is stale.
      *
      * @return array{html: string, generated_at: string|null, stale: bool}|null
      */
     private function summary(Thread $thread, MarkdownRenderer $markdown, ForumAi $ai): ?array
     {
-        if (! $ai->enabled('summaries') || $thread->ai_summary === null) {
+        if (! $ai->enabled('summaries') || $thread->ai_summary === null || ! $thread->canHaveSummary()) {
             return null;
         }
 

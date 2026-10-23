@@ -6,6 +6,7 @@ use App\Actions\Moderation\HidePost;
 use App\Enums\ModerationActionType;
 use App\Enums\PostStatus;
 use App\Filament\Resources\Posts\Pages\ListPosts;
+use App\Filament\Resources\Posts\PostResource;
 use App\Models\ModerationAction;
 use App\Models\Post;
 use Filament\Actions\Testing\TestAction;
@@ -82,4 +83,17 @@ it('filters the posts by status', function () {
         ->filterTable('status', PostStatus::PendingReview->value)
         ->assertCanSeeTableRecords([$held])
         ->assertCanNotSeeTableRecords([$published]);
+});
+
+it('counts in the navigation the posts held for review', function () {
+    $held = forumReply(forumThread());
+    app(HidePost::class)->handle($held, null, 'Posible spam');
+    forumReply(forumThread());
+    $this->actingAs(forumUser('moderator'));
+
+    expect(PostResource::getNavigationBadge())->toBe('1');
+
+    app(HidePost::class)->handle($held->fresh(), forumUser('moderator'), 'Spam.');
+
+    expect(PostResource::getNavigationBadge())->toBeNull();
 });

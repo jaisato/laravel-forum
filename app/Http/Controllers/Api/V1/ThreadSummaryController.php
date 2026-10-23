@@ -21,7 +21,8 @@ use Illuminate\Support\Facades\Gate;
 final class ThreadSummaryController extends Controller
 {
     /**
-     * The stored summary, stale or not.
+     * The stored summary, stale or not, while the thread still qualifies
+     * for one.
      *
      * @unauthenticated
      */
@@ -31,7 +32,7 @@ final class ThreadSummaryController extends Controller
 
         Gate::authorize('view', $thread);
 
-        abort_if($thread->ai_summary === null, 404);
+        abort_if($thread->ai_summary === null || ! $thread->canHaveSummary(), 404);
 
         return new ThreadSummaryResource($thread);
     }

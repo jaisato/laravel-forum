@@ -82,5 +82,8 @@
     "tag": "etiqueta",
     "tags": "etiquetas",
     "thread": "hilo",
-    "threads": "hilos"
+    "threads": "hilos",
+    "Publish the post again": "Publicar de nuevo el mensaje",
+    "It was held for review: dismissing the report says it should not have been.": "Quedó retenido para revisión: descartar el reporte dice que no debía estarlo.",
+    "Posts held for review": "Mensajes retenidos para revisión"
 }

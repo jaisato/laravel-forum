@@ -76,18 +76,22 @@ Route::middleware('auth')->group(function () {
     Route::get('threads/create', [ThreadController::class, 'create'])->name('threads.create');
     // Each suggestion may reach the AI provider.
     Route::post('ai/tag-suggestions', TagSuggestionController::class)
-        ->middleware('throttle:10,1')
+        ->middleware(['throttle:10,1', 'throttle:forum-tag_suggestions'])
         ->name('ai.tag-suggestions');
     Route::post('threads', [ThreadController::class, 'store'])
         ->middleware('throttle:forum-threads')
         ->name('threads.store');
-    Route::patch('t/{thread:slug}', [ThreadController::class, 'update'])->name('threads.update');
+    Route::patch('t/{thread:slug}', [ThreadController::class, 'update'])
+        ->middleware('throttle:forum-edits')
+        ->name('threads.update');
     Route::delete('t/{thread:slug}', [ThreadController::class, 'destroy'])->name('threads.destroy');
 
     Route::post('t/{thread:slug}/posts', [PostController::class, 'store'])
         ->middleware('throttle:forum-replies')
         ->name('posts.store');
-    Route::patch('posts/{post}', [PostController::class, 'update'])->name('posts.update');
+    Route::patch('posts/{post}', [PostController::class, 'update'])
+        ->middleware('throttle:forum-edits')
+        ->name('posts.update');
     Route::delete('posts/{post}', [PostController::class, 'destroy'])->name('posts.destroy');
 
     Route::post('posts/{post}/reactions', PostReactionController::class)

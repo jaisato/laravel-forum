@@ -5,21 +5,29 @@ declare(strict_types=1);
 namespace App\Actions\Moderation;
 
 use App\Enums\ModerationActionType;
+use App\Enums\PostStatus;
 use App\Enums\ReportStatus;
+use App\Models\Post;
 use App\Models\Report;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Closes a single report as unfounded; the post stays as it is.
+ * Closes a single report as unfounded. The post stays as it is, unless the
+ * staff member asks to publish again a post held for review (the AI held it
+ * and the report says why: dismissing it says the AI was wrong). A post a
+ * moderator hid stays hidden either way.
  */
 final class DismissReport
 {
-    public function __construct(private readonly RecordModerationAction $log) {}
+    public function __construct(
+        private readonly RecordModerationAction $log,
+        private readonly ApprovePost $approvePost,
+    ) {}
 
-    public function handle(Report $report, User $moderator, ?string $note = null): void
+    public function handle(Report $report, User $moderator, ?string $note = null, bool $approvePost = false): void
     {
-        DB::transaction(function () use ($report, $moderator, $note): void {
+        DB::transaction(function () use ($report, $moderator, $note, $approvePost): void {
             $report = Report::query()->whereKey($report->id)->lockForUpdate()->firstOrFail();
 
             if ($report->status !== ReportStatus::Open) {
@@ -34,6 +42,12 @@ final class DismissReport
             ])->save();
 
             $this->log->handle($moderator, ModerationActionType::ReportDismissed, $report, $note);
+
+            $post = $approvePost ? Post::query()->find($report->post_id) : null;
+
+            if ($post?->status === PostStatus::PendingReview) {
+                $this->approvePost->handle($post, $moderator);
+            }
         });
     }
 }

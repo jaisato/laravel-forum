@@ -3,9 +3,13 @@
 declare(strict_types=1);
 
 use App\Actions\Ai\SummarizeThread;
+use App\Actions\Forum\DeletePost;
+use App\Actions\Forum\UpdatePost;
 use App\Actions\Moderation\HidePost;
+use App\Actions\Users\DeleteAccount;
 use App\Ai\Agents\ThreadSummarizer;
 use App\Jobs\Ai\GenerateThreadSummary;
+use App\Models\Post;
 use App\Models\Thread;
 use App\Models\User;
 use Illuminate\Support\Facades\Queue;
@@ -220,6 +224,62 @@ describe('when it applies', function () {
         $this->actingAs($member)
             ->post("/t/{$thread->slug}/summary")
             ->assertInertiaFlash('toast', ['type' => 'error', 'message' => 'Too many attempts. Please wait a moment.']);
+    });
+});
+
+describe('keeping it true to the thread', function () {
+    it('forgets the summary once a post it may restate is edited, hidden, held or deleted', function (Closure $change) {
+        $thread = summarized(threadToSummarize(5), 5);
+        enableAiSummaries();
+        $reply = $thread->posts()->whereKeyNot($thread->first_post_id)->oldest('id')->firstOrFail();
+
+        $change($reply);
+
+        expect($thread->fresh())
+            ->ai_summary->toBeNull()
+            ->ai_summary_generated_at->toBeNull()
+            ->ai_summary_replies_count->toBeNull();
+    })->with([
+        'edited by its author' => [fn (Post $reply) => app(UpdatePost::class)->handle($reply, $reply->author, 'Otra versión de la respuesta.')],
+        'hidden by a moderator' => [fn (Post $reply) => app(HidePost::class)->handle($reply, forumUser('moderator'), 'Spam.')],
+        'held by the AI' => [fn (Post $reply) => app(HidePost::class)->handle($reply, null, 'Dudoso.')],
+        'deleted by its author' => [fn (Post $reply) => app(DeletePost::class)->handle($reply, $reply->author)],
+    ]);
+
+    it('keeps the summaries of other threads', function () {
+        $thread = summarized(threadToSummarize(5), 5);
+        $other = summarized(threadToSummarize(5), 5);
+        enableAiSummaries();
+        $reply = $thread->posts()->whereKeyNot($thread->first_post_id)->firstOrFail();
+
+        app(HidePost::class)->handle($reply, forumUser('moderator'), 'Spam.');
+
+        expect($other->fresh()->ai_summary)->toBe('Resumen del hilo.');
+    });
+
+    it('forgets the summaries that may name an account that is erased', function () {
+        $member = User::factory()->create();
+        $named = threadToSummarize(5);
+        forumReply($named, $member, 'Yo uso Supervisor.');
+        $named = summarized($named->fresh(), 6);
+        $other = summarized(threadToSummarize(5), 5);
+        enableAiSummaries();
+
+        app(DeleteAccount::class)->handle($member);
+
+        expect($named->fresh()->ai_summary)->toBeNull()
+            ->and($other->fresh()->ai_summary)->toBe('Resumen del hilo.');
+    });
+
+    it('stops showing a summary once the thread no longer qualifies for one', function () {
+        $thread = summarized(threadToSummarize(5), 5);
+        enableAiSummaries();
+        config(['forum.ai.summaries.min_replies' => 6]);
+
+        $this->get("/t/{$thread->slug}")->assertInertia(fn (Assert $page) => $page
+            ->loadDeferredProps(fn (Assert $reload) => $reload->where('summary', null)));
+
+        $this->getJson("/api/v1/threads/{$thread->id}/summary")->assertNotFound();
     });
 });
 

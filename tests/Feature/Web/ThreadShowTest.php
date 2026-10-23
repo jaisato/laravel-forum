@@ -9,7 +9,9 @@ use App\Actions\Moderation\HidePost;
 use App\Models\Thread;
 use App\Models\ThreadRead;
 use App\Models\User;
+use App\Services\Ai\SimilarThreadFinder;
 use App\Services\ReadTracker;
+use Illuminate\Support\Collection;
 use Inertia\Testing\AssertableInertia as Assert;
 
 /**
@@ -266,7 +268,7 @@ it('loads similar threads and the summary after the page', function () {
 });
 
 it('loads the AI summary only while summaries are enabled', function () {
-    $thread = forumThread();
+    $thread = threadWithReplies(5);
     $thread->forceFill(['ai_summary' => 'Usa **Queue::fake()** en los tests.', 'ai_summary_generated_at' => now()])->save();
 
     config(['forum.ai.enabled' => true, 'forum.ai.summaries.enabled' => true]);
@@ -345,4 +347,28 @@ it('lets staff open a deleted thread to restore it', function () {
         ->assertInertia(fn (Assert $page) => $page
             ->where('thread.is_deleted', true)
             ->where('can.restore', true));
+});
+
+it('keeps the thread on screen when related threads cannot be looked up', function () {
+    app()->instance(SimilarThreadFinder::class, new class implements SimilarThreadFinder
+    {
+        public function similarTo(Thread $thread, int $limit = 5): Collection
+        {
+            throw new RuntimeException('Meilisearch is down.');
+        }
+
+        public function forText(string $text, int $limit = 5, ?int $exceptThreadId = null): Collection
+        {
+            throw new RuntimeException('Meilisearch is down.');
+        }
+    });
+    $thread = forumThread();
+
+    // The deferred request answers without the prop instead of an error page.
+    $this->get("/t/{$thread->slug}")->assertInertia(fn (Assert $page) => $page
+        ->component('threads/Show')
+        ->reload(fn (Assert $reload) => $reload
+            ->component('threads/Show')
+            ->missing('similar')
+            ->has('summary'), only: ['similar', 'summary']));
 });

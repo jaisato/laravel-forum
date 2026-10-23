@@ -100,6 +100,44 @@ it('publishes again a post the AI held, from its report', function () {
         ->and($report->fresh()->status)->toBe(ReportStatus::Dismissed);
 });
 
+/**
+ * A reply the AI held for review, with the report it filed.
+ *
+ * @return array{0: Post, 1: Report}
+ */
+function heldByTheAi(): array
+{
+    $reply = forumReply(forumThread());
+    app(HidePost::class)->handle($reply, null, 'Posible spam');
+
+    return [$reply, app(ReportPost::class)->forAi($reply, ReportReason::Spam, 'Posible spam', 0.92)];
+}
+
+it('publishes again a post the AI held when its report is dismissed, unless told not to', function () {
+    [$published, $report] = heldByTheAi();
+    [$kept, $other] = heldByTheAi();
+    $this->actingAs(forumUser('moderator'));
+
+    Livewire::test(ListReports::class)
+        ->callAction(TestAction::make('dismiss')->table($report), data: ['note' => 'Falso positivo'])
+        ->callAction(TestAction::make('dismiss')->table($other), data: ['approve_post' => false]);
+
+    expect($published->fresh()->status)->toBe(PostStatus::Published)
+        ->and($kept->fresh()->status)->toBe(PostStatus::PendingReview)
+        ->and($report->fresh()->status)->toBe(ReportStatus::Dismissed)
+        ->and($other->fresh()->status)->toBe(ReportStatus::Dismissed);
+});
+
+it('keeps out of view, by default, a post the AI held when its report is resolved', function () {
+    [$reply, $report] = heldByTheAi();
+    $this->actingAs(forumUser('moderator'));
+
+    Livewire::test(ListReports::class)
+        ->callAction(TestAction::make('resolve')->table($report), data: ['note' => 'Spam']);
+
+    expect($reply->fresh()->status)->toBe(PostStatus::Hidden);
+});
+
 it('offers no decision on a report already closed', function () {
     $closed = Report::factory()->dismissed()->create();
     $this->actingAs(forumUser('moderator'));

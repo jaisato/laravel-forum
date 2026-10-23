@@ -66,7 +66,7 @@ final class UpdateThread
                 ]);
             }
 
-            ThreadUpdated::dispatch($thread);
+            ThreadUpdated::dispatch($thread, $thread->wasChanged('title'), $editor);
 
             return $thread;
         });

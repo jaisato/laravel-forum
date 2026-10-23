@@ -46,6 +46,36 @@ it('suggests up to three of the forum tags, never one that does not exist', func
         && str_contains($prompt->prompt, 'vue'));
 });
 
+it('gives the model no more than the start of the body', function () {
+    forumTags();
+    enableAiTags();
+    TagSuggester::fake([['tags' => []]]);
+
+    app(SuggestTags::class)->handle('Mis colas no arrancan', str_repeat('a', 2000).'FINAL');
+
+    TagSuggester::assertPrompted(fn (AgentPrompt $prompt): bool => str_contains($prompt->prompt, str_repeat('a', 2000))
+        && ! str_contains($prompt->prompt, 'FINAL'));
+});
+
+it('caps the suggestions a member asks for in an hour', function () {
+    forumTags();
+    enableAiTags();
+    TagSuggester::fake(fn (): array => ['tags' => ['colas']]);
+    $member = User::factory()->create();
+    $ask = fn () => $this->actingAs($member)->postJson('/ai/tag-suggestions', ['title' => 'Mis colas no arrancan', 'body' => 'Desde ayer.']);
+
+    // Ten a minute, as many minutes as the hour allows.
+    foreach (range(1, 3) as $minute) {
+        foreach (range(1, 10) as $request) {
+            $ask()->assertOk();
+        }
+
+        $this->travel(61)->seconds();
+    }
+
+    $ask()->assertTooManyRequests();
+});
+
 it('suggests nothing when the provider fails, and logs it', function () {
     forumTags();
     enableAiTags();

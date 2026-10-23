@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources\Reports\Actions;
 
 use App\Actions\Moderation\ResolveReport;
+use App\Enums\PostStatus;
 use App\Enums\ReportStatus;
 use App\Filament\Staff;
 use App\Models\Report;
@@ -34,6 +35,8 @@ final class ResolveReportAction extends Action
             ->authorize('resolve')
             ->visible(fn (Report $record): bool => $record->status === ReportStatus::Open)
             ->modalDescription(__('Every open report of this post is closed.'))
+            // A post held for review leaves the queue hidden, unless untoggled.
+            ->fillForm(fn (Report $record): array => ['hide_post' => $record->post?->status === PostStatus::PendingReview])
             ->schema([
                 Toggle::make('hide_post')
                     ->label(__('Hide the post'))

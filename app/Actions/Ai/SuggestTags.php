@@ -20,6 +20,9 @@ use Throwable;
  */
 final class SuggestTags
 {
+    /** How much of the body the model reads: the start says what a thread is about. */
+    private const int BODY_LENGTH = 2000;
+
     /**
      * @return Collection<int, Tag>
      */
@@ -36,7 +39,7 @@ final class SuggestTags
         try {
             $output = TagSuggester::make(tags: $slugs)->prompt(
                 "Suggest tags for this thread.\n\nTags: ".implode(', ', $slugs)."\n\n"
-                .UntrustedText::wrap('title', $title)."\n\n".UntrustedText::wrap('post', $body),
+                .UntrustedText::wrap('title', $title)."\n\n".UntrustedText::wrap('post', Str::limit($body, self::BODY_LENGTH, '')),
             )->toArray();
         } catch (Throwable $exception) {
             Log::warning('Tag suggestions are unavailable.', ['exception' => $exception->getMessage()]);

@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Api\V1\Moderation;
 
 use App\Actions\Moderation\DismissReport;
 use App\Actions\Moderation\ResolveReport;
+use App\Enums\PostStatus;
 use App\Enums\ReportStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\ListReportsRequest;
@@ -47,7 +48,8 @@ final class ReportController extends Controller
         /** @var User $moderator */
         $moderator = $request->user();
 
-        $resolveReport->handle($report, $moderator, $request->boolean('hide_post'), $request->note());
+        // A post held for review is hidden unless hide_post says otherwise.
+        $resolveReport->handle($report, $moderator, $request->boolean('hide_post', $this->isHeld($report)), $request->note());
 
         return $this->settled($report);
     }
@@ -57,9 +59,15 @@ final class ReportController extends Controller
         /** @var User $moderator */
         $moderator = $request->user();
 
-        $dismissReport->handle($report, $moderator, $request->note());
+        // A post held for review is published again unless approve_post is false.
+        $dismissReport->handle($report, $moderator, $request->note(), $request->boolean('approve_post', true));
 
         return $this->settled($report);
+    }
+
+    private function isHeld(Report $report): bool
+    {
+        return $report->post()->value('status') === PostStatus::PendingReview;
     }
 
     private function settled(Report $report): ReportResource

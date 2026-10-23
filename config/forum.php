@@ -83,8 +83,16 @@ return [
         'reactions' => ['attempts' => 60, 'minutes' => 1],
         'reports' => ['attempts' => 10, 'minutes' => 60],
         'messages' => ['attempts' => 10, 'minutes' => 1],
+        // Editing posts and threads: each edit goes back to the AI moderator.
+        'edits' => ['attempts' => 10, 'minutes' => 1],
         // Asking for an AI summary (each may reach the provider).
         'summaries' => ['attempts' => 5, 'minutes' => 60],
+        // AI tag suggestions on the new thread form, on top of ten a minute.
+        'tag_suggestions' => ['attempts' => 30, 'minutes' => 60],
+        // Similar threads looked up while a title is typed (search engine,
+        // and the embeddings provider with vector search); past it the form
+        // simply shows none.
+        'similar_hints' => ['attempts' => 30, 'minutes' => 1],
         'api' => ['authenticated' => 120, 'guest' => 60],
     ],
 

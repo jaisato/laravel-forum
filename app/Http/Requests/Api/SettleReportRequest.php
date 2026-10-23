@@ -28,6 +28,7 @@ final class SettleReportRequest extends FormRequest
     {
         return [
             'hide_post' => ['sometimes', 'boolean'],
+            'approve_post' => ['sometimes', 'boolean'],
             'note' => ['nullable', 'string', 'max:500'],
         ];
     }

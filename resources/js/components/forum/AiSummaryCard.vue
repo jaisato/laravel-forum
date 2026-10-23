@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { router } from '@inertiajs/vue3';
+import type { Page } from '@inertiajs/core';
 import { Sparkles } from '@lucide/vue';
-import { ref } from 'vue';
+import { onBeforeUnmount, ref, watch } from 'vue';
 import MarkdownContent from '@/components/forum/MarkdownContent.vue';
 import { Button } from '@/components/ui/button';
 import { store } from '@/routes/threads/summary';
@@ -17,8 +18,41 @@ const props = defineProps<{
 
 const asking = ref(false);
 
+/** How often, and how many times, the card looks for a summary being written. */
+const LOOK_EVERY_MS = 5000;
+const LOOK_TIMES = 12;
+
+let looking: ReturnType<typeof setTimeout> | undefined;
+
+function stopLooking(): void {
+    clearTimeout(looking);
+    looking = undefined;
+}
+
 /**
- * The summary is written in the queue; the toast says it is on its way.
+ * Reloads the summary alone every few seconds, for a minute at most, until
+ * the one asked for arrives (its date changes) or the page is left.
+ */
+function lookForSummary(remaining = LOOK_TIMES): void {
+    stopLooking();
+
+    if (remaining === 0) {
+        return;
+    }
+
+    looking = setTimeout(() => {
+        router.reload({ only: ['summary'] });
+        lookForSummary(remaining - 1);
+    }, LOOK_EVERY_MS);
+}
+
+watch(() => props.summary?.generated_at, stopLooking);
+onBeforeUnmount(stopLooking);
+
+/**
+ * The summary is written in the queue; the toast says it is on its way and
+ * the card looks for it. A request turned down (too many) comes back with
+ * an error toast instead.
  */
 function ask(): void {
     router.post(
@@ -28,6 +62,14 @@ function ask(): void {
             preserveScroll: true,
             onStart: () => (asking.value = true),
             onFinish: () => (asking.value = false),
+            onSuccess: (page: Page) => {
+                const toast = page.flash?.toast as
+                    { type?: string } | undefined;
+
+                if (toast?.type !== 'error') {
+                    lookForSummary();
+                }
+            },
         },
     );
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Posts;
 
+use App\Enums\PostStatus;
 use App\Enums\ReportStatus;
 use App\Filament\Resources\Posts\Pages\ListPosts;
 use App\Filament\Resources\Posts\Tables\PostsTable;
@@ -30,6 +31,27 @@ final class PostResource extends Resource
     public static function getNavigationGroup(): string
     {
         return __('Moderation');
+    }
+
+    /**
+     * The posts held for review (by the AI): they wait for a decision even
+     * once their report is closed.
+     */
+    public static function getNavigationBadge(): ?string
+    {
+        $held = Post::query()->where('status', PostStatus::PendingReview)->count();
+
+        return $held > 0 ? (string) $held : null;
+    }
+
+    public static function getNavigationBadgeColor(): string
+    {
+        return 'warning';
+    }
+
+    public static function getNavigationBadgeTooltip(): string
+    {
+        return __('Posts held for review');
     }
 
     public static function getModelLabel(): string

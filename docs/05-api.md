@@ -117,6 +117,7 @@ se le reconozca.
 | Segundo factor fallido | 5 por minuto | Por miembro, desde cualquier dirección |
 | Abrir hilos | 3 por minuto | Por miembro |
 | Responder | 6 por minuto | Por miembro |
+| Editar mensajes e hilos | 10 por minuto | Por miembro |
 | Reaccionar | 60 por minuto | Por miembro |
 | Reportar | 10 por hora | Por miembro |
 | Mensajes privados | 10 por minuto | Por miembro |
@@ -201,8 +202,8 @@ Solo sus participantes encuentran una conversación; el *staff* tampoco.
 | `POST /moderation/posts/{id}/approve` | Aprueba un mensaje oculto o pendiente |
 | `POST /moderation/posts/{id}/restore` | Restaura un mensaje borrado |
 | `GET /moderation/reports` | La cola: los reportes abiertos, del más antiguo al más reciente (`?status=resolved` o `dismissed` para el historial) |
-| `POST /moderation/reports/{id}/resolve` | Lo resuelve con los demás reportes abiertos del mensaje (`hide_post`, `note`) |
-| `POST /moderation/reports/{id}/dismiss` | Lo descarta (`note`) |
+| `POST /moderation/reports/{id}/resolve` | Lo resuelve con los demás reportes abiertos del mensaje (`hide_post`, `note`); un mensaje retenido para revisión queda oculto salvo con `hide_post: false` |
+| `POST /moderation/reports/{id}/dismiss` | Lo descarta (`note`); un mensaje retenido para revisión se publica de nuevo salvo con `approve_post: false` |
 
 Todas las acciones quedan en el registro de moderación, como las de la web.
 

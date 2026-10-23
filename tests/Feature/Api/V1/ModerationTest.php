@@ -185,3 +185,24 @@ it('reads what members may not see, to moderate it', function () {
         ->postJson("/api/v1/moderation/posts/{$reply->id}/approve")
         ->assertOk();
 });
+
+it('settles the reports of posts the AI held: dismissing publishes them again, resolving keeps them out of view', function () {
+    $held = function (): array {
+        $reply = forumReply(forumThread());
+        app(HidePost::class)->handle($reply, null, 'Posible spam');
+
+        return [$reply, app(ReportPost::class)->forAi($reply, ReportReason::Spam, 'Posible spam', 0.92)];
+    };
+    [$published, $dismissed] = $held();
+    [$kept, $dismissedOnly] = $held();
+    [$hidden, $resolved] = $held();
+    $token = moderatorToken();
+
+    $this->withToken($token)->postJson("/api/v1/moderation/reports/{$dismissed->id}/dismiss")->assertOk();
+    $this->withToken($token)->postJson("/api/v1/moderation/reports/{$dismissedOnly->id}/dismiss", ['approve_post' => false])->assertOk();
+    $this->withToken($token)->postJson("/api/v1/moderation/reports/{$resolved->id}/resolve")->assertOk();
+
+    expect($published->fresh()->status)->toBe(PostStatus::Published)
+        ->and($kept->fresh()->status)->toBe(PostStatus::PendingReview)
+        ->and($hidden->fresh()->status)->toBe(PostStatus::Hidden);
+});

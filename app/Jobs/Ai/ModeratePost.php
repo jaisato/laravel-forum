@@ -12,9 +12,11 @@ use App\Ai\UntrustedText;
 use App\Enums\PostStatus;
 use App\Models\Post;
 use App\Models\Thread;
+use Illuminate\Contracts\Queue\ShouldBeUniqueUntilProcessing;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\Attributes\Queue;
+use Illuminate\Queue\Attributes\UniqueFor;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -22,9 +24,14 @@ use Illuminate\Support\Facades\Log;
  * (publishing never waits for the AI). When the provider fails the post
  * stays as it is and the job tries again; an answer the forum cannot vouch
  * for is logged and ignored.
+ *
+ * One job per post waits at a time: it reads the post as it stands when it
+ * runs, so the edits made meanwhile cost no further call. The lock lapses
+ * after ten minutes in case a job is lost on the way.
  */
 #[Queue('ai')]
-final class ModeratePost implements ShouldQueue
+#[UniqueFor(600)]
+final class ModeratePost implements ShouldBeUniqueUntilProcessing, ShouldQueue
 {
     use Queueable;
 
@@ -33,6 +40,11 @@ final class ModeratePost implements ShouldQueue
     public bool $deleteWhenMissingModels = true;
 
     public function __construct(public readonly Post $post) {}
+
+    public function uniqueId(): string
+    {
+        return (string) $this->post->id;
+    }
 
     /**
      * Seconds to wait before each retry.

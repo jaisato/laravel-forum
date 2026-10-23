@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Actions\Users;
 
+use App\Models\Post;
+use App\Models\Thread;
 use App\Models\ThreadRead;
 use App\Models\ThreadSubscription;
 use App\Models\User;
@@ -32,6 +34,11 @@ final class DeleteAccount
             DatabaseNotification::query()->where('actor_id', $user->id)->delete();
             ThreadSubscription::query()->where('user_id', $user->id)->delete();
             ThreadRead::query()->where('user_id', $user->id)->delete();
+            // AI summaries name the members whose posts they sum up.
+            Thread::forgetSummaries(Thread::query()->whereIn(
+                'id',
+                Post::query()->withoutGlobalScopes()->where('user_id', $user->id)->select('thread_id'),
+            ));
 
             $user->forceFill([
                 'name' => '',

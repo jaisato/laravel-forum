@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Actions\Forum\UpdatePost;
+use App\Actions\Forum\UpdateThread;
 use App\Actions\Moderation\HidePost;
 use App\Ai\Agents\ContentModerator;
 use App\Enums\PostStatus;
@@ -11,8 +12,11 @@ use App\Enums\ReportSource;
 use App\Jobs\Ai\ModeratePost;
 use App\Models\Post;
 use App\Models\Report;
+use App\Models\Tag;
 use App\Models\User;
 use App\Notifications\PostModerated;
+use Illuminate\Bus\UniqueLock;
+use Illuminate\Contracts\Cache\Repository;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
@@ -162,11 +166,45 @@ describe('queueing', function () {
 
         $thread = forumThread();
         $reply = forumReply($thread);
+        // The reply's job has started: an edit made now queues another.
+        (new UniqueLock(app(Repository::class)))->release(new ModeratePost($reply));
         app(UpdatePost::class)->handle($reply, $reply->author, 'Una versión corregida de la respuesta.');
         forumReply($thread, User::factory()->moderator()->create());
 
         Queue::assertPushed(ModeratePost::class, 3);
         Queue::assertPushed(ModeratePost::class, fn (ModeratePost $job): bool => $job->post->is($thread->firstPost));
         Queue::assertPushed(ModeratePost::class, fn (ModeratePost $job): bool => $job->post->is($reply));
+    });
+
+    it('queues a post once while its job waits: the job reads the post as it stands when it runs', function () {
+        $reply = forumReply(forumThread());
+        enableAiModeration();
+        Queue::fake();
+
+        app(UpdatePost::class)->handle($reply, $reply->author, 'Primera corrección de la respuesta.');
+        app(UpdatePost::class)->handle($reply->fresh(), $reply->author, 'Segunda corrección de la respuesta.');
+
+        expect(Queue::pushed(ModeratePost::class, fn (ModeratePost $job): bool => $job->post->is($reply)))->toHaveCount(1);
+    });
+
+    it('moderates the opening post again when its author changes the title', function () {
+        $thread = forumThread();
+        enableAiModeration();
+        Queue::fake();
+
+        app(UpdateThread::class)->handle($thread, $thread->author, 'Un título distinto para el hilo', null);
+
+        Queue::assertPushed(ModeratePost::class, fn (ModeratePost $job): bool => $job->post->is($thread->firstPost));
+    });
+
+    it('leaves the opening post alone when only the tags change or the staff edit the title', function () {
+        $thread = forumThread();
+        enableAiModeration();
+        Queue::fake();
+
+        app(UpdateThread::class)->handle($thread, $thread->author, null, [Tag::factory()->create()->id]);
+        app(UpdateThread::class)->handle($thread->fresh(), forumUser('moderator'), 'Título corregido por el equipo', null);
+
+        Queue::assertNotPushed(ModeratePost::class);
     });
 });

@@ -392,6 +392,23 @@ class Thread extends Model
     }
 
     /**
+     * Forgets the AI summaries of these threads. A summary may restate what
+     * a post said before it was edited, hidden, held or deleted, or name an
+     * account that was erased since; the next one is written when someone
+     * asks for it.
+     *
+     * @param  Builder<self>  $threads
+     */
+    public static function forgetSummaries(Builder $threads): void
+    {
+        $threads->withoutGlobalScopes()->whereNotNull('ai_summary')->toBase()->update([
+            'ai_summary' => null,
+            'ai_summary_generated_at' => null,
+            'ai_summary_replies_count' => null,
+        ]);
+    }
+
+    /**
      * Whether the stored summary should be written again: there is none,
      * enough replies arrived since, or enough time went by.
      */

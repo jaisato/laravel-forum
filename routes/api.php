@@ -134,13 +134,17 @@ Route::prefix('v1')->name('api.v1.')->where([
             Route::post('threads', [ThreadController::class, 'store'])
                 ->middleware('throttle:forum-threads')
                 ->name('threads.store');
-            Route::patch('threads/{thread:id}', [ThreadController::class, 'update'])->name('threads.update');
+            Route::patch('threads/{thread:id}', [ThreadController::class, 'update'])
+                ->middleware('throttle:forum-edits')
+                ->name('threads.update');
             Route::delete('threads/{thread:id}', [ThreadController::class, 'destroy'])->name('threads.destroy');
 
             Route::post('threads/{thread:id}/posts', [ThreadPostController::class, 'store'])
                 ->middleware('throttle:forum-replies')
                 ->name('threads.posts.store');
-            Route::patch('posts/{post}', [PostController::class, 'update'])->name('posts.update');
+            Route::patch('posts/{post}', [PostController::class, 'update'])
+                ->middleware('throttle:forum-edits')
+                ->name('posts.update');
             Route::delete('posts/{post}', [PostController::class, 'destroy'])->name('posts.destroy');
 
             Route::put('posts/{post}/reactions/{type}', [PostReactionController::class, 'update'])

@@ -82,3 +82,20 @@ it('answers the forum limits with JSON, whatever the client accepts', function (
         ->assertTooManyRequests()
         ->assertJsonPath('message', 'Too many attempts. Please wait a moment.');
 });
+
+it('limits how often a member edits, posts and threads alike', function () {
+    $member = User::factory()->create();
+    $thread = forumThread($member);
+    $token = apiToken($member);
+
+    foreach (range(1, 10) as $edit) {
+        $this->withToken($token)
+            ->patchJson("/api/v1/posts/{$thread->first_post_id}", ['body' => "Versión número {$edit} del mensaje."])
+            ->assertOk();
+    }
+
+    $this->withToken($token)
+        ->patchJson("/api/v1/threads/{$thread->id}", ['title' => 'Un título más para el mismo hilo'])
+        ->assertTooManyRequests()
+        ->assertJsonPath('message', 'Too many attempts. Please wait a moment.');
+});

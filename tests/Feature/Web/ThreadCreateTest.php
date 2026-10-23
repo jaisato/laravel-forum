@@ -103,6 +103,43 @@ describe('the form', function () {
             ->assertInertia(fn (Assert $page) => $page->where('similar', []));
     });
 
+    it('stops suggesting similar threads to a member who types too fast, without getting in the way', function () {
+        forumThread();
+        $member = User::factory()->create();
+
+        foreach (range(1, 30) as $request) {
+            $this->actingAs($member)
+                ->get(route('threads.create', ['title' => 'testing the forum']))
+                ->assertInertia(fn (Assert $page) => $page->has('similar', 1));
+        }
+
+        $this->actingAs($member)
+            ->get(route('threads.create', ['title' => 'testing the forum']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->component('threads/Create')->where('similar', []));
+    });
+
+    it('still opens the form when similar threads cannot be looked up', function () {
+        app()->instance(SimilarThreadFinder::class, new class implements SimilarThreadFinder
+        {
+            public function similarTo(Thread $thread, int $limit = 5): Collection
+            {
+                throw new RuntimeException('Meilisearch is down.');
+            }
+
+            public function forText(string $text, int $limit = 5, ?int $exceptThreadId = null): Collection
+            {
+                throw new RuntimeException('Meilisearch is down.');
+            }
+        });
+        Category::factory()->create();
+
+        $this->actingAs(User::factory()->create())
+            ->get(route('threads.create', ['title' => 'testing the forum']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->component('threads/Create')->where('similar', []));
+    });
+
     it('looks for similar threads with no more of the title than a thread takes', function () {
         $searched = [];
         app()->instance(SimilarThreadFinder::class, new class($searched) implements SimilarThreadFinder
