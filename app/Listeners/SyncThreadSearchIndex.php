@@ -70,8 +70,9 @@ final class SyncThreadSearchIndex implements ShouldQueue
         $thread->posts()->with('thread.tags')->chunkById(500, function (Collection $posts): void {
             [$public, $hidden] = $posts->partition(fn (Post $post): bool => $post->shouldBeSearchable());
 
-            $public->searchable();
-            $hidden->unsearchable();
+            // What the searchable()/unsearchable() collection macros do.
+            (new Post)->queueMakeSearchable($public);
+            (new Post)->queueRemoveFromSearch($hidden);
         });
     }
 

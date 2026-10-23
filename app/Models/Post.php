@@ -10,6 +10,7 @@ use Carbon\CarbonImmutable;
 use Database\Factories\PostFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -210,7 +211,7 @@ class Post extends Model
      */
     public function makeSearchableUsing(Collection $models): Collection
     {
-        return $models->count() > 1 ? $models->loadMissing('thread.tags') : $models;
+        return $models instanceof EloquentCollection && $models->count() > 1 ? $models->loadMissing('thread.tags') : $models;
     }
 
     /**

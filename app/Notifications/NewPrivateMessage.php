@@ -41,7 +41,7 @@ final class NewPrivateMessage extends ForumNotification
         ]);
     }
 
-    protected function excerpt(): ?string
+    protected function excerpt(): string
     {
         return app(MarkdownRenderer::class)->excerpt($this->message->body, 140);
     }

@@ -10,7 +10,6 @@ use League\CommonMark\Extension\GithubFlavoredMarkdownExtension;
 use League\CommonMark\Extension\Mention\Generator\MentionGeneratorInterface;
 use League\CommonMark\Extension\Mention\Mention;
 use League\CommonMark\Extension\Mention\MentionExtension;
-use League\CommonMark\Node\Inline\AbstractInline;
 
 /**
  * The forum's single CommonMark configuration. The renderer and the mention
@@ -39,7 +38,7 @@ final class MarkdownEnvironment
                     // later keeps only those naming an existing member.
                     'generator' => new class implements MentionGeneratorInterface
                     {
-                        public function generateMention(Mention $mention): ?AbstractInline
+                        public function generateMention(Mention $mention): Mention
                         {
                             return $mention;
                         }

@@ -31,11 +31,17 @@ final class ForumSearch
         $tagId = $filters['tag'] ?? null;
 
         $search = $this->filtersInDatabase()
-            ? Thread::search($query, fn (Builder $threads) => $this->constrainThreads($threads, $categoryId, $tagId))
+            ? Thread::search($query, function (Builder $threads) use ($categoryId, $tagId): Builder {
+                /** @var Builder<Thread> $threads */
+                return $this->constrainThreads($threads, $categoryId, $tagId);
+            })
             : $this->withEngineFilters(Thread::search($query), $categoryId, $tagId);
 
         return $search
-            ->query(fn (Builder $threads) => $threads->visibleTo(null)->with(['category', 'author', 'tags']))
+            ->query(function (Builder $threads): Builder {
+                /** @var Builder<Thread> $threads */
+                return $threads->visibleTo(null)->with(['category', 'author', 'tags']);
+            })
             ->paginate($perPage);
     }
 
@@ -51,15 +57,24 @@ final class ForumSearch
         $search = $this->filtersInDatabase()
             ? Post::search($query, fn (Builder $posts) => $posts->whereHas(
                 'thread',
-                fn (Builder $threads) => $this->constrainThreads($threads, $categoryId, $tagId),
+                function (Builder $threads) use ($categoryId, $tagId): Builder {
+                    /** @var Builder<Thread> $threads */
+                    return $this->constrainThreads($threads, $categoryId, $tagId);
+                },
             ))
             : $this->withEngineFilters(Post::search($query), $categoryId, $tagId);
 
         return $search
-            ->query(fn (Builder $posts) => $posts
-                ->visibleTo(null)
-                ->whereHas('thread', fn (Builder $threads) => $threads->visibleTo(null))
-                ->with(['thread', 'author']))
+            ->query(function (Builder $posts): Builder {
+                /** @var Builder<Post> $posts */
+                return $posts
+                    ->visibleTo(null)
+                    ->whereHas('thread', function (Builder $threads): Builder {
+                        /** @var Builder<Thread> $threads */
+                        return $threads->visibleTo(null);
+                    })
+                    ->with(['thread', 'author']);
+            })
             ->paginate($perPage);
     }
 
@@ -79,6 +94,12 @@ final class ForumSearch
             ->when($tagId !== null, fn (Builder $query) => $query->whereHas('tags', fn (Builder $tags) => $tags->whereKey($tagId)));
     }
 
+    /**
+     * @template TModel of Thread|Post
+     *
+     * @param  SearchBuilder<TModel>  $search
+     * @return SearchBuilder<TModel>
+     */
     private function withEngineFilters(SearchBuilder $search, ?int $categoryId, ?int $tagId): SearchBuilder
     {
         return $search

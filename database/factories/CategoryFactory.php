@@ -17,8 +17,11 @@ class CategoryFactory extends Factory
      */
     public function definition(): array
     {
+        /** @var string $name two words as text */
+        $name = fake()->unique()->words(2, true);
+
         return [
-            'name' => ucfirst(fake()->unique()->words(2, true)),
+            'name' => ucfirst($name),
             'description' => fake()->sentence(12),
             'color' => fake()->hexColor(),
             'icon' => fake()->randomElement(['message-circle', 'code', 'help-circle', 'megaphone', 'coffee']),

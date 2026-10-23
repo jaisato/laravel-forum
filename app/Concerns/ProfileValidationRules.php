@@ -5,8 +5,9 @@ declare(strict_types=1);
 namespace App\Concerns;
 
 use App\Models\User;
-use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\NotIn;
+use Illuminate\Validation\Rules\Unique;
 
 trait ProfileValidationRules
 {
@@ -22,7 +23,7 @@ trait ProfileValidationRules
     /**
      * Get the validation rules used to validate user profiles.
      *
-     * @return array<string, array<int, ValidationRule|array<mixed>|string>>
+     * @return array<string, list<string|NotIn|Unique>>
      */
     protected function profileRules(?int $userId = null): array
     {
@@ -38,7 +39,7 @@ trait ProfileValidationRules
      * they are lower case ASCII and some are reserved for the forum itself.
      * The `deleted-` prefix is given to accounts erased on request.
      *
-     * @return array<int, ValidationRule|array<mixed>|string>
+     * @return list<string|NotIn|Unique>
      */
     protected function usernameRules(?int $userId = null): array
     {
@@ -59,7 +60,7 @@ trait ProfileValidationRules
     /**
      * Get the validation rules used to validate user names.
      *
-     * @return array<int, ValidationRule|array<mixed>|string>
+     * @return list<string>
      */
     protected function nameRules(): array
     {
@@ -69,7 +70,7 @@ trait ProfileValidationRules
     /**
      * Get the validation rules used to validate user emails.
      *
-     * @return array<int, ValidationRule|array<mixed>|string>
+     * @return list<string|Unique>
      */
     protected function emailRules(?int $userId = null): array
     {

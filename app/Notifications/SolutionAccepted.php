@@ -38,7 +38,7 @@ final class SolutionAccepted extends PostNotification
         return __('Your answer in ":thread" was marked as the solution', ['thread' => $this->thread()->title]);
     }
 
-    protected function actor(): ?User
+    protected function actor(): User
     {
         return $this->actor;
     }

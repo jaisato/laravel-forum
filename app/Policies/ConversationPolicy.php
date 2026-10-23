@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Policies;
 
 use App\Models\Conversation;
+use App\Models\ConversationParticipant;
 use App\Models\User;
 
 /**
@@ -44,9 +45,12 @@ class ConversationPolicy
     private function isActiveParticipant(User $user, Conversation $conversation): bool
     {
         if ($conversation->relationLoaded('participants')) {
-            return $conversation->participants->contains(
-                fn (User $participant): bool => $participant->is($user) && $participant->pivot->left_at === null,
-            );
+            return $conversation->participants->contains(function (User $participant) use ($user): bool {
+                /** @var ConversationParticipant $membership */
+                $membership = $participant->getRelation('pivot');
+
+                return $participant->is($user) && $membership->left_at === null;
+            });
         }
 
         return $conversation->participants()

@@ -87,21 +87,25 @@ final class ForumCounters
     private function applyUserCounts(array $deltas): void
     {
         ksort($deltas);
+        $ids = array_keys($deltas);
 
-        User::withTrashed()->whereKey(array_keys($deltas))->orderBy('id')->lockForUpdate()->pluck('id');
+        User::withTrashed()->whereKey($ids)->orderBy('id')->lockForUpdate()->pluck('id');
 
-        // Every value is an integer computed here, never user input.
-        $threads = $posts = 'case id';
+        $cases = implode(' ', array_fill(0, count($ids), 'when ? then ?'));
+        $placeholders = implode(', ', array_fill(0, count($ids), '?'));
+        $bindings = [];
 
-        foreach ($deltas as $userId => $delta) {
-            $threads .= sprintf(' when %d then %d', $userId, $delta['threads']);
-            $posts .= sprintf(' when %d then %d', $userId, $delta['posts']);
+        foreach (['threads', 'posts'] as $column) {
+            foreach ($deltas as $userId => $delta) {
+                array_push($bindings, $userId, $delta[$column]);
+            }
         }
 
-        User::withTrashed()->whereKey(array_keys($deltas))->toBase()->update([
-            'threads_count' => DB::raw("threads_count + ({$threads} else 0 end)"),
-            'posts_count' => DB::raw("posts_count + ({$posts} else 0 end)"),
-        ]);
+        DB::update(
+            "update users set threads_count = threads_count + (case id {$cases} else 0 end),"
+            ." posts_count = posts_count + (case id {$cases} else 0 end) where id in ({$placeholders})",
+            [...$bindings, ...$ids],
+        );
     }
 
     /**
@@ -155,7 +159,7 @@ final class ForumCounters
 
         $thread->forceFill([
             'last_post_id' => $last?->id,
-            'last_posted_at' => $last?->created_at ?? $thread->created_at,
+            'last_posted_at' => $last->created_at ?? $thread->created_at,
         ])->save();
     }
 }

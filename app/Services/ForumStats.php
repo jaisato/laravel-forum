@@ -48,16 +48,26 @@ final class ForumStats
             'threads' => (int) Category::query()->sum('threads_count'),
             'posts' => (int) Category::query()->sum('posts_count'),
             // Plain arrays: models do not belong in the cache.
-            'newest_member' => $newest === null ? null : UserResource::make($newest)->resolve(),
-            'online' => $online->clone()
+            'newest_member' => $newest === null ? null : $this->summary($newest),
+            'online' => array_values($online->clone()
                 ->orderByDesc('last_seen_at')
                 ->orderByDesc('id')
                 ->limit(self::ONLINE_LIMIT)
                 ->get()
-                ->map(fn (User $user): array => UserResource::make($user)->resolve())
-                ->values()
-                ->all(),
+                ->map(fn (User $user): array => $this->summary($user))
+                ->all()),
             'online_count' => $online->count(),
         ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function summary(User $user): array
+    {
+        /** @var array<string, mixed> $summary */
+        $summary = UserResource::make($user)->resolve();
+
+        return $summary;
     }
 }

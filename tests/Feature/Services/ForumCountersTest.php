@@ -65,7 +65,7 @@ it('updates every author of a thread with one statement, whatever their number',
     forumReply($thread);
     $updates = [];
     DB::listen(function (QueryExecuted $query) use (&$updates): void {
-        if (str_starts_with($query->sql, 'update "users"')) {
+        if (preg_match('/^update "?users"? /i', $query->sql) === 1) {
             $updates[] = $query->sql;
         }
     });

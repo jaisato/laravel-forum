@@ -68,7 +68,7 @@ class Tag extends Model
 
         return $ids === []
             ? []
-            : static::query()->whereKey($ids)->pluck('id')->map(fn (mixed $id): int => (int) $id)->values()->all();
+            : array_values(static::query()->whereKey($ids)->pluck('id')->map(fn (mixed $id): int => (int) $id)->all());
     }
 
     protected function slugSource(): string
