@@ -3,6 +3,8 @@ import { AlertCircle } from '@lucide/vue';
 import { computed } from 'vue';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
+// The title and the errors are translation keys (or messages already
+// translated by the server, which come back unchanged).
 type Props = {
     errors: string[];
     title?: string;
@@ -18,11 +20,11 @@ const uniqueErrors = computed(() => Array.from(new Set(props.errors)));
 <template>
     <Alert variant="destructive">
         <AlertCircle class="size-4" />
-        <AlertTitle>{{ title }}</AlertTitle>
+        <AlertTitle>{{ $t(title) }}</AlertTitle>
         <AlertDescription>
             <ul class="list-inside list-disc text-sm">
                 <li v-for="(error, index) in uniqueErrors" :key="index">
-                    {{ error }}
+                    {{ $t(error) }}
                 </li>
             </ul>
         </AlertDescription>

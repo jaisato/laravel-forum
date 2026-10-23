@@ -18,8 +18,12 @@ página describe lo que ya funciona.
 - Registro, inicio de sesión con email o nombre de usuario, verificación del
   email y recuperación de la contraseña.
 - Segundo factor (TOTP con códigos de recuperación) y *passkeys*.
-- Ajustes de perfil, seguridad (contraseña, 2FA y *passkeys*) y apariencia
-  (claro, oscuro o el del sistema); borrado de la cuenta con anonimización.
+- Ajustes de perfil (nombre, usuario, email, foto en WebP de 256×256,
+  biografía, ubicación, web e idioma), seguridad (contraseña, 2FA y
+  *passkeys*), notificaciones por email, mensajes privados, tokens de API con
+  permisos y apariencia (claro, oscuro o el del sistema).
+- Borrado de la cuenta con anonimización: los datos personales desaparecen y
+  los hilos y mensajes se quedan como «Usuario eliminado».
 
 **Foro**
 

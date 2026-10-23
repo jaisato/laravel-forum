@@ -81,6 +81,11 @@ class User extends Authenticatable implements FilamentUser, HasLocalePreference,
     ];
 
     /**
+     * API token abilities every member may grant (tokenAbilities()).
+     */
+    public const array TOKEN_ABILITIES = ['read', 'write', 'messages'];
+
+    /**
      * The database defaults, so a model that was just saved behaves like a
      * reloaded one.
      *
@@ -243,6 +248,17 @@ class User extends Authenticatable implements FilamentUser, HasLocalePreference,
     public function canAccessPanel(Panel $panel): bool
     {
         return Gate::forUser($this)->allows('access-admin');
+    }
+
+    /**
+     * The abilities the member may give an API token: reading, writing,
+     * private messages and, for staff, moderation.
+     *
+     * @return list<string>
+     */
+    public function tokenAbilities(): array
+    {
+        return [...self::TOKEN_ABILITIES, ...($this->canModerate() ? ['moderate'] : [])];
     }
 
     public function acceptsPrivateMessages(): bool
