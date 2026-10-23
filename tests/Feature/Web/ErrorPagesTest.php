@@ -65,6 +65,21 @@ it('shows maintenance as the forum’s own page too', function () {
     }
 });
 
+it('keeps maintenance mode inside the test process', function () {
+    // Parallel test processes share storage/: a maintenance file written by
+    // one test answers 503 to the requests of the others (phpunit.xml).
+    $down = storage_path('framework/down');
+    $wasDown = is_file($down);
+
+    app()->maintenanceMode()->activate([]);
+
+    try {
+        expect(is_file($down))->toBe($wasDown);
+    } finally {
+        app()->maintenanceMode()->deactivate();
+    }
+});
+
 it('sends an expired form back to its page with a warning', function () {
     Route::middleware('web')->post('/_tests/expired', fn () => throw new TokenMismatchException);
 
