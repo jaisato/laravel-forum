@@ -6,6 +6,7 @@ namespace App\Actions\Forum;
 
 use App\Actions\Moderation\RecordModerationAction;
 use App\Enums\ModerationActionType;
+use App\Events\ThreadDeleted;
 use App\Models\Thread;
 use App\Models\User;
 use App\Services\ForumCounters;
@@ -36,6 +37,8 @@ final class DeleteThread
             }
 
             $thread->delete();
+
+            ThreadDeleted::dispatch($thread);
 
             if (! $thread->isAuthoredBy($actor)) {
                 $this->log->handle($actor, ModerationActionType::ThreadDeleted, $thread, $reason);

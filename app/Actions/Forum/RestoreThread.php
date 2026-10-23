@@ -6,6 +6,7 @@ namespace App\Actions\Forum;
 
 use App\Actions\Moderation\RecordModerationAction;
 use App\Enums\ModerationActionType;
+use App\Events\ThreadRestored;
 use App\Models\Thread;
 use App\Models\User;
 use App\Services\ForumCounters;
@@ -40,6 +41,8 @@ final class RestoreThread
             if (! $thread->isAuthoredBy($actor)) {
                 $this->log->handle($actor, ModerationActionType::ThreadRestored, $thread);
             }
+
+            ThreadRestored::dispatch($thread);
         });
     }
 }

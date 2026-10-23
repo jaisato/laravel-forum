@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+use App\Actions\Forum\DeleteThread;
+use App\Actions\Forum\RestoreThread;
+use App\Actions\Forum\UpdatePost;
 use App\Actions\Forum\UpdateThread;
 use App\Actions\Moderation\HidePost;
 use App\Actions\Moderation\MoveThread;
@@ -131,4 +134,45 @@ it('sends category and tag filters to a real search engine', function () {
 
     expect($this->engine->lastSearch->wheres)->toContain(['field' => 'category_id', 'operator' => '=', 'value' => 7])
         ->and($this->engine->lastSearch->whereIns)->toBe(['tag_ids' => [9]]);
+});
+
+it('takes a deleted thread and all of its posts out of the index', function () {
+    $thread = forumThread();
+    $reply = forumReply($thread);
+    $this->engine->calls = [];
+
+    app(DeleteThread::class)->handle($thread, User::factory()->moderator()->create());
+
+    expect($this->engine->callsFor('delete', Thread::class))->toContain(['delete', Thread::class, $thread->id])
+        ->and($this->engine->callsFor('delete', Post::class))->toContain(['delete', Post::class, $reply->id])
+        ->and($this->engine->callsFor('delete', Post::class))->toContain(['delete', Post::class, $thread->first_post_id]);
+});
+
+it('puts a restored thread and its posts back in the index', function () {
+    $thread = forumThread();
+    $reply = forumReply($thread);
+    $moderator = User::factory()->moderator()->create();
+    app(DeleteThread::class)->handle($thread, $moderator);
+    $this->engine->calls = [];
+
+    app(RestoreThread::class)->handle($thread, $moderator);
+
+    expect($this->engine->callsFor('update', Thread::class))->toContain(['update', Thread::class, $thread->id])
+        ->and($this->engine->callsFor('update', Post::class))->toContain(['update', Post::class, $reply->id]);
+});
+
+it('reindexes the thread when its opening post is edited', function () {
+    $thread = forumThread(body: 'Uso Redis para las colas.');
+    $reply = forumReply($thread);
+    $this->engine->calls = [];
+
+    // The thread document carries the opening post as its body.
+    app(UpdatePost::class)->handle($thread->firstPost, $thread->author, 'Uso RabbitMQ para las colas.');
+
+    expect($this->engine->callsFor('update', Thread::class))->toContain(['update', Thread::class, $thread->id]);
+
+    $this->engine->calls = [];
+    app(UpdatePost::class)->handle($reply, $reply->author, 'Una respuesta corregida.');
+
+    expect($this->engine->callsFor('update', Thread::class))->toBe([]);
 });
