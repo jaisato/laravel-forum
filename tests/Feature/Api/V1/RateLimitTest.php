@@ -53,3 +53,32 @@ it('lets members make 120 requests a minute, counted per member', function () {
         ->getJson('/api/v1/me')
         ->assertOk();
 });
+
+it('counts the public reads too, as a guest or as the member of the token', function () {
+    $this->getJson('/api/v1/categories')
+        ->assertOk()
+        ->assertHeader('X-RateLimit-Limit', '60')
+        ->assertHeader('X-RateLimit-Remaining', '59');
+
+    $this->withToken(apiToken(User::factory()->create()))
+        ->getJson('/api/v1/categories')
+        ->assertOk()
+        ->assertHeader('X-RateLimit-Limit', '120')
+        ->assertHeader('X-RateLimit-Remaining', '119');
+});
+
+it('answers the forum limits with JSON, whatever the client accepts', function () {
+    $thread = forumThread();
+    $token = apiToken(User::factory()->create());
+
+    foreach (range(1, 6) as $reply) {
+        $this->withToken($token)
+            ->post("/api/v1/threads/{$thread->id}/posts", ['body' => "Respuesta número {$reply}."])
+            ->assertCreated();
+    }
+
+    $this->withToken($token)
+        ->post("/api/v1/threads/{$thread->id}/posts", ['body' => 'Una de más.'])
+        ->assertTooManyRequests()
+        ->assertJsonPath('message', 'Too many attempts. Please wait a moment.');
+});

@@ -62,7 +62,7 @@ final class PostResource extends JsonResource
             'edited_at' => $post->edited_at?->toIso8601String(),
             'author' => UserResource::orErased($post->author)?->resolve($request),
             'reply_to' => $this->replyTo($post, $viewer, $request),
-            'reactions' => $this->reactions($post),
+            'reactions' => self::reactionSummary($post),
             'can' => [
                 'update' => $mayEdit,
                 'quote' => $mayQuote,
@@ -103,11 +103,12 @@ final class PostResource extends JsonResource
 
     /**
      * Every reaction type, in a fixed order, with its count and whether the
-     * viewer gave it.
+     * viewer gave it (Post::withReactionSummary()). The API answers its
+     * reaction requests with it.
      *
      * @return list<array{type: string, emoji: string, count: int, reacted: bool}>
      */
-    private function reactions(Post $post): array
+    public static function reactionSummary(Post $post): array
     {
         return array_map(fn (ReactionType $type): array => [
             'type' => $type->value,

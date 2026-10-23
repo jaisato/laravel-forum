@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Http\Requests;
 
 use App\Enums\PostStatus;
+use App\Http\Requests\Concerns\AuthorizesVisibleContent;
 use App\Models\Thread;
+use Illuminate\Auth\Access\Response;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -14,9 +16,11 @@ use Illuminate\Validation\Rule;
  */
 final class StorePostRequest extends FormRequest
 {
-    public function authorize(): bool
+    use AuthorizesVisibleContent;
+
+    public function authorize(): Response
     {
-        return $this->user()?->can('reply', $this->thread()) ?? false;
+        return $this->inspectVisible('reply', $this->thread());
     }
 
     /**

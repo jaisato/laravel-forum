@@ -75,17 +75,7 @@ final class ReactToPost
     public function toggle(Post $post, User $user, ReactionType $type): bool
     {
         return DB::transaction(function () use ($post, $user, $type): bool {
-            // The request was authorised on the copies it loaded: a moderator
-            // may have hidden the post or locked the thread since. Thread
-            // first, then post, as every action; the thread only shared, so
-            // reactions in one thread do not wait for each other.
-            $thread = Thread::withTrashed()->whereKey($post->thread_id)->sharedLock()->firstOrFail();
-            $stored = Post::withTrashed()->whereKey($post->id)->lockForUpdate()->firstOrFail();
-            $stored->setRelation('thread', $thread);
-
-            if (! $stored->mayBeReactedToBy($user->current())) {
-                throw new AuthorizationException(__('This post no longer accepts reactions.'));
-            }
+            $stored = $this->lockForReaction($post, $user);
 
             if ($this->remove($stored, $user, $type)) {
                 return false;
@@ -95,5 +85,45 @@ final class ReactToPost
 
             return true;
         });
+    }
+
+    /**
+     * Gives the reaction unless the member already gave it (the API's PUT).
+     *
+     * @return bool whether the reaction was added
+     */
+    public function give(Post $post, User $user, ReactionType $type): bool
+    {
+        return DB::transaction(fn (): bool => $this->add($this->lockForReaction($post, $user), $user, $type));
+    }
+
+    /**
+     * Takes the reaction back if the member gave it (the API's DELETE).
+     *
+     * @return bool whether a reaction was removed
+     */
+    public function takeBack(Post $post, User $user, ReactionType $type): bool
+    {
+        return DB::transaction(fn (): bool => $this->remove($this->lockForReaction($post, $user), $user, $type));
+    }
+
+    /**
+     * The post as stored now, once the member may still react to it: the
+     * request was authorised on the copies it loaded, and a moderator may
+     * have hidden the post or locked the thread since. Thread first, then
+     * post, as every action; the thread only shared, so reactions in one
+     * thread do not wait for each other.
+     */
+    private function lockForReaction(Post $post, User $user): Post
+    {
+        $thread = Thread::withTrashed()->whereKey($post->thread_id)->sharedLock()->firstOrFail();
+        $stored = Post::withTrashed()->whereKey($post->id)->lockForUpdate()->firstOrFail();
+        $stored->setRelation('thread', $thread);
+
+        if (! $stored->mayBeReactedToBy($user->current())) {
+            throw new AuthorizationException(__('This post no longer accepts reactions.'));
+        }
+
+        return $stored;
     }
 }

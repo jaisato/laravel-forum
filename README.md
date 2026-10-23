@@ -65,6 +65,13 @@ página describe lo que ya funciona.
   pasos si está activada); `DELETE` revoca el token con el que se llama.
 - `GET`/`PATCH /api/v1/me`: el perfil propio, el único sitio donde la API
   muestra un email (que solo se cambia desde la web).
+- Lectura pública con token opcional (con él, se lee como su miembro):
+  categorías, etiquetas, hilos con los filtros de la web, mensajes de un hilo,
+  perfiles con sus hilos y respuestas, y búsqueda de hilos y mensajes.
+- Participación con el permiso `write`: crear, editar y borrar hilos y
+  mensajes, responder, reacciones y suscripción (`PUT`/`DELETE`
+  idempotentes), solución y reportes, con las mismas reglas que la web. Lo que
+  un miembro no puede ver responde 404, nunca 403.
 - Límites: 120 peticiones por minuto por miembro, 60 por dirección para los
   invitados y cinco intentos por minuto al pedir un token.
 

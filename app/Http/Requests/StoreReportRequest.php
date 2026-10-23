@@ -5,18 +5,22 @@ declare(strict_types=1);
 namespace App\Http\Requests;
 
 use App\Enums\ReportReason;
+use App\Http\Requests\Concerns\AuthorizesVisibleContent;
 use App\Models\Post;
+use Illuminate\Auth\Access\Response;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 final class StoreReportRequest extends FormRequest
 {
-    public function authorize(): bool
+    use AuthorizesVisibleContent;
+
+    public function authorize(): Response
     {
         /** @var Post $post */
         $post = $this->route('post');
 
-        return $this->user()?->can('report', $post) ?? false;
+        return $this->inspectVisible('report', $post);
     }
 
     /**

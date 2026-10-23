@@ -20,12 +20,12 @@ use App\Models\Tag;
 use App\Models\Thread;
 use App\Models\User;
 use App\Queries\ThreadListing;
+use App\Queries\ThreadPosts;
 use App\Services\Ai\SimilarThreadFinder;
 use App\Services\ReadTracker;
 use App\Services\ThreadSubscriptions;
 use App\Services\ViewCounter;
 use App\Support\Markdown\MarkdownRenderer;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -114,7 +114,7 @@ final class ThreadController extends Controller
         /** @var User $editor */
         $editor = $request->user();
 
-        $updateThread->handle($thread, $editor, $request->string('title')->value(), $request->tagIds());
+        $updateThread->handle($thread, $editor, $request->title(), $request->tagIds());
 
         $this->toast('Thread updated.');
 
@@ -146,6 +146,7 @@ final class ThreadController extends Controller
         ReadTracker $reads,
         ViewCounter $views,
         ThreadSubscriptions $subscriptions,
+        ThreadPosts $threadPosts,
         MarkdownRenderer $markdown,
         ForumAi $ai,
     ): Response {
@@ -153,17 +154,8 @@ final class ThreadController extends Controller
 
         /** @var User|null $viewer */
         $viewer = $request->user();
-        $perPage = (int) config('forum.pagination.posts');
-        $focus = $this->focusedPost($request, $thread, $viewer, $reads);
-
-        $posts = $this->visiblePosts($thread, $viewer)
-            ->with(['author', 'replyTo.author'])
-            ->withReactionSummary($viewer)
-            ->orderBy('id')
-            ->paginate($perPage, page: $focus === null ? null : $this->pageOf($focus, $thread, $viewer, $perPage));
-
-        // The policies and the resource read the thread of every post.
-        $posts->getCollection()->each->setRelation('thread', $thread);
+        $focus = $this->focusedPost($request, $thread, $viewer, $reads, $threadPosts);
+        $posts = $threadPosts->paginate($thread, $viewer, $focus === null ? null : $this->pageOf($focus, $thread, $viewer, $threadPosts));
 
         $views->record($thread, $request);
 
@@ -196,29 +188,16 @@ final class ThreadController extends Controller
     }
 
     /**
-     * The posts the viewer may see; staff also see deleted ones, to restore
-     * them.
-     *
-     * @return HasMany<Post, Thread>
-     */
-    private function visiblePosts(Thread $thread, ?User $viewer): HasMany
-    {
-        $posts = $thread->posts()->visibleTo($viewer);
-
-        return $viewer?->canModerate() ? $posts->withTrashed() : $posts;
-    }
-
-    /**
      * The post to open the thread at: the one a link points to (?post=) or
      * the first one the member has not read yet (?unread=1, the last post
      * when everything is read).
      */
-    private function focusedPost(Request $request, Thread $thread, ?User $viewer, ReadTracker $reads): ?Post
+    private function focusedPost(Request $request, Thread $thread, ?User $viewer, ReadTracker $reads, ThreadPosts $threadPosts): ?Post
     {
         $linked = filter_var($request->query('post'), FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
 
         if ($linked !== false) {
-            return $this->visiblePosts($thread, $viewer)->whereKey($linked)->first();
+            return $threadPosts->visible($thread, $viewer)->whereKey($linked)->first();
         }
 
         if ($viewer === null || ! $request->boolean('unread')) {
@@ -226,14 +205,14 @@ final class ThreadController extends Controller
         }
 
         return $reads->firstUnreadPost($thread, $viewer)
-            ?? $this->visiblePosts($thread, $viewer)->latest('id')->first();
+            ?? $threadPosts->visible($thread, $viewer)->latest('id')->first();
     }
 
-    private function pageOf(Post $post, Thread $thread, ?User $viewer, int $perPage): int
+    private function pageOf(Post $post, Thread $thread, ?User $viewer, ThreadPosts $threadPosts): int
     {
-        $position = $this->visiblePosts($thread, $viewer)->where('id', '<=', $post->id)->count();
+        $position = $threadPosts->visible($thread, $viewer)->where('id', '<=', $post->id)->count();
 
-        return max(1, (int) ceil($position / $perPage));
+        return max(1, (int) ceil($position / (int) config('forum.pagination.posts')));
     }
 
     /**

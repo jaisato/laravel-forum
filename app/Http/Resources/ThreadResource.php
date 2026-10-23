@@ -25,6 +25,17 @@ final class ThreadResource extends JsonResource
     private bool $detailed = false;
 
     /**
+     * One thread with its details (detailed()), loading what the resource
+     * reads when it is missing.
+     */
+    public static function single(Thread $thread): self
+    {
+        $thread->loadMissing(['author', 'category', 'tags', 'lastPost.author']);
+
+        return (new self($thread))->detailed();
+    }
+
+    /**
      * Adds what the thread page needs beyond a listing: the solution and
      * whether the thread is deleted (staff only ever see that).
      */

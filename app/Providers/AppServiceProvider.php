@@ -163,7 +163,8 @@ class AppServiceProvider extends ServiceProvider
             RateLimiter::for("forum-{$name}", fn (Request $request): Limit => Limit::perMinutes((int) $limit['minutes'], (int) $limit['attempts'])
                 ->by((string) ($request->user()?->getAuthIdentifier() ?? $request->ip()))
                 ->response(function (Request $request, array $headers): Response {
-                    if ($request->expectsJson()) {
+                    // API clients get JSON whatever they say they accept.
+                    if ($request->is('api/*') || $request->expectsJson()) {
                         return response()->json(['message' => __('Too many attempts. Please wait a moment.')], 429, $headers);
                     }
 

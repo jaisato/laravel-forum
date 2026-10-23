@@ -85,3 +85,14 @@ function forumReply(Thread $thread, ?User $author = null, string $body = 'A repl
 {
     return app(ReplyToThread::class)->handle($thread, $author ?? User::factory()->create(), $body);
 }
+
+/**
+ * An API token for the user, as the plain text withToken() sends; every
+ * ability a member may give unless others are named.
+ *
+ * @param  list<string>  $abilities
+ */
+function apiToken(User $user, array $abilities = User::TOKEN_ABILITIES): string
+{
+    return $user->createToken('tests', $abilities)->plainTextToken;
+}

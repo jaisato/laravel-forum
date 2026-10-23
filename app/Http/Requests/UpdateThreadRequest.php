@@ -4,18 +4,23 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\AuthorizesVisibleContent;
 use App\Models\Thread;
+use Illuminate\Auth\Access\Response;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
  * The title and tags of a thread; its body is the opening post, edited as
- * any other post.
+ * any other post. What is not sent stays as it is (API clients may change
+ * the tags alone).
  */
 final class UpdateThreadRequest extends FormRequest
 {
-    public function authorize(): bool
+    use AuthorizesVisibleContent;
+
+    public function authorize(): Response
     {
-        return $this->user()?->can('update', $this->thread()) ?? false;
+        return $this->inspectVisible('update', $this->thread());
     }
 
     /**
@@ -24,7 +29,7 @@ final class UpdateThreadRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'title' => ThreadRules::title(),
+            'title' => ['sometimes', ...ThreadRules::title()],
             ...ThreadRules::tags(),
         ];
     }
@@ -35,11 +40,22 @@ final class UpdateThreadRequest extends FormRequest
         return $this->route('thread');
     }
 
-    /**
-     * @return list<int>
-     */
-    public function tagIds(): array
+    public function title(): ?string
     {
-        return array_values(array_map(intval(...), (array) $this->validated('tags', [])));
+        $title = $this->validated('title');
+
+        return is_string($title) ? $title : null;
+    }
+
+    /**
+     * The tags, or null to keep them; an empty list removes them all.
+     *
+     * @return list<int>|null
+     */
+    public function tagIds(): ?array
+    {
+        return $this->has('tags')
+            ? array_values(array_map(intval(...), (array) $this->validated('tags', [])))
+            : null;
     }
 }
