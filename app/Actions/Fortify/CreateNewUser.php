@@ -22,7 +22,10 @@ final class CreateNewUser implements CreatesNewUsers
      */
     public function create(array $input): User
     {
+        // As stored (see the User mutators), so the unique rules compare like
+        // for like; Fortify only lowercases the email of its own form.
         $input['username'] = Str::lower(trim((string) ($input['username'] ?? '')));
+        $input['email'] = Str::lower(trim((string) ($input['email'] ?? '')));
 
         Validator::make($input, [
             ...$this->profileRules(),

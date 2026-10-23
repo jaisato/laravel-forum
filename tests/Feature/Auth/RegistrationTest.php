@@ -2,7 +2,9 @@
 
 declare(strict_types=1);
 
+use App\Actions\Fortify\CreateNewUser;
 use App\Models\User;
+use Illuminate\Validation\ValidationException;
 use Laravel\Fortify\Features;
 
 use function Pest\Laravel\assertAuthenticated;
@@ -61,3 +63,27 @@ it('requires a valid, available username', function (mixed $username) {
     'reserved' => ['admin'],
     'reserved prefix of erased accounts' => ['deleted-42'],
 ]);
+
+it('refuses an email already taken with other casing or spaces', function () {
+    User::factory()->create(['email' => 'alice@example.com']);
+
+    post(route('register.store'), registrationData(['email' => '  Alice@Example.com ']))
+        ->assertSessionHasErrors('email');
+
+    assertGuest();
+    expect(User::query()->count())->toBe(1);
+});
+
+it('stores the email trimmed and in lower case', function () {
+    post(route('register.store'), registrationData(['email' => ' New.User@Example.com ']));
+
+    expect(User::sole()->email)->toBe('new.user@example.com');
+});
+
+it('normalises the email itself for callers other than the registration form', function () {
+    // Fortify lowercases the email of the form; other callers (the API) do not.
+    User::factory()->create(['email' => 'alice@example.com']);
+
+    expect(fn () => app(CreateNewUser::class)->create(registrationData(['email' => 'Alice@Example.com'])))
+        ->toThrow(ValidationException::class);
+});
