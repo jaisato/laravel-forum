@@ -19,6 +19,7 @@ use App\Http\Controllers\TagController;
 use App\Http\Controllers\ThreadController;
 use App\Http\Controllers\ThreadSolutionController;
 use App\Http\Controllers\ThreadSubscriptionController;
+use App\Http\Controllers\ThreadSummaryController;
 use App\Http\Controllers\UserProfileController;
 use Illuminate\Support\Facades\Route;
 
@@ -93,6 +94,10 @@ Route::middleware('auth')->group(function () {
 
     Route::post('t/{thread:slug}/subscription', [ThreadSubscriptionController::class, 'store'])->name('threads.subscription.store');
     Route::delete('t/{thread:slug}/subscription', [ThreadSubscriptionController::class, 'destroy'])->name('threads.subscription.destroy');
+
+    Route::post('t/{thread:slug}/summary', [ThreadSummaryController::class, 'store'])
+        ->middleware('throttle:forum-summaries')
+        ->name('threads.summary.store');
 
     Route::post('t/{thread:slug}/solution', [ThreadSolutionController::class, 'store'])->name('threads.solution.store');
     Route::delete('t/{thread:slug}/solution', [ThreadSolutionController::class, 'destroy'])->name('threads.solution.destroy');

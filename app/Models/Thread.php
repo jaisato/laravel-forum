@@ -380,6 +380,31 @@ class Thread extends Model
         return $query->with(['firstPost', 'tags']);
     }
 
+    /**
+     * AI summaries are for public threads with enough replies to sum up
+     * (spec §4.6): everyone reads them.
+     */
+    public function canHaveSummary(): bool
+    {
+        return ! $this->trashed()
+            && $this->status === ThreadStatus::Published
+            && $this->replies_count >= (int) config('forum.ai.summaries.min_replies');
+    }
+
+    /**
+     * Whether the stored summary should be written again: there is none,
+     * enough replies arrived since, or enough time went by.
+     */
+    public function summaryIsStale(): bool
+    {
+        if ($this->ai_summary === null || $this->ai_summary_generated_at === null) {
+            return true;
+        }
+
+        return $this->replies_count - (int) $this->ai_summary_replies_count >= (int) config('forum.ai.summaries.regenerate_after_replies')
+            || $this->ai_summary_generated_at->addHours((int) config('forum.ai.summaries.regenerate_after_hours'))->isPast();
+    }
+
     public function isSolved(): bool
     {
         return $this->solution_post_id !== null;

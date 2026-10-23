@@ -116,6 +116,7 @@ const nothing: ThreadAbilities = {
     move: false,
     mark_solution: false,
     subscribe: false,
+    summarize: false,
 };
 
 function show(
@@ -205,7 +206,11 @@ describe('threads/Show', () => {
 
     it('shows the summary once it arrives', () => {
         const wrapper = show({
-            summary: { html: '<p>Usa Queue::fake().</p>', generated_at: null },
+            summary: {
+                html: '<p>Usa Queue::fake().</p>',
+                generated_at: null,
+                stale: false,
+            },
         });
 
         expect(wrapper.get('[data-test="ai-summary"]').html()).toContain(

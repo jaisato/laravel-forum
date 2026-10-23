@@ -83,6 +83,8 @@ return [
         'reactions' => ['attempts' => 60, 'minutes' => 1],
         'reports' => ['attempts' => 10, 'minutes' => 60],
         'messages' => ['attempts' => 10, 'minutes' => 1],
+        // Asking for an AI summary (each may reach the provider).
+        'summaries' => ['attempts' => 5, 'minutes' => 60],
         'api' => ['authenticated' => 120, 'guest' => 60],
     ],
 

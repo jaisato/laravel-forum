@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\V1\ThreadController;
 use App\Http\Controllers\Api\V1\ThreadPostController;
 use App\Http\Controllers\Api\V1\ThreadSolutionController;
 use App\Http\Controllers\Api\V1\ThreadSubscriptionController;
+use App\Http\Controllers\Api\V1\ThreadSummaryController;
 use App\Http\Controllers\Api\V1\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -58,6 +59,7 @@ Route::prefix('v1')->name('api.v1.')->where([
         // 404 to everyone else.
         Route::get('threads/{thread:id}', [ThreadController::class, 'show'])->withTrashed()->name('threads.show');
         Route::get('threads/{thread:id}/posts', [ThreadPostController::class, 'index'])->withTrashed()->name('threads.posts.index');
+        Route::get('threads/{thread:id}/summary', [ThreadSummaryController::class, 'show'])->name('threads.summary.show');
         Route::get('posts/{post}', [PostController::class, 'show'])->name('posts.show');
 
         Route::get('users/{user:username}', [UserController::class, 'show'])->name('users.show');
@@ -148,6 +150,10 @@ Route::prefix('v1')->name('api.v1.')->where([
             Route::post('posts/{post}/reports', [PostReportController::class, 'store'])
                 ->middleware('throttle:forum-reports')
                 ->name('posts.reports.store');
+
+            Route::post('threads/{thread:id}/summary', [ThreadSummaryController::class, 'store'])
+                ->middleware('throttle:forum-summaries')
+                ->name('threads.summary.store');
 
             Route::put('threads/{thread:id}/solution', [ThreadSolutionController::class, 'update'])->name('threads.solution.update');
             Route::delete('threads/{thread:id}/solution', [ThreadSolutionController::class, 'destroy'])->name('threads.solution.destroy');

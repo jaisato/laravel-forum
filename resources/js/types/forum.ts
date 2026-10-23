@@ -157,11 +157,15 @@ export type ThreadAbilities = {
     move: boolean;
     mark_solution: boolean;
     subscribe: boolean;
+    /** "Summarize the thread", while AI summaries are on. */
+    summarize: boolean;
 };
 
 export type AiSummary = {
     html: string;
     generated_at: string | null;
+    /** Enough has happened since for it to be written again. */
+    stale: boolean;
 };
 
 /**

@@ -166,7 +166,7 @@ final class ThreadController extends Controller
         }
 
         $thread->loadMissing(['author', 'category', 'tags', 'lastPost.author', 'firstPost']);
-        $can = $this->abilities($thread, $viewer);
+        $can = $this->abilities($thread, $viewer, $ai->enabled('summaries'));
 
         return Inertia::render('threads/Show', [
             'thread' => (new ThreadResource($thread))->detailed()->resolve($request),
@@ -220,7 +220,7 @@ final class ThreadController extends Controller
      *
      * @return array<string, bool>
      */
-    private function abilities(Thread $thread, ?User $viewer): array
+    private function abilities(Thread $thread, ?User $viewer, bool $summaries): array
     {
         $may = fn (string $ability): bool => $viewer !== null && Gate::forUser($viewer)->allows($ability, $thread);
         $deleted = $thread->trashed();
@@ -235,6 +235,8 @@ final class ThreadController extends Controller
             'move' => ! $deleted && $may('move'),
             'mark_solution' => ! $deleted && $may('markSolution'),
             'subscribe' => ! $deleted && $may('subscribe'),
+            // "Summarize the thread", while AI summaries are on.
+            'summarize' => $summaries && $may('summarize'),
         ];
     }
 
@@ -285,7 +287,10 @@ final class ThreadController extends Controller
     }
 
     /**
-     * @return array{html: string, generated_at: string|null}|null
+     * The stored AI summary, rendered with the posts' sanitising Markdown
+     * (the model's output is not trusted), and whether it is stale.
+     *
+     * @return array{html: string, generated_at: string|null, stale: bool}|null
      */
     private function summary(Thread $thread, MarkdownRenderer $markdown, ForumAi $ai): ?array
     {
@@ -296,6 +301,7 @@ final class ThreadController extends Controller
         return [
             'html' => $markdown->render($thread->ai_summary),
             'generated_at' => $thread->ai_summary_generated_at?->toIso8601String(),
+            'stale' => $thread->summaryIsStale(),
         ];
     }
 }

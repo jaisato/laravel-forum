@@ -242,6 +242,8 @@ it('tells the viewer what they may do', function () {
             'move' => false,
             'mark_solution' => false,
             'subscribe' => true,
+            // AI summaries are off in the tests.
+            'summarize' => false,
         ])
         ->missing('moveTargets'));
 

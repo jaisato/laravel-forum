@@ -92,8 +92,6 @@ class ThreadPolicy
      */
     public function summarize(User $user, Thread $thread): bool
     {
-        return $user->canParticipate()
-            && $thread->isVisibleTo($user)
-            && $thread->replies_count >= (int) config('forum.ai.summaries.min_replies');
+        return $user->canParticipate() && $thread->canHaveSummary();
     }
 }

@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { Head, Link, usePage } from '@inertiajs/vue3';
-import { Eye, MessageSquare, Pencil, Sparkles } from '@lucide/vue';
+import { Eye, MessageSquare, Pencil } from '@lucide/vue';
 import { computed, onMounted, ref, watch } from 'vue';
+import AiSummaryCard from '@/components/forum/AiSummaryCard.vue';
 import CategoryBadge from '@/components/forum/CategoryBadge.vue';
 import EditThreadDialog from '@/components/forum/EditThreadDialog.vue';
 import EmptyState from '@/components/forum/EmptyState.vue';
-import MarkdownContent from '@/components/forum/MarkdownContent.vue';
 import Pagination from '@/components/forum/Pagination.vue';
 import PostCard from '@/components/forum/PostCard.vue';
 import RelativeTime from '@/components/forum/RelativeTime.vue';
@@ -217,24 +217,14 @@ watch(() => props.focus, scrollToFocus);
         />
     </header>
 
-    <section
-        v-if="summary"
-        data-test="ai-summary"
-        aria-labelledby="summary-heading"
-        class="rounded-xl border bg-muted/40 px-4 py-3"
-    >
-        <h2
-            id="summary-heading"
-            class="flex items-center gap-2 text-sm font-semibold"
-        >
-            <Sparkles class="size-4" aria-hidden="true" />
-            {{ $t('Summary of the thread') }}
-        </h2>
-        <MarkdownContent :html="summary.html" class="mt-2 text-sm" />
-        <p class="mt-2 text-xs text-muted-foreground">
-            {{ $t('Written by an AI: it can make mistakes.') }}
-        </p>
-    </section>
+    <!-- Deferred: undefined until it arrives, so the button never flashes
+         before a summary that exists. -->
+    <AiSummaryCard
+        v-if="summary !== undefined"
+        :thread-slug="thread.slug"
+        :summary="summary"
+        :can-summarize="can.summarize"
+    />
 
     <section :aria-label="$t('Posts')" class="flex flex-col gap-4">
         <PostCard
