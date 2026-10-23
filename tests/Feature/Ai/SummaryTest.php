@@ -101,6 +101,24 @@ describe('writing it', function () {
         ThreadSummarizer::assertPrompted(fn (AgentPrompt $prompt): bool => substr_count($prompt->prompt, '</thread>') === 1
             && str_contains($prompt->prompt, '&lt;/thread&gt;'));
     });
+
+    it('asks nothing if, when its turn comes, the summary is no longer wanted', function () {
+        $thread = threadToSummarize(5);
+        $other = threadToSummarize(5);
+        enableAiSummaries();
+        ThreadSummarizer::fake()->preventStrayPrompts();
+
+        // Another request wrote it meanwhile.
+        summarized($thread, 5);
+        app()->call([new GenerateThreadSummary($thread), 'handle']);
+
+        // Summaries were switched off meanwhile.
+        config(['forum.ai.summaries.enabled' => false]);
+        app()->call([new GenerateThreadSummary($other), 'handle']);
+
+        ThreadSummarizer::assertNeverPrompted();
+        expect($other->fresh()->ai_summary)->toBeNull();
+    });
 });
 
 describe('when it applies', function () {

@@ -17,7 +17,7 @@ use Illuminate\Database\Eloquent\Collection;
  * again; without it, unchanged content is skipped by its hash).
  */
 #[Description('Queue the embeddings of every thread for the similar threads search')]
-final class EmbedThreads extends Command
+final class EmbedThreadsCommand extends Command
 {
     protected $signature = 'forum:embed-threads {--force : Embed every thread again, even if its content did not change}';
 

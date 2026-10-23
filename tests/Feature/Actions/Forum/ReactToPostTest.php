@@ -62,8 +62,8 @@ it('toggles a reaction on and off', function () {
     $post = Post::factory()->create();
     $member = User::factory()->create();
 
-    expect(reactions()->toggle($post, $member, ReactionType::Celebrate))->toBeTrue()
-        ->and(reactions()->toggle($post, $member, ReactionType::Celebrate))->toBeFalse()
+    expect(reactions()->handle($post, $member, ReactionType::Celebrate))->toBeTrue()
+        ->and(reactions()->handle($post, $member, ReactionType::Celebrate))->toBeFalse()
         ->and($post->reactions()->count())->toBe(0)
         ->and($post->author->fresh()->reputation)->toBe(0);
 });
@@ -88,7 +88,7 @@ it('refuses the reaction once the thread was locked after the request was author
     $authorised = Post::query()->findOrFail($reply->id);
     app(LockThread::class)->handle($reply->thread, User::factory()->moderator()->create());
 
-    expect(fn () => app(ReactToPost::class)->toggle($authorised, User::factory()->create(), ReactionType::Like))
+    expect(fn () => app(ReactToPost::class)->handle($authorised, User::factory()->create(), ReactionType::Like))
         ->toThrow(AuthorizationException::class);
     expect(Reaction::query()->count())->toBe(0);
 });

@@ -18,7 +18,7 @@ use Illuminate\Support\Str;
  * fresh installation is made. The change is logged as done by the system.
  */
 #[Description('Give an existing user the administrator role')]
-final class MakeAdmin extends Command
+final class MakeAdminCommand extends Command
 {
     protected $signature = 'forum:make-admin {email : Email address of an existing account}';
 

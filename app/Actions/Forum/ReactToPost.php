@@ -70,9 +70,12 @@ final class ReactToPost
     }
 
     /**
+     * Reacts the way the forum's buttons do: the reaction is given, or taken
+     * back if the member had already given it.
+     *
      * @return bool whether the reaction is active afterwards
      */
-    public function toggle(Post $post, User $user, ReactionType $type): bool
+    public function handle(Post $post, User $user, ReactionType $type): bool
     {
         return DB::transaction(function () use ($post, $user, $type): bool {
             $stored = $this->lockForReaction($post, $user);

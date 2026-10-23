@@ -20,7 +20,7 @@ use Illuminate\Support\Facades\DB;
  * reports what it fixed. Portable SQL: PostgreSQL and SQLite 3.39+.
  */
 #[Description('Recompute the denormalised forum counters and reputation')]
-final class RecountForum extends Command
+final class RecountForumCommand extends Command
 {
     protected $signature = 'forum:recount';
 

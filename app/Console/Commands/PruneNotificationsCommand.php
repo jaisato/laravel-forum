@@ -12,7 +12,7 @@ use Illuminate\Notifications\DatabaseNotification;
  * Deletes read notifications past a certain age; unread ones are kept.
  */
 #[Description('Delete old read notifications')]
-final class PruneNotifications extends Command
+final class PruneNotificationsCommand extends Command
 {
     protected $signature = 'forum:prune-notifications {--days=90 : Age in days after which read notifications are deleted}';
 

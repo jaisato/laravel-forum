@@ -75,7 +75,7 @@ it('refuses members banned after their request was authorised', function (Closur
     'react' => [function (User $member): Closure {
         $reply = forumReply(forumThread());
 
-        return fn (User $as) => app(ReactToPost::class)->toggle($reply, $as, ReactionType::Like);
+        return fn (User $as) => app(ReactToPost::class)->handle($reply, $as, ReactionType::Like);
     }],
     'report' => [function (User $member): Closure {
         $reply = forumReply(forumThread());

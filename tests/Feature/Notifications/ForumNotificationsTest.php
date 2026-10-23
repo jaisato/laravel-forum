@@ -173,6 +173,16 @@ it('tells authors when their post is moderated', function () {
     Notification::assertSentTo($reply->author, PostModerated::class, fn (PostModerated $notification): bool => $notification->status === PostStatus::Published);
 });
 
+it('does not tell moderators about what they do to their own posts', function () {
+    $moderator = User::factory()->moderator()->create();
+    $reply = forumReply(forumThread(), $moderator);
+    Notification::fake();
+
+    app(HidePost::class)->handle($reply, $moderator, 'Duplicado');
+
+    Notification::assertNotSentTo($moderator, PostModerated::class);
+});
+
 it('tells the other active participants about a private message', function () {
     Notification::fake();
     [$alice, $bob, $carol] = User::factory()->count(3)->create();
