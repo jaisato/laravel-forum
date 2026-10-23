@@ -260,6 +260,31 @@ class Thread extends Model
             && ! $this->category->is_locked;
     }
 
+    /**
+     * Whether the user may delete the thread (ThreadPolicy::delete, and
+     * DeleteThread again under lock): staff always may; its author only
+     * while they may change it and nobody has replied.
+     */
+    public function mayBeDeletedBy(User $user): bool
+    {
+        return $user->canModerate()
+            || ($this->authorMayChange($user) && $this->replies_count === 0);
+    }
+
+    /**
+     * Whether its author may still edit the thread, choose its solution or
+     * delete it: they may take part and the thread is not hidden, deleted
+     * or locked.
+     */
+    public function authorMayChange(User $user): bool
+    {
+        return $user->canParticipate()
+            && $this->isAuthoredBy($user)
+            && $this->status !== ThreadStatus::Hidden
+            && ! $this->trashed()
+            && ! $this->is_locked;
+    }
+
     public function isAuthoredBy(User $user): bool
     {
         return (int) $this->user_id === $user->id;

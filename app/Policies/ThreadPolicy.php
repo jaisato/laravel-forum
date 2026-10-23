@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Policies;
 
-use App\Enums\ThreadStatus;
 use App\Models\Category;
 use App\Models\Thread;
 use App\Models\User;
@@ -33,7 +32,7 @@ class ThreadPolicy
 
     public function update(User $user, Thread $thread): bool
     {
-        return $user->canModerate() || $this->authorMayChange($user, $thread);
+        return $user->canModerate() || $thread->authorMayChange($user);
     }
 
     /**
@@ -41,8 +40,7 @@ class ThreadPolicy
      */
     public function delete(User $user, Thread $thread): bool
     {
-        return $user->canModerate()
-            || ($this->authorMayChange($user, $thread) && $thread->replies_count === 0);
+        return $thread->mayBeDeletedBy($user);
     }
 
     public function restore(User $user, Thread $thread): bool
@@ -72,7 +70,7 @@ class ThreadPolicy
 
     public function markSolution(User $user, Thread $thread): bool
     {
-        return $user->canModerate() || $this->authorMayChange($user, $thread);
+        return $user->canModerate() || $thread->authorMayChange($user);
     }
 
     public function subscribe(User $user, Thread $thread): bool
@@ -89,14 +87,5 @@ class ThreadPolicy
         return $user->canParticipate()
             && $thread->isVisibleTo($user)
             && $thread->replies_count >= (int) config('forum.ai.summaries.min_replies');
-    }
-
-    private function authorMayChange(User $user, Thread $thread): bool
-    {
-        return $user->canParticipate()
-            && $thread->isAuthoredBy($user)
-            && $thread->status !== ThreadStatus::Hidden
-            && ! $thread->trashed()
-            && ! $thread->is_locked;
     }
 }

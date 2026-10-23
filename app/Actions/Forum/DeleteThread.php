@@ -10,6 +10,7 @@ use App\Events\ThreadDeleted;
 use App\Models\Thread;
 use App\Models\User;
 use App\Services\ForumCounters;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -30,6 +31,12 @@ final class DeleteThread
 
             if ($thread === null) {
                 return;
+            }
+
+            // The request was authorised on the copy it loaded: somebody may
+            // have replied since, and authors may only delete unanswered threads.
+            if (! $thread->mayBeDeletedBy($actor)) {
+                throw new AuthorizationException(__('This thread can no longer be deleted.'));
             }
 
             if ($this->counters->countsThread($thread)) {
