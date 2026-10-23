@@ -12,7 +12,7 @@
             "id": "GHSA-vfj7-8cjw-p6xm",
             "package": "braces",
             "added": "2026-10-03",
-            "reason": "Sin versión parcheada: afecta a braces <= 3.0.3 y 3.0.3 es la última publicada (2024). Entra solo por tailwindcss 3 (chokidar y micromatch) y la única salida que ofrece npm es tailwindcss 4, un cambio de versión mayor que no se va a hacer por esto. En este proyecto braces solo expande los globs de `content` de tailwind.config.js, escritos por nosotros y evaluados en el build: no le llega entrada de usuario. Riesgo asumido."
+            "reason": "Sin versión parcheada: afecta a braces <= 3.0.3 y 3.0.3 es la última publicada (2024). Desde la migración a Tailwind 4 entra solo por las herramientas de lint (@vue/eslint-config-typescript → fast-glob → micromatch), que expanden los globs de la configuración de ESLint, escritos por nosotros, en desarrollo y en CI: no forma parte del build ni le llega entrada de usuario. Riesgo asumido."
         }
     ]
 }

@@ -72,12 +72,12 @@
         "test": [
             "Composer\\Config::disableProcessTimeout",
             "@php artisan config:clear --ansi",
-            "pest --parallel"
+            "pest --parallel --fail-on-warning"
         ],
         "test:coverage": [
             "Composer\\Config::disableProcessTimeout",
             "@php artisan config:clear --ansi",
-            "pest --parallel --coverage --min=95"
+            "pest --parallel --fail-on-warning --coverage --min=95"
         ],
         "ci": [
             "@lint:check",
