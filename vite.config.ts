@@ -56,6 +56,12 @@ export default defineConfig(({ isSsrBuild }) => ({
         noExternal: true,
     },
     server: {
+        // compose.yaml runs Vite on 0.0.0.0 inside its container: the browser
+        // reaches it through the published port on VITE_HMR_HOST (localhost),
+        // the address laravel-vite-plugin writes to public/hot.
+        hmr: process.env.VITE_HMR_HOST
+            ? { host: process.env.VITE_HMR_HOST }
+            : undefined,
         watch: {
             ignored: ['**/vendor/**', '**/storage/**', '**/.superpowers/**'],
         },

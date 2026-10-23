@@ -51,7 +51,7 @@ ENV PHP_FPM_PM_MAX_CHILDREN=20 \
     PHP_FPM_PM_MAX_SPARE_SERVERS=6 \
     PHP_FPM_PM_MAX_REQUESTS=1000
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --start-interval=2s --retries=3 \
     CMD ["php-fpm-healthcheck"]
 
 # ----------------------------------------------------------------------------
@@ -185,7 +185,7 @@ USER nginx
 
 EXPOSE 8080
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --start-interval=2s --retries=3 \
     CMD ["wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/up"]
 
 # ----------------------------------------------------------------------------
@@ -203,7 +203,7 @@ USER node
 
 EXPOSE 13714
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --start-interval=2s --retries=3 \
     CMD ["wget", "-q", "-O", "/dev/null", "http://127.0.0.1:13714/health"]
 
 CMD ["node", "bootstrap/ssr/ssr.js"]

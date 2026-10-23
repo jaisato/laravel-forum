@@ -68,7 +68,9 @@ return [
             'driver' => 'redis',
             'connection' => env('REDIS_QUEUE_CONNECTION', 'default'),
             'queue' => env('REDIS_QUEUE', 'default'),
-            'retry_after' => (int) env('REDIS_QUEUE_RETRY_AFTER', 90),
+            // Longer than the slowest worker's timeout (Horizon's ai
+            // supervisor: 180 s), or a running job would be handed out again.
+            'retry_after' => (int) env('REDIS_QUEUE_RETRY_AFTER', 240),
             'block_for' => null,
             'after_commit' => false,
         ],
