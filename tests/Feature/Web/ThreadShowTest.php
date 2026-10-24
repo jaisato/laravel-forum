@@ -6,6 +6,7 @@ use App\Actions\Forum\DeletePost;
 use App\Actions\Forum\DeleteThread;
 use App\Actions\Forum\ReplyToThread;
 use App\Actions\Moderation\HidePost;
+use App\Models\Post;
 use App\Models\Thread;
 use App\Models\ThreadRead;
 use App\Models\User;
@@ -305,6 +306,22 @@ it('answers 404 instead of revealing hidden threads', function (string $viewer) 
         ->get(route('threads.show', $thread))
         ->assertNotFound();
 })->with(['guest', 'member', 'author']);
+
+it('answers 404, not 403, to what a member tries on a thread or a post they may not see', function (Closure $send) {
+    $thread = forumThread();
+    $reply = forumReply($thread);
+    app(HidePost::class)->handle($thread->firstPost, User::factory()->moderator()->create());
+
+    $this->actingAs(User::factory()->create());
+
+    $send($thread, $reply)->assertNotFound();
+})->with([
+    'deleting the thread' => [fn (Thread $thread) => test()->delete(route('threads.destroy', $thread))],
+    'deleting a reply' => [fn (Thread $thread, Post $reply) => test()->delete(route('posts.destroy', $reply))],
+    'subscribing' => [fn (Thread $thread) => test()->post(route('threads.subscription.store', $thread))],
+    'unsubscribing' => [fn (Thread $thread) => test()->delete(route('threads.subscription.destroy', $thread))],
+    'unmarking its solution' => [fn (Thread $thread) => test()->delete(route('threads.solution.destroy', $thread))],
+]);
 
 it('shows hidden threads to staff and pending threads to their author', function () {
     $hidden = Thread::factory()->hidden()->create();

@@ -151,6 +151,17 @@ describe('the tabs', function () {
             ->has('threads'));
     });
 
+    it('gives search engines the replies tab as a page of its own', function (string $query, string $canonical) {
+        User::factory()->create(['username' => 'ana']);
+
+        $this->get('/u/ana'.$query)->assertInertia(fn (Assert $page) => $page->where('canonical', url($canonical)));
+    })->with([
+        'the threads tab' => ['', '/u/ana'],
+        'the replies tab' => ['?tab=posts', '/u/ana?tab=posts'],
+        'a later page of replies' => ['?tab=posts&page=2&sort=x', '/u/ana?tab=posts&page=2'],
+        'a tab it does not know' => ['?tab=bogus', '/u/ana'],
+    ]);
+
     it('keeps the tab in the page links', function () {
         config(['forum.pagination.posts' => 1]);
         $ana = User::factory()->create(['username' => 'ana']);

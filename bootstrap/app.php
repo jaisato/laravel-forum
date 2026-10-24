@@ -91,12 +91,20 @@ return Application::configure(basePath: dirname(__DIR__))
                 return $response;
             }
 
-            // Maintenance mode answers before the web middleware has shared
-            // anything: the page still needs the layout's props.
-            Inertia::share(app(HandleInertiaRequests::class)->share($request));
+            // The page reads the layout's props (the member, their unread
+            // notifications…) from the database. When that fails too, as in a
+            // database outage, Laravel's plain error page stands in rather
+            // than an empty answer; the original error is already reported.
+            try {
+                // Maintenance mode answers before the web middleware has
+                // shared anything: the page still needs the layout's props.
+                Inertia::share(app(HandleInertiaRequests::class)->share($request));
 
-            return Inertia::render('Error', ['status' => $status])
-                ->toResponse($request)
-                ->setStatusCode($status);
+                return Inertia::render('Error', ['status' => $status])
+                    ->toResponse($request)
+                    ->setStatusCode($status);
+            } catch (Throwable) {
+                return $response;
+            }
         });
     })->create();

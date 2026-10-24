@@ -83,3 +83,16 @@ it('is rebuilt every hour', function () {
 
     expect(sitemap($this))->toHaveKey(url("/t/{$later->slug}"));
 });
+
+it('stops listing a thread the moment it leaves public view, built list or not', function (Closure $retract) {
+    $thread = forumThread();
+    expect(sitemap($this))->toHaveKey(url("/t/{$thread->slug}"));
+
+    $retract($thread);
+
+    expect(sitemap($this))->not->toHaveKey(url("/t/{$thread->slug}"));
+})->with([
+    'hidden by a moderator' => [fn ($thread) => app(HidePost::class)->handle($thread->firstPost, User::factory()->moderator()->create())],
+    'held by the AI' => [fn ($thread) => app(HidePost::class)->handle($thread->firstPost, null)],
+    'deleted by its author' => [fn ($thread) => app(DeleteThread::class)->handle($thread, $thread->author)],
+]);
