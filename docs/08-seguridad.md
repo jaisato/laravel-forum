@@ -62,7 +62,9 @@ roles y lo que puede hacer cada uno están en
 
 - **Lo que no se puede ver no existe.** Un hilo o un mensaje oculto o
   borrado, o una conversación ajena, responde 404 y no 403: no se confirma
-  que exista.
+  que exista. Las rutas de moderación de la web (`/moderation/…`) rechazan a
+  quien no es *staff* antes de buscar nada: el mismo 403 para cualquier hilo
+  o mensaje, exista o no, como un *token* sin la *ability* en la API.
 - **Baneos.** Un miembro baneado sigue leyendo, pero las *policies* le niegan
   publicar, editar, reaccionar, reportar y escribir mensajes privados (403), y
   su perfil público se queda como está mientras dure (puede vaciarlo, y cambiar

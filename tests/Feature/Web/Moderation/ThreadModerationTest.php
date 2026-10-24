@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Actions\Forum\DeleteThread;
+use App\Actions\Moderation\HidePost;
 use App\Models\Category;
 use App\Models\User;
 
@@ -66,6 +67,22 @@ it('is for staff only', function (string $route) {
         ->post(route("moderation.threads.{$route}", $thread), ['category_id' => Category::factory()->create()->id])
         ->assertForbidden();
 })->with(['pin', 'unpin', 'lock', 'unlock', 'move']);
+
+it('turns members away before looking the thread up, whether it exists or not', function (string $route) {
+    $member = User::factory()->create();
+    $hidden = forumThread();
+    app(HidePost::class)->handle($hidden->firstPost, User::factory()->moderator()->create());
+    $deleted = forumThread();
+    app(DeleteThread::class)->handle($deleted, $deleted->author);
+
+    // Hidden, deleted or never there: the same answer, so a member cannot
+    // learn which titles exist (the slug comes from the title).
+    foreach ([$hidden->slug, $deleted->slug, 'a-thread-nobody-wrote'] as $slug) {
+        $this->actingAs($member)
+            ->post("/moderation/threads/{$slug}/{$route}", ['category_id' => Category::factory()->create()->id])
+            ->assertForbidden();
+    }
+})->with(['pin', 'unpin', 'lock', 'unlock', 'move', 'restore']);
 
 it('sends guests to the login page', function () {
     $this->post(route('moderation.threads.pin', forumThread()))->assertRedirect(route('login'));

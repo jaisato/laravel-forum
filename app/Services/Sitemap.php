@@ -17,9 +17,16 @@ final class Sitemap
 {
     private const string CACHE_KEY = 'forum.sitemap';
 
+    /**
+     * Raised by forget(): a sitemap still being built from the threads as
+     * they were before is stored under the previous version, which nobody
+     * reads any more.
+     */
+    private const string VERSION_KEY = 'forum.sitemap.version';
+
     public function xml(): string
     {
-        return Cache::remember(self::CACHE_KEY, (int) config('forum.sitemap.cache_seconds'), fn (): string => view('sitemap', [
+        return Cache::remember($this->key(), (int) config('forum.sitemap.cache_seconds'), fn (): string => view('sitemap', [
             'categories' => Category::query()->ordered()->get(['slug']),
             'threads' => Thread::query()
                 ->visibleTo(null)
@@ -35,6 +42,14 @@ final class Sitemap
      */
     public function forget(): void
     {
-        Cache::forget(self::CACHE_KEY);
+        // The copy cached now goes at once, rather than waiting out its hour
+        // under a key nobody reads any more.
+        Cache::forget($this->key());
+        Cache::increment(self::VERSION_KEY);
+    }
+
+    private function key(): string
+    {
+        return self::CACHE_KEY.':'.(int) Cache::get(self::VERSION_KEY, 0);
     }
 }
