@@ -174,7 +174,7 @@ services:
   # Local models for the AI features: `docker compose --profile ai up -d`,
   # then `docker compose exec ollama ollama pull <model>` (docs/06-ia.md).
   ollama:
-    image: ollama/ollama:0.40.6
+    image: ollama/ollama:0.40.7
     profiles: [ai]
     volumes:
       - ollama:/root/.ollama
