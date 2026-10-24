@@ -66,6 +66,26 @@ describe('reading', function () {
             ->assertNotFound();
     });
 
+    it('offers only what the token may do', function () {
+        $thread = forumThread();
+        $member = User::factory()->create();
+        $own = forumReply($thread, $member);
+        $theirs = forumReply($thread);
+        $moderator = User::factory()->moderator()->create();
+        $can = fn (string $token, Post $post): array => $this->withToken($token)
+            ->getJson("/api/v1/posts/{$post->id}")
+            ->assertOk()
+            ->json('data.can');
+
+        // A read-only token may do nothing with a post, whatever its member may.
+        expect($can(apiToken($member, ['read']), $own))->toMatchArray(['update' => false, 'delete' => false])
+            ->and($can(apiToken($member, ['read']), $theirs))->toMatchArray(['react' => false, 'report' => false, 'quote' => false])
+            ->and($can(apiToken($member, ['read', 'write']), $own))->toMatchArray(['update' => true, 'delete' => true])
+            ->and($can(apiToken($member, ['read', 'write']), $theirs))->toMatchArray(['react' => true, 'report' => true, 'quote' => true])
+            ->and($can(apiToken($moderator, ['read', 'write']), $theirs))->toMatchArray(['hide' => false])
+            ->and($can(apiToken($moderator, ['read', 'write', 'moderate']), $theirs))->toMatchArray(['hide' => true]);
+    });
+
     it('shows a post, unless the viewer may not see it', function () {
         $moderator = User::factory()->moderator()->create();
         $thread = forumThread();
@@ -103,6 +123,18 @@ describe('replying', function () {
             ->assertForbidden();
 
         expect($thread->posts()->count())->toBe(1);
+    });
+
+    it('turns a token without the write ability away before looking the post up', function () {
+        $hidden = forumReply(forumThread());
+        app(HidePost::class)->handle($hidden, User::factory()->moderator()->create());
+        $token = apiToken(User::factory()->create(), ['read']);
+
+        // Hidden or missing, the same answer: nothing tells them apart.
+        foreach ([$hidden->id, 999999] as $id) {
+            $this->withToken($token)->patchJson("/api/v1/posts/{$id}", ['body' => 'Otra versión del mensaje.'])
+                ->assertForbidden();
+        }
     });
 
     it('replies, quoting a post', function () {

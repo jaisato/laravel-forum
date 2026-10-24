@@ -56,7 +56,8 @@ final class MarkSolution
                 }
             }
 
-            $thread->forceFill(['solution_post_id' => $post->id])->save();
+            // The author's choice also replaces an answer the AI holds (HidePost).
+            $thread->forceFill(['solution_post_id' => $post->id, 'held_solution_post_id' => null])->save();
             $this->reputation->solution($thread, $post, 1);
 
             SolutionMarked::dispatch($thread, $post, $actor);

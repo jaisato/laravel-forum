@@ -59,7 +59,7 @@ final class ThreadController extends Controller
 
         $views->record($thread, $request);
 
-        return ThreadResource::single($thread)->additional(['meta' => [
+        return ThreadResource::single($thread, $request->user())->additional(['meta' => [
             'subscribed' => $viewer !== null && $subscriptions->isSubscribed($thread, $viewer),
         ]]);
     }
@@ -79,7 +79,7 @@ final class ThreadController extends Controller
             $request->tagIds(),
         );
 
-        return ThreadResource::single($thread)->response()->setStatusCode(201);
+        return ThreadResource::single($thread, $request->user())->response()->setStatusCode(201);
     }
 
     /**
@@ -90,7 +90,7 @@ final class ThreadController extends Controller
         /** @var User $editor */
         $editor = $request->user();
 
-        return ThreadResource::single($updateThread->handle($thread, $editor, $request->title(), $request->tagIds()));
+        return ThreadResource::single($updateThread->handle($thread, $editor, $request->title(), $request->tagIds()), $editor);
     }
 
     public function destroy(Request $request, Thread $thread, DeleteThread $deleteThread): Response

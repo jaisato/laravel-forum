@@ -6,6 +6,8 @@ use App\Actions\Forum\DeleteThread;
 use App\Models\Category;
 use App\Models\Thread;
 use App\Models\User;
+use Illuminate\Database\Events\QueryExecuted;
+use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia as Assert;
 
 it('renders the home page for guests and members', function (?string $role) {
@@ -43,6 +45,20 @@ it('shows the categories in order with their counters and latest public thread',
         ->where('categories.1.latest_thread.slug', $latest->slug)
         ->where('categories.1.latest_thread.last_poster.username', $replier->username)
         ->where('categories.1.latest_thread.last_poster', fn ($poster) => ! $poster->has('email')));
+});
+
+it('finds each category’s latest thread without aggregating all of its threads', function () {
+    Category::factory()->count(3)->create()->each(fn (Category $category) => forumThread(category: $category));
+    $queries = [];
+    DB::listen(function (QueryExecuted $query) use (&$queries): void {
+        $queries[] = strtolower($query->sql);
+    });
+
+    $this->get(route('home'))->assertOk();
+
+    // One index lookup per category, however many threads it holds.
+    expect(array_filter($queries, fn (string $sql): bool => str_contains($sql, 'group by') && str_contains($sql, 'threads')))
+        ->toBe([]);
 });
 
 it('shows the ten latest public threads', function () {

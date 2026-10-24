@@ -111,6 +111,32 @@ describe('listing', function () {
 });
 
 describe('showing', function () {
+    it('tells a member whether it has something new for them, with its excerpt', function () {
+        $member = User::factory()->create();
+        $thread = forumThread(body: 'Cómo se ejecutan las colas en producción');
+        $token = apiToken($member);
+        // Reading its posts marks them read; then somebody replies.
+        $this->withToken($token)->getJson("/api/v1/threads/{$thread->id}/posts")->assertOk();
+        forumReply($thread);
+
+        $this->withToken($token)->getJson("/api/v1/threads/{$thread->id}")
+            ->assertOk()
+            ->assertJsonPath('data.is_unread', true)
+            ->assertJsonPath('data.excerpt', 'Cómo se ejecutan las colas en producción');
+    });
+
+    it('answers a missing thread as it answers one the client may not see', function () {
+        config(['app.debug' => false]);
+        $hidden = forumThread();
+        app(HidePost::class)->handle($hidden->firstPost, User::factory()->moderator()->create());
+
+        $missing = $this->getJson('/api/v1/threads/999999')->assertNotFound();
+        $notShown = $this->getJson("/api/v1/threads/{$hidden->id}")->assertNotFound();
+
+        // No model class, and nothing that tells a missing id from a hidden one.
+        expect($missing->json())->toBe($notShown->json());
+    });
+
     it('shows a thread and counts the visit', function () {
         $thread = forumThread();
 

@@ -6,6 +6,7 @@ namespace App\Services\Search;
 
 use App\Models\Post;
 use App\Models\Thread;
+use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator as Paginator;
@@ -25,9 +26,10 @@ final class ForumSearch
 {
     /**
      * @param  array{category?: int|null, tag?: int|null}  $filters
+     * @param  User|null  $viewer  whose read state the threads carry (what is new to them)
      * @return LengthAwarePaginator<int, Thread>
      */
-    public function threads(string $query, array $filters, int $perPage = 20): LengthAwarePaginator
+    public function threads(string $query, array $filters, int $perPage = 20, ?User $viewer = null): LengthAwarePaginator
     {
         $categoryId = $filters['category'] ?? null;
         $tagId = $filters['tag'] ?? null;
@@ -39,10 +41,11 @@ final class ForumSearch
                 return $this->constrainThreads($threads, $categoryId, $tagId);
             })
             : $this->withEngineFilters(Thread::search($query), $categoryId, $tagId))
-            ->query(function (Builder $threads): Builder {
+            ->query(function (Builder $threads) use ($viewer): Builder {
                 /** @var Builder<Thread> $threads */
                 return $threads->withoutTrashed()
                     ->visibleTo(null)
+                    ->withReadState($viewer)
                     ->withExcerptSource()
                     ->with(['category', 'author', 'tags', 'lastPost.author']);
             })

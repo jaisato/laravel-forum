@@ -2,9 +2,10 @@ name: Release
 
 # A v* tag publishes the production images to GHCR under the names
 # compose.prod.yaml expects (ghcr.io/<owner>/<repo>-{app,web,ssr}), tagged
-# 1.2.3, 1.2 and latest, with provenance and an SBOM, and then, if the
-# repository configures it, deploys that version over SSH to the protected
-# "production" environment (docs/04-despliegue.md, docs/07-testing-y-ci.md).
+# 1.2.3 with provenance and an SBOM, and 1.2 and latest once the three are
+# in, and then, if the repository configures it, deploys that version over
+# SSH to the protected "production" environment (docs/04-despliegue.md,
+# docs/07-testing-y-ci.md).
 #
 # The deployment needs:
 #   the repository variable DEPLOY_HOST (a repository one: the job's `if`
@@ -52,14 +53,13 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ github.token }}
 
-      # v1.2.3 → 1.2.3, 1.2 and latest (only for a stable version).
+      # v1.2.3 → 1.2.3 alone: the tags job moves 1.2 and latest.
       - id: meta
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
           images: ghcr.io/${{ github.repository }}-${{ matrix.target }}
-          tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
+          flavor: latest=false
+          tags: type=semver,pattern={{version}}
 
       - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
@@ -73,6 +73,47 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.target }}
           cache-to: type=gha,mode=max,scope=release-${{ matrix.target }}
           secret-envs: composer_auth=COMPOSER_AUTH
+
+  # 1.2 and latest move once the three images of the version are in the
+  # registry, and the three in one step: a leg that failed would otherwise
+  # leave app on the new version and web on the old one, while web serves the
+  # assets whose manifest app reads. The step moves them one after the
+  # other; if the registry fails halfway, re-running the job finishes it (it
+  # builds nothing). A pre-release (v1.3.0-rc.1) moves neither.
+  tags:
+    name: Etiquetas 1.2 y latest en GHCR
+    needs: images
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      packages: write
+    steps:
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      # The new tags name the index the images job pushed (provenance and
+      # SBOM included): nothing is built or copied.
+      - name: Point 1.2 and latest at this version
+        env:
+          REPOSITORY: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          if [[ ! "$TAG" =~ ^v([0-9]+)\.([0-9]+)\.[0-9]+$ ]]; then
+            echo "$TAG is not a stable version: it keeps its own tag alone."
+            exit 0
+          fi
+          minor="${BASH_REMATCH[1]}.${BASH_REMATCH[2]}"
+
+          for target in app web ssr; do
+            image="ghcr.io/${REPOSITORY,,}-$target"
+            docker buildx imagetools create \
+              --tag "$image:$minor" --tag "$image:latest" "$image:${TAG#v}"
+          done
 
   deploy:
     name: Despliegue en producción (SSH)
@@ -90,7 +131,10 @@ jobs:
       # migrations run on their own first, while the current version still
       # serves: `up` would stop app, queue and scheduler before its one-shot
       # migrate, so a failing migration would leave the forum down. Then the
-      # stack comes up and the job waits for it to be healthy.
+      # stack comes up, the job waits for it to be healthy and Caddy reloads
+      # the Caddyfile: `up` leaves a container whose definition did not
+      # change as it is, and Caddy reads its file once. The server's own
+      # settings, compose.prod.local.yaml, go on top when it has them.
       - name: Deploy the tagged version
         env:
           DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
@@ -115,10 +159,18 @@ jobs:
             "$DEPLOY_USER@$DEPLOY_HOST" bash -s -- "$DEPLOY_PATH" "$TAG" <<'REMOTE'
           set -euo pipefail
           cd "$1"
+          dcp() {
+            if [ -f compose.prod.local.yaml ]; then
+              docker compose -f compose.prod.yaml -f compose.prod.local.yaml --env-file .env.production "$@"
+            else
+              docker compose -f compose.prod.yaml --env-file .env.production "$@"
+            fi
+          }
           git fetch --quiet --tags origin
           git checkout --quiet "$2"
           sed -i "s/^IMAGE_TAG=.*/IMAGE_TAG=${2#v}/" .env.production
-          docker compose -f compose.prod.yaml --env-file .env.production pull
-          docker compose -f compose.prod.yaml --env-file .env.production run --rm migrate
-          docker compose -f compose.prod.yaml --env-file .env.production up -d --wait --remove-orphans
+          dcp pull
+          dcp run --rm migrate
+          dcp up -d --wait --remove-orphans
+          dcp exec -T proxy caddy reload --config /etc/caddy/Caddyfile
           REMOTE

@@ -12,6 +12,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Gate;
+use Laravel\Sanctum\Contracts\HasAbilities;
 
 /**
  * A post on its thread page, with what the viewer may do with it. Expects
@@ -41,6 +42,7 @@ final class PostResource extends JsonResource
 
         $may = fn (string $ability, mixed $subject = null): bool => $threadOpen
             && $viewer !== null
+            && self::tokenAllows($viewer, $ability)
             && Gate::forUser($viewer)->allows($ability, $subject ?? $post);
 
         // A deleted post is only restored, and only a post everybody can see
@@ -83,6 +85,20 @@ final class PostResource extends JsonResource
                     && $may('markSolution', $thread),
             ],
         ];
+    }
+
+    /**
+     * Through the API the token also needs the ability the request would
+     * need: moderate for staff actions on the post, write for taking part.
+     * A web session has no token.
+     */
+    private static function tokenAllows(User $viewer, string $ability): bool
+    {
+        /** @var HasAbilities|null $token null for a web session */
+        $token = $viewer->currentAccessToken();
+
+        return $token === null
+            || $token->can(in_array($ability, ['hide', 'approve', 'restore'], true) ? 'moderate' : 'write');
     }
 
     /**

@@ -48,16 +48,20 @@ final class ReportPost
 
     /**
      * A report raised by the AI moderator: no reporter, with its confidence.
+     * The post keeps one open AI report, which says what the latest verdict
+     * says: an edit made since may have changed the post for the worse.
      */
     public function forAi(Post $post, ReportReason $reason, string $details, float $confidence): Report
     {
-        return $this->file($post, null, [
-            'reporter_id' => null,
-            'source' => ReportSource::Ai,
-            'reason' => $reason,
-            'details' => $details,
-            'ai_confidence' => $confidence,
-        ]);
+        $verdict = ['reason' => $reason, 'details' => $details, 'ai_confidence' => $confidence];
+
+        $report = $this->file($post, null, ['reporter_id' => null, 'source' => ReportSource::Ai, ...$verdict]);
+
+        if (! $report->wasRecentlyCreated) {
+            $report->forceFill($verdict)->save();
+        }
+
+        return $report;
     }
 
     /**

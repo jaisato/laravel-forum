@@ -57,11 +57,18 @@ final class HidePost
             $post->forceFill(['status' => $status])->save();
 
             // As with a deleted answer, an answer nobody can see no longer
-            // solves the thread and its bonus goes back. Approving the post
-            // later does not mark it again: the thread author decides.
+            // solves the thread and its bonus goes back. An answer the AI
+            // holds is remembered: if a moderator approves it, it solves the
+            // thread again (ApprovePost). One a moderator hides is left to the
+            // thread author.
             if ((int) $thread->solution_post_id === $post->id) {
-                $thread->forceFill(['solution_post_id' => null])->save();
+                $thread->forceFill([
+                    'solution_post_id' => null,
+                    'held_solution_post_id' => $status === PostStatus::PendingReview ? $post->id : null,
+                ])->save();
                 $this->reputation->solution($thread, $post, -1);
+            } elseif ((int) $thread->held_solution_post_id === $post->id) {
+                $thread->forceFill(['held_solution_post_id' => null])->save();
             }
 
             if ((int) $thread->last_post_id === $post->id) {

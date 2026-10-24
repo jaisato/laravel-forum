@@ -34,7 +34,7 @@ final class ThreadSolutionController extends Controller
             throw ValidationException::withMessages(['post_id' => __('This reply cannot be the solution.')]);
         }
 
-        return ThreadResource::single($thread->refresh());
+        return ThreadResource::single($thread->refresh(), $request->user());
     }
 
     public function destroy(Request $request, Thread $thread, UnmarkSolution $unmarkSolution): ThreadResource
@@ -47,6 +47,6 @@ final class ThreadSolutionController extends Controller
 
         $unmarkSolution->handle($thread, $actor);
 
-        return ThreadResource::single($thread->refresh());
+        return ThreadResource::single($thread->refresh(), $request->user());
     }
 }

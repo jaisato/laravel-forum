@@ -12,8 +12,8 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
  * @property int $id
@@ -26,6 +26,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * @property bool $is_locked
  * @property int $threads_count
  * @property int $posts_count
+ * @property int|null $latest_thread_id withLatestThread()
  * @property CarbonImmutable|null $created_at
  * @property CarbonImmutable|null $updated_at
  */
@@ -72,16 +73,13 @@ class Category extends Model
 
     /**
      * The public thread with the most recent activity, for the category
-     * cards of the home page.
+     * cards: loaded through withLatestThread(), which finds its id.
      *
-     * @return HasOne<Thread, $this>
+     * @return BelongsTo<Thread, $this>
      */
-    public function latestThread(): HasOne
+    public function latestThread(): BelongsTo
     {
-        return $this->hasOne(Thread::class)->ofMany(
-            ['last_posted_at' => 'max', 'id' => 'max'],
-            fn (Builder $query) => $query->where('status', ThreadStatus::Published),
-        );
+        return $this->belongsTo(Thread::class, 'latest_thread_id');
     }
 
     /**
@@ -101,6 +99,31 @@ class Category extends Model
     public function scopeOrdered(Builder $query): Builder
     {
         return $query->orderBy('position')->orderBy('name');
+    }
+
+    /**
+     * Loads each category's public thread with the most recent activity
+     * (latestThread), with its last post and that post's author. Its id is
+     * read one category at a time, from the newest end of the index on
+     * category, status and activity, so the cost does not grow with the
+     * number of threads, as an aggregate over all of them would.
+     *
+     * @param  Builder<self>  $query
+     * @return Builder<self>
+     */
+    public function scopeWithLatestThread(Builder $query): Builder
+    {
+        return $query
+            ->addSelect(['latest_thread_id' => Thread::query()
+                ->select('id')
+                ->whereColumn('threads.category_id', 'categories.id')
+                ->where('status', ThreadStatus::Published)
+                ->whereNotNull('last_posted_at')
+                ->orderByDesc('last_posted_at')
+                ->orderByDesc('id')
+                ->limit(1),
+            ])
+            ->with('latestThread.lastPost.author');
     }
 
     protected function slugSource(): string

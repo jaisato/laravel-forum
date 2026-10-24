@@ -9,6 +9,11 @@
 # Caddy alone publishes ports (80 and 443, certificates included); the data
 # services live on an internal network with no way out. Each deployment runs
 # the migrations first (migrate) and the rest waits for them.
+#
+# A server's own changes (resource limits, say) go in compose.prod.local.yaml,
+# outside git, added with a second -f: an edit to this file would stop the
+# checkout of the first version that changes it (docs/04-despliegue.md,
+# section 9).
 
 name: laravel-forum-prod
 
@@ -70,7 +75,10 @@ services:
       - 443:443
       - 443:443/udp
     volumes:
-      - ./docker/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      # The directory, not the file: a checkout writes a new Caddyfile, which
+      # a mounted file would never show. Each deployment then reloads it
+      # (`caddy reload`, docs/04-despliegue.md, section 4).
+      - ./docker/caddy:/etc/caddy:ro
       - caddy_data:/data
       - caddy_config:/config
     networks: [edge]

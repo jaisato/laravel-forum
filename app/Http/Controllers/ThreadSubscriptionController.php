@@ -18,6 +18,7 @@ final class ThreadSubscriptionController extends Controller
 
     public function store(Request $request, Thread $thread, ThreadSubscriptions $subscriptions): RedirectResponse
     {
+        Gate::authorize('view', $thread);
         Gate::authorize('subscribe', $thread);
 
         /** @var User $member */
@@ -31,6 +32,7 @@ final class ThreadSubscriptionController extends Controller
 
     public function destroy(Request $request, Thread $thread, ThreadSubscriptions $subscriptions): RedirectResponse
     {
+        Gate::authorize('view', $thread);
         Gate::authorize('subscribe', $thread);
 
         /** @var User $member */

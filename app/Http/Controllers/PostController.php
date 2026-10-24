@@ -58,6 +58,7 @@ final class PostController extends Controller
      */
     public function destroy(Request $request, Post $post, DeletePost $deletePost): RedirectResponse
     {
+        Gate::authorize('view', $post);
         Gate::authorize('delete', $post);
 
         /** @var User $actor */

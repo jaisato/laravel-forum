@@ -11,8 +11,9 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * Bans a user, permanently or until a date. Their API tokens are revoked;
- * on the web they can still read, and EnsureUserIsNotBanned blocks writing.
- * Banning again replaces the reason and the end date.
+ * on the web they can still read, and the policies keep them from writing
+ * (User::canParticipate()). Banning again replaces the reason and the end
+ * date.
  */
 final class BanUser
 {

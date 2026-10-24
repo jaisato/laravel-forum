@@ -29,10 +29,7 @@ class PostPolicy
      */
     public function view(?User $user, Post $post): Response
     {
-        // The thread relation leaves deleted threads out: their posts go too.
-        return $user?->canModerate() || ($post->isVisibleTo($user) && $post->thread?->isVisibleTo($user) === true)
-            ? Response::allow()
-            : Response::denyAsNotFound();
+        return $post->isVisibleInThreadTo($user) ? Response::allow() : Response::denyAsNotFound();
     }
 
     public function update(User $user, Post $post): bool

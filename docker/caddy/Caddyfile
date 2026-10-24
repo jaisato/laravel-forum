@@ -1,7 +1,6 @@
 # Caddy in front of the forum (compose.prod.yaml): HTTPS with automatic
 # certificates for SERVER_NAME (a locally trusted one for localhost),
 # compression and HSTS. Nginx (web) adds the other security headers.
-
 {
 	email {$ACME_EMAIL}
 }

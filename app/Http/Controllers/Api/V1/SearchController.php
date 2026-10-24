@@ -25,7 +25,7 @@ final class SearchController extends Controller
     public function threads(SearchRequest $request, ForumSearch $search): AnonymousResourceCollection
     {
         return ThreadResource::collection($search
-            ->threads($request->words(), $request->scope(), (int) config('forum.pagination.search'))
+            ->threads($request->words(), $request->scope(), (int) config('forum.pagination.search'), $request->user())
             ->appends($request->appends()));
     }
 

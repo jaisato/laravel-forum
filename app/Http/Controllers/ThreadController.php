@@ -124,6 +124,7 @@ final class ThreadController extends Controller
 
     public function destroy(Request $request, Thread $thread, DeleteThread $deleteThread): RedirectResponse
     {
+        Gate::authorize('view', $thread);
         Gate::authorize('delete', $thread);
 
         /** @var User $actor */

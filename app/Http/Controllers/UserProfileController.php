@@ -11,6 +11,7 @@ use App\Models\Conversation;
 use App\Models\User;
 use App\Queries\MemberReplies;
 use App\Queries\ThreadListing;
+use App\Support\CanonicalUrl;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
@@ -38,6 +39,8 @@ final class UserProfileController extends Controller
         return Inertia::render('users/Show', [
             'profile' => (new UserProfileResource($user))->resolve($request),
             'tab' => $tab,
+            // The replies are a page of their own for search engines.
+            'canonical' => CanonicalUrl::for($request, $tab === 'posts' ? ['tab' => 'posts'] : []),
             'can' => [
                 // "Send a message" (ConversationPolicy::message).
                 'message' => $viewer !== null && Gate::forUser($viewer)->allows('message', [Conversation::class, $user]),

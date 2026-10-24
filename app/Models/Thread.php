@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\ThreadStatus;
+use App\Models\Concerns\HasModerationStatus;
 use App\Models\Concerns\HasUniqueSlug;
 use App\Support\Markdown\MarkdownRenderer;
 use Carbon\CarbonImmutable;
@@ -36,6 +37,7 @@ use Laravel\Scout\Searchable;
  * @property int|null $first_post_id
  * @property int|null $last_post_id
  * @property int|null $solution_post_id
+ * @property int|null $held_solution_post_id
  * @property CarbonImmutable|null $last_posted_at
  * @property int $replies_count
  * @property int $views_count
@@ -50,7 +52,7 @@ use Laravel\Scout\Searchable;
 class Thread extends Model
 {
     /** @use HasFactory<ThreadFactory> */
-    use HasFactory, HasUniqueSlug, Searchable, SoftDeletes;
+    use HasFactory, HasModerationStatus, HasUniqueSlug, Searchable, SoftDeletes;
 
     /**
      * The database defaults, so a model that was just saved behaves like a
@@ -87,6 +89,11 @@ class Thread extends Model
             'ai_summary_generated_at' => 'datetime',
             'ai_summary_replies_count' => 'integer',
         ];
+    }
+
+    protected function statusEnum(): string
+    {
+        return ThreadStatus::class;
     }
 
     /**
@@ -173,31 +180,6 @@ class Thread extends Model
     }
 
     /**
-     * Threads a viewer may see: everyone sees published ones, authors also
-     * see their own threads awaiting review, staff see every status (not
-     * while banned: a ban takes the staff powers away).
-     *
-     * @param  Builder<self>  $query
-     * @return Builder<self>
-     */
-    public function scopeVisibleTo(Builder $query, ?User $viewer): Builder
-    {
-        if ($viewer?->canModerate()) {
-            return $query;
-        }
-
-        return $query->where(function (Builder $query) use ($viewer): void {
-            $query->where('status', ThreadStatus::Published);
-
-            if ($viewer !== null) {
-                $query->orWhere(fn (Builder $query) => $query
-                    ->where('status', ThreadStatus::PendingReview)
-                    ->where('user_id', $viewer->id));
-            }
-        });
-    }
-
-    /**
      * Adds the viewer's read marker to every thread: last_read_post_id and
      * last_read_at, both null for guests and for threads never read. A
      * thread is unread while last_post_id is above last_read_post_id.
@@ -230,6 +212,44 @@ class Thread extends Model
     }
 
     /**
+     * What withReadState() and withExcerptSource() add to a listing's
+     * threads, for threads loaded another way (one thread, the similar
+     * ones): two queries for the whole collection.
+     *
+     * @param  EloquentCollection<int, self>  $threads
+     */
+    public static function loadListingState(EloquentCollection $threads, ?User $viewer): void
+    {
+        if ($threads->isEmpty()) {
+            return;
+        }
+
+        $marks = $viewer === null ? collect() : ThreadRead::query()
+            ->toBase()
+            ->where('user_id', $viewer->id)
+            ->whereIn('thread_id', $threads->modelKeys())
+            ->get(['thread_id', 'last_read_post_id', 'last_read_at'])
+            ->keyBy('thread_id');
+
+        $sources = Post::query()
+            ->toBase()
+            ->whereIn('id', $threads->pluck('first_post_id')->filter()->all())
+            ->selectRaw('id, substr(body, 1, '.self::EXCERPT_SOURCE_LENGTH.') as excerpt_source')
+            ->pluck('excerpt_source', 'id');
+
+        foreach ($threads as $thread) {
+            $mark = $marks->get($thread->id);
+
+            $thread->setRawAttributes([
+                ...$thread->getAttributes(),
+                'last_read_post_id' => $mark?->last_read_post_id,
+                'last_read_at' => $mark?->last_read_at,
+                'excerpt_source' => $sources->get((int) $thread->first_post_id),
+            ], sync: true);
+        }
+    }
+
+    /**
      * Adds excerpt_source, the start of the opening post, from which
      * ThreadResource makes the excerpt of a listing.
      *
@@ -241,24 +261,6 @@ class Thread extends Model
         return $query->addSelect(['excerpt_source' => Post::query()
             ->selectRaw('substr(body, 1, '.self::EXCERPT_SOURCE_LENGTH.')')
             ->whereColumn('posts.id', $query->qualifyColumn('first_post_id'))]);
-    }
-
-    /**
-     * The scopeVisibleTo() rule for a single loaded thread; deleted threads
-     * are visible to staff only.
-     */
-    public function isVisibleTo(?User $viewer): bool
-    {
-        if ($viewer?->canModerate()) {
-            return true;
-        }
-
-        if ($this->trashed()) {
-            return false;
-        }
-
-        return $this->status === ThreadStatus::Published
-            || ($this->status === ThreadStatus::PendingReview && $viewer !== null && $this->isAuthoredBy($viewer));
     }
 
     /**
@@ -313,11 +315,6 @@ class Thread extends Model
             && $this->status !== ThreadStatus::Hidden
             && ! $this->trashed()
             && ! $this->is_locked;
-    }
-
-    public function isAuthoredBy(User $user): bool
-    {
-        return (int) $this->user_id === $user->id;
     }
 
     public function url(): string

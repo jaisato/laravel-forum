@@ -39,6 +39,7 @@ final class ThreadSolutionController extends Controller
 
     public function destroy(Request $request, Thread $thread, UnmarkSolution $unmarkSolution): RedirectResponse
     {
+        Gate::authorize('view', $thread);
         Gate::authorize('markSolution', $thread);
 
         /** @var User $actor */

@@ -7,6 +7,7 @@ namespace App\Models;
 use App\Enums\PostStatus;
 use App\Enums\ReactionType;
 use App\Enums\ThreadStatus;
+use App\Models\Concerns\HasModerationStatus;
 use App\Support\Markdown\MarkdownRenderer;
 use Carbon\CarbonImmutable;
 use Database\Factories\PostFactory;
@@ -39,7 +40,7 @@ use Laravel\Scout\Searchable;
 class Post extends Model
 {
     /** @use HasFactory<PostFactory> */
-    use HasFactory, Searchable, SoftDeletes;
+    use HasFactory, HasModerationStatus, Searchable, SoftDeletes;
 
     /**
      * The database defaults, so a model that was just saved behaves like a
@@ -60,6 +61,11 @@ class Post extends Model
             'status' => PostStatus::class,
             'edited_at' => 'datetime',
         ];
+    }
+
+    protected function statusEnum(): string
+    {
+        return PostStatus::class;
     }
 
     /**
@@ -111,31 +117,6 @@ class Post extends Model
     }
 
     /**
-     * Posts a viewer may see: everyone sees published ones, authors also see
-     * their own posts awaiting review, staff see every status (not while
-     * banned: a ban takes the staff powers away).
-     *
-     * @param  Builder<self>  $query
-     * @return Builder<self>
-     */
-    public function scopeVisibleTo(Builder $query, ?User $viewer): Builder
-    {
-        if ($viewer?->canModerate()) {
-            return $query;
-        }
-
-        return $query->where(function (Builder $query) use ($viewer): void {
-            $query->where('status', PostStatus::Published);
-
-            if ($viewer !== null) {
-                $query->orWhere(fn (Builder $query) => $query
-                    ->where('status', PostStatus::PendingReview)
-                    ->where('user_id', $viewer->id));
-            }
-        });
-    }
-
-    /**
      * Adds, for every reaction type, how many reactions the post has
      * ({type}_reactions_count) and whether the viewer gave one
      * ({type}_reacted), with one subquery each instead of loading reactions.
@@ -159,22 +140,14 @@ class Post extends Model
     }
 
     /**
-     * The scopeVisibleTo() rule for a single loaded post; deleted posts are
-     * visible to staff only. Whether the thread itself is visible is checked
-     * separately (see PostPolicy::view()).
+     * Whether the viewer may see the post where it is (PostPolicy::view()):
+     * the post and its thread, by the HasModerationStatus rule. A deleted
+     * thread takes its posts along; staff see them all.
      */
-    public function isVisibleTo(?User $viewer): bool
+    public function isVisibleInThreadTo(?User $viewer): bool
     {
-        if ($viewer?->canModerate()) {
-            return true;
-        }
-
-        if ($this->trashed()) {
-            return false;
-        }
-
-        return $this->status === PostStatus::Published
-            || ($this->status === PostStatus::PendingReview && $viewer !== null && $this->isAuthoredBy($viewer));
+        return $viewer?->canModerate() === true
+            || ($this->isVisibleTo($viewer) && $this->thread?->isVisibleTo($viewer) === true);
     }
 
     /**
@@ -313,11 +286,6 @@ class Post extends Model
             && ! $this->trashed()
             && $this->thread?->isVisibleTo($user) === true
             && ! $this->thread->is_locked;
-    }
-
-    public function isAuthoredBy(User $user): bool
-    {
-        return (int) $this->user_id === $user->id;
     }
 
     /**

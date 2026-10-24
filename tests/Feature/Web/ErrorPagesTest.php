@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Session\TokenMismatchException;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Schema;
 use Inertia\Testing\AssertableInertia as Assert;
 
 beforeEach(function () {
@@ -63,6 +64,18 @@ it('shows maintenance as the forum’s own page too', function () {
     } finally {
         app()->maintenanceMode()->deactivate();
     }
+});
+
+it('still answers a signed-in member when the page’s own props cannot be read', function () {
+    Route::middleware('web')->get('/_tests/outage', fn () => throw new RuntimeException('The database is down.'));
+    $this->actingAs(User::factory()->create());
+    // The header reads the member's notifications: as in a database outage,
+    // that fails too (the test's transaction brings the table back).
+    Schema::drop('notifications');
+
+    $this->get('/_tests/outage')
+        ->assertStatus(500)
+        ->assertSee('Server Error');
 });
 
 it('keeps maintenance mode inside the test process', function () {

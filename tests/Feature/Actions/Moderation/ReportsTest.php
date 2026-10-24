@@ -59,18 +59,20 @@ it('accepts a new report once the previous one is closed', function () {
         ->and($second->status)->toBe(ReportStatus::Open);
 });
 
-it('files one open AI report per post with its confidence', function () {
+it('files one open AI report per post, saying what the latest verdict says', function () {
     $post = Post::factory()->create();
 
     $report = app(ReportPost::class)->forAi($post, ReportReason::Abuse, 'Insults another member.', 0.87);
-    $again = app(ReportPost::class)->forAi($post, ReportReason::Spam, 'Second opinion.', 0.6);
+    // The post was edited and the moderator read it again.
+    $again = app(ReportPost::class)->forAi($post, ReportReason::Spam, 'Now it advertises a shop.', 0.6);
 
     expect($again->id)->toBe($report->id)
         ->and($report->refresh())
         ->reporter_id->toBeNull()
         ->source->toBe(ReportSource::Ai)
-        ->ai_confidence->toBe(0.87)
-        ->details->toBe('Insults another member.');
+        ->reason->toBe(ReportReason::Spam)
+        ->ai_confidence->toBe(0.6)
+        ->details->toBe('Now it advertises a shop.');
 });
 
 it('announces new reports only', function () {
@@ -160,6 +162,34 @@ it('locks every open report of the post in id order before closing them', functi
 
     expect($lock)->toContain('"post_id" = ?')->toContain('order by "id" asc');
 });
+
+it('locks the thread before the reports it closes, as the AI moderator refreshing one does', function (Closure $close) {
+    // Reported and held by the AI moderator, so hiding and approving it both
+    // have work to do.
+    $reply = forumReply(forumThread());
+    $report = app(ReportPost::class)->forAi($reply, ReportReason::Abuse, 'Insults.', 0.95);
+    app(HidePost::class)->handle($reply, null, 'Insults.');
+    $tables = [];
+    DB::listen(function (QueryExecuted $query) use (&$tables): void {
+        if (preg_match('/^select .* from "(threads|reports)"/', $query->sql, $match) === 1) {
+            $tables[] = $match[1].(str_contains($query->sql, 'for update') ? ' for update' : '');
+        }
+    });
+
+    $close($report, User::factory()->moderator()->create());
+
+    // The AI moderator refreshes its open report under the thread's lock
+    // (ModeratePost), as edits and the rest of moderation lock the thread
+    // first: locking the reports first, and the thread only to hide or
+    // approve the post, left each side holding a row the other needed.
+    $lock = DB::getDriverName() === 'pgsql' ? ' for update' : '';
+    expect(array_slice($tables, 0, 2))->toBe(['threads'.$lock, 'reports'.$lock]);
+})->with([
+    'resolving it and hiding the post' => [fn (Report $report, User $moderator) => app(ResolveReport::class)->handle($report, $moderator, hidePost: true)],
+    'resolving it' => [fn (Report $report, User $moderator) => app(ResolveReport::class)->handle($report, $moderator, hidePost: false)],
+    'dismissing it and approving the post' => [fn (Report $report, User $moderator) => app(DismissReport::class)->handle($report, $moderator, approvePost: true)],
+    'dismissing it' => [fn (Report $report, User $moderator) => app(DismissReport::class)->handle($report, $moderator)],
+]);
 
 it('refuses a report once the post was hidden after the request was authorised', function () {
     $reply = forumReply(forumThread());

@@ -79,6 +79,20 @@ describe('verdicts', function () {
         'sent for review' => ['review', 0.95],
     ]);
 
+    it('keeps the staff’s report up to date when an edit makes the post worse', function () {
+        $reply = forumReply(forumThread());
+        enableAiModeration();
+
+        moderate($reply, ['verdict' => 'review', 'categories' => ['other'], 'confidence' => 0.4, 'reason' => 'Tono algo brusco.']);
+        // Its author edits it, and the moderator reads it again.
+        moderate($reply->fresh(), ['verdict' => 'block', 'categories' => ['spam'], 'confidence' => 0.7, 'reason' => 'Ahora es publicidad.']);
+
+        expect(Report::query()->sole())
+            ->reason->toBe(ReportReason::Spam)
+            ->details->toBe('Ahora es publicidad.')
+            ->ai_confidence->toBe(0.7);
+    });
+
     it('leaves alone what it allows', function () {
         $reply = forumReply(forumThread());
         enableAiModeration();
@@ -141,7 +155,7 @@ describe('failures and limits', function () {
             ->and(Report::query()->count())->toBe(0)
             ->and(new ModeratePost($reply))
             ->tries->toBe(3)
-            ->backoff()->toBe([10, 60, 300]);
+            ->backoff()->toBe([10, 60]);
     });
 
     it('never asks while the AI is off, not even for a job queued before', function () {

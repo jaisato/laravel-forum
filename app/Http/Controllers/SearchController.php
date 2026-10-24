@@ -36,7 +36,7 @@ final class SearchController extends Controller
         return Inertia::render('search/Index', [
             'filters' => $filters,
             'threads' => $searching && $filters['type'] === 'threads'
-                ? ThreadResource::collection($search->threads($filters['q'], $request->scope(), $perPage)->appends($appends))
+                ? ThreadResource::collection($search->threads($filters['q'], $request->scope(), $perPage, $request->user())->appends($appends))
                 : null,
             'posts' => $searching && $filters['type'] === 'posts'
                 ? PostSummaryResource::collection($search->posts($filters['q'], $request->scope(), $perPage)->appends($appends))

@@ -113,10 +113,12 @@ RUN --mount=type=cache,target=/tmp/composer-cache \
 
 COPY . .
 
-# The autoloader runs package:discover and filament:upgrade (Filament's
-# assets in public/); Wayfinder writes the TypeScript routes for assets.
+# storage stays out of the build context (.dockerignore): its directories
+# start empty here. The autoloader runs package:discover and filament:upgrade
+# (Filament's assets in public/); Wayfinder writes the TypeScript routes for
+# assets.
 RUN set -eux; \
-    mkdir -p storage/app/public storage/framework/cache/data \
+    mkdir -p storage/app/private storage/app/public storage/framework/cache/data \
         storage/framework/sessions storage/framework/testing \
         storage/framework/views storage/logs bootstrap/cache; \
     composer dump-autoload --no-dev --classmap-authoritative --no-interaction; \

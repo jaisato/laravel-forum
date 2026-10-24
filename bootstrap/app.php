@@ -1,20 +1,22 @@
 <?php
 
 use App\Http\Middleware\AuthenticateOptionalToken;
-use App\Http\Middleware\EnsureUserIsNotBanned;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\SetLocale;
 use App\Http\Middleware\TrackLastSeen;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Middleware\SubstituteBindings;
 use Inertia\Inertia;
 use Laravel\Sanctum\Http\Middleware\CheckAbilities;
 use Laravel\Sanctum\Http\Middleware\CheckForAnyAbility;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -41,8 +43,14 @@ return Application::configure(basePath: dirname(__DIR__))
             'abilities' => CheckAbilities::class,
             'ability' => CheckForAnyAbility::class,
             'auth.optional' => AuthenticateOptionalToken::class,
-            'not-banned' => EnsureUserIsNotBanned::class,
         ]);
+
+        // A token's abilities are checked before route model binding looks
+        // anything up (and after authentication and the limits): a token
+        // that may not write gets the same 403 for any id, so it cannot tell
+        // which hidden or missing records exist.
+        $middleware->prependToPriorityList(before: SubstituteBindings::class, prepend: CheckAbilities::class);
+        $middleware->prependToPriorityList(before: SubstituteBindings::class, prepend: CheckForAnyAbility::class);
 
         $middleware->web(append: [
             HandleAppearance::class,
@@ -56,6 +64,10 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );
+
+        // A missing record answers as a hidden one does (the policies'
+        // denyAsNotFound()): the 404 names no model and no id.
+        $exceptions->map(ModelNotFoundException::class, fn (ModelNotFoundException $exception) => new NotFoundHttpException('Not Found', $exception));
 
         // Pages answer errors with the forum's own Error page (unless
         // debugging), and an expired form goes back to its page with a
@@ -79,12 +91,20 @@ return Application::configure(basePath: dirname(__DIR__))
                 return $response;
             }
 
-            // Maintenance mode answers before the web middleware has shared
-            // anything: the page still needs the layout's props.
-            Inertia::share(app(HandleInertiaRequests::class)->share($request));
+            // The page reads the layout's props (the member, their unread
+            // notifications…) from the database. When that fails too, as in a
+            // database outage, Laravel's plain error page stands in rather
+            // than an empty answer; the original error is already reported.
+            try {
+                // Maintenance mode answers before the web middleware has
+                // shared anything: the page still needs the layout's props.
+                Inertia::share(app(HandleInertiaRequests::class)->share($request));
 
-            return Inertia::render('Error', ['status' => $status])
-                ->toResponse($request)
-                ->setStatusCode($status);
+                return Inertia::render('Error', ['status' => $status])
+                    ->toResponse($request)
+                    ->setStatusCode($status);
+            } catch (Throwable) {
+                return $response;
+            }
         });
     })->create();
