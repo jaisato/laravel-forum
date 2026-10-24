@@ -24,11 +24,13 @@ it('lists the categories in their order, with their latest public thread', funct
 });
 
 it('shows a category by its slug', function () {
-    Category::factory()->create(['name' => 'Laravel', 'slug' => 'laravel']);
+    $laravel = Category::factory()->create(['name' => 'Laravel', 'slug' => 'laravel']);
+    $thread = forumThread(category: $laravel);
 
     $this->getJson('/api/v1/categories/laravel')
         ->assertOk()
-        ->assertJsonPath('data.name', 'Laravel');
+        ->assertJsonPath('data.name', 'Laravel')
+        ->assertJsonPath('data.latest_thread.id', $thread->id);
 
     $this->getJson('/api/v1/categories/nada')->assertNotFound();
 });

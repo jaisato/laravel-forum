@@ -21,7 +21,7 @@ final class HomeController extends Controller
     {
         $categories = Category::query()
             ->ordered()
-            ->with('latestThread.lastPost.author')
+            ->withLatestThread()
             ->get();
 
         return Inertia::render('Home', [

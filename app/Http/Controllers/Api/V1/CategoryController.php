@@ -22,7 +22,7 @@ final class CategoryController extends Controller
      */
     public function index(): AnonymousResourceCollection
     {
-        return CategoryResource::collection(Category::query()->ordered()->with('latestThread.lastPost.author')->get());
+        return CategoryResource::collection(Category::query()->ordered()->withLatestThread()->get());
     }
 
     /**
@@ -32,6 +32,6 @@ final class CategoryController extends Controller
      */
     public function show(Category $category): CategoryResource
     {
-        return new CategoryResource($category->load('latestThread.lastPost.author'));
+        return new CategoryResource(Category::query()->whereKey($category->id)->withLatestThread()->sole());
     }
 }
