@@ -1,7 +1,6 @@
 <?php
 
 use App\Http\Middleware\AuthenticateOptionalToken;
-use App\Http\Middleware\EnsureUserIsNotBanned;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\SetLocale;
@@ -41,7 +40,6 @@ return Application::configure(basePath: dirname(__DIR__))
             'abilities' => CheckAbilities::class,
             'ability' => CheckForAnyAbility::class,
             'auth.optional' => AuthenticateOptionalToken::class,
-            'not-banned' => EnsureUserIsNotBanned::class,
         ]);
 
         $middleware->web(append: [
