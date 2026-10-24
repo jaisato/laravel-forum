@@ -9,6 +9,7 @@ use App\Http\Resources\ThreadResource;
 use App\Models\Thread;
 use App\Services\Ai\SimilarThreadFinder;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\Gate;
 
@@ -23,12 +24,13 @@ final class SimilarThreadController extends Controller
      *
      * @unauthenticated
      */
-    public function __invoke(Thread $thread, SimilarThreadFinder $finder): AnonymousResourceCollection
+    public function __invoke(Request $request, Thread $thread, SimilarThreadFinder $finder): AnonymousResourceCollection
     {
         Gate::authorize('view', $thread);
 
         $similar = new Collection($finder->similarTo($thread, (int) config('forum.ai.similar.limit'))->all());
+        Thread::loadListingState($similar->load(['author', 'category', 'tags', 'lastPost.author']), $request->user());
 
-        return ThreadResource::collection($similar->load(['author', 'category', 'tags', 'lastPost.author']));
+        return ThreadResource::collection($similar);
     }
 }

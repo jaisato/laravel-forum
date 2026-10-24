@@ -9,6 +9,7 @@ use App\Models\Tag;
 use App\Models\Thread;
 use App\Models\User;
 use App\Support\Markdown\MarkdownRenderer;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -29,11 +30,13 @@ final class ThreadResource extends JsonResource
 
     /**
      * One thread with its details (detailed()), loading what the resource
-     * reads when it is missing.
+     * reads when it is missing, the viewer's read state and the excerpt
+     * included.
      */
-    public static function single(Thread $thread): self
+    public static function single(Thread $thread, ?User $viewer): self
     {
         $thread->loadMissing(['author', 'category', 'tags', 'lastPost.author']);
+        Thread::loadListingState(new EloquentCollection([$thread]), $viewer);
 
         return (new self($thread))->detailed();
     }

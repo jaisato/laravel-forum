@@ -212,6 +212,44 @@ class Thread extends Model
     }
 
     /**
+     * What withReadState() and withExcerptSource() add to a listing's
+     * threads, for threads loaded another way (one thread, the similar
+     * ones): two queries for the whole collection.
+     *
+     * @param  EloquentCollection<int, self>  $threads
+     */
+    public static function loadListingState(EloquentCollection $threads, ?User $viewer): void
+    {
+        if ($threads->isEmpty()) {
+            return;
+        }
+
+        $marks = $viewer === null ? collect() : ThreadRead::query()
+            ->toBase()
+            ->where('user_id', $viewer->id)
+            ->whereIn('thread_id', $threads->modelKeys())
+            ->get(['thread_id', 'last_read_post_id', 'last_read_at'])
+            ->keyBy('thread_id');
+
+        $sources = Post::query()
+            ->toBase()
+            ->whereIn('id', $threads->pluck('first_post_id')->filter()->all())
+            ->selectRaw('id, substr(body, 1, '.self::EXCERPT_SOURCE_LENGTH.') as excerpt_source')
+            ->pluck('excerpt_source', 'id');
+
+        foreach ($threads as $thread) {
+            $mark = $marks->get($thread->id);
+
+            $thread->setRawAttributes([
+                ...$thread->getAttributes(),
+                'last_read_post_id' => $mark?->last_read_post_id,
+                'last_read_at' => $mark?->last_read_at,
+                'excerpt_source' => $sources->get((int) $thread->first_post_id),
+            ], sync: true);
+        }
+    }
+
+    /**
      * Adds excerpt_source, the start of the opening post, from which
      * ThreadResource makes the excerpt of a listing.
      *

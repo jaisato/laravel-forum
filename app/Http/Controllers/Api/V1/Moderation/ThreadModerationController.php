@@ -47,7 +47,7 @@ final class ThreadModerationController extends Controller
     {
         $moveThread->handle($thread, $request->category(), $this->moderator($request));
 
-        return ThreadResource::single($thread->refresh());
+        return ThreadResource::single($thread->refresh(), $request->user());
     }
 
     public function restore(Request $request, Thread $thread, RestoreThread $restoreThread): ThreadResource
@@ -56,7 +56,7 @@ final class ThreadModerationController extends Controller
 
         $restoreThread->handle($thread, $this->moderator($request));
 
-        return ThreadResource::single($thread->refresh());
+        return ThreadResource::single($thread->refresh(), $request->user());
     }
 
     private function pinning(Request $request, Thread $thread, PinThread $pinThread, bool $pinned): ThreadResource
@@ -65,7 +65,7 @@ final class ThreadModerationController extends Controller
 
         $pinThread->handle($thread, $this->moderator($request), $pinned);
 
-        return ThreadResource::single($thread);
+        return ThreadResource::single($thread, $request->user());
     }
 
     private function locking(Request $request, Thread $thread, LockThread $lockThread, bool $locked): ThreadResource
@@ -74,7 +74,7 @@ final class ThreadModerationController extends Controller
 
         $lockThread->handle($thread, $this->moderator($request), $locked);
 
-        return ThreadResource::single($thread);
+        return ThreadResource::single($thread, $request->user());
     }
 
     private function moderator(Request $request): User

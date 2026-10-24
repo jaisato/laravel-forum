@@ -79,6 +79,17 @@ describe('search', function () {
             ->assertJsonPath('data.0.excerpt', 'La migración falla en PostgreSQL');
     });
 
+    it('tells a member which threads found have something new for them', function () {
+        $member = User::factory()->create(['created_at' => now()->subDay()]);
+        $thread = forumThread(body: 'Mis colas no arrancan');
+
+        $this->withToken(apiToken($member))->getJson('/api/v1/search/threads?q=colas')
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $thread->id)
+            ->assertJsonPath('data.0.is_unread', true)
+            ->assertJsonPath('data.0.excerpt', 'Mis colas no arrancan');
+    });
+
     it('narrows the search to a category or a tag', function () {
         $laravel = Category::factory()->create(['slug' => 'laravel']);
         $inCategory = forumThread(category: $laravel, body: 'Mis colas no arrancan');
