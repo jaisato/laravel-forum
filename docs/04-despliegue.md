@@ -102,11 +102,21 @@ openssl rand -hex 24                       # cada contraseña o clave
 
 `compose.prod.yaml` lee `.env.production` dos veces: para sus propias variables
 (`--env-file`) y como entorno de los contenedores de PHP. Para no repetir las
-opciones, conviene un alias:
+opciones, conviene una función (en el `~/.bashrc` de quien opera el servidor,
+por ejemplo), que añade además los ajustes propios del servidor,
+`compose.prod.local.yaml`, si existen ([sección 9](#9-capacidad)):
 
 ```bash
-alias dcp='docker compose -f compose.prod.yaml --env-file .env.production'
+dcp() {
+    if [ -f compose.prod.local.yaml ]; then
+        docker compose -f compose.prod.yaml -f compose.prod.local.yaml --env-file .env.production "$@"
+    else
+        docker compose -f compose.prod.yaml --env-file .env.production "$@"
+    fi
+}
 ```
+
+Como todos los comandos de esta guía, se ejecuta en el directorio del clon.
 
 **3. Las imágenes.** Descarga las publicadas en el registro de `IMAGE_PREFIX`,
 o constrúyelas en el servidor desde el `Dockerfile` (ver la
@@ -157,6 +167,7 @@ sed -i 's/^IMAGE_TAG=.*/IMAGE_TAG=1.2.3/' .env.production
 dcp pull
 dcp run --rm migrate
 dcp up -d --wait
+dcp exec proxy caddy reload --config /etc/caddy/Caddyfile
 ```
 
 Es lo mismo que hace el despliegue automático de la
@@ -177,6 +188,10 @@ Es lo mismo que hace el despliegue automático de la
   servicio `migrate` vuelve a ejecutarse, ya sin nada pendiente). Horizon termina
   los trabajos en curso antes de pararse (dispone de 200 s) y, mientras se
   sustituye `app`, hay una breve interrupción.
+- **El `Caddyfile`.** `up` deja como están los contenedores cuya definición no
+  cambió, y Caddy lee su fichero solo al arrancar: `caddy reload` aplica el de
+  la versión nueva sin cortar conexiones. Si tiene un error, Caddy lo rechaza y
+  sigue con el anterior.
 
 Volver a la versión anterior es repetir los mismos pasos con su *tag*. Las
 migraciones **no** se deshacen solas: escríbelas compatibles con la versión
@@ -254,6 +269,11 @@ volver a pedir los certificados) y, sobre todo, `.env.production`: sin su
 como `${IMAGE_PREFIX}-app:${IMAGE_TAG}` (y `-web`, `-ssr`). El nombre que
 aparece en los títulos de las páginas se fija al construir: es `APP_NAME`.
 
+Al construir solo se envía a Docker lo que las imágenes necesitan, la lista de
+`.dockerignore`: lo demás que haya en el clon, como `.env.production`, las
+copias de seguridad de la sección 6 o `compose.prod.local.yaml`, nunca entra
+en una imagen.
+
 Con `docker build`, una imagen cada vez y **las tres con los mismos
 argumentos**: `app` lleva el *manifest* de los assets que sirve `web`, y un
 `VITE_APP_NAME` distinto cambiaría sus nombres:
@@ -281,9 +301,34 @@ docker build --secret id=composer_auth,env=COMPOSER_AUTH --target app -t ghcr.io
   1000).
 - **Horizon.** Los procesos de cada supervisor de producción están en
   `config/horizon.php` (`environments.production`).
-- **Límites de recursos.** `deploy.resources.limits` de cada servicio en
-  `compose.prod.yaml`; ajústalos a la memoria del servidor. Son topes, no
-  reservas.
+- **Límites de recursos.** `deploy.resources.limits` de cada servicio;
+  ajústalos a la memoria del servidor en `compose.prod.local.yaml` (abajo).
+  Son topes, no reservas.
+
+**Los ajustes de cada servidor** van en `compose.prod.local.yaml`, junto a
+`compose.prod.yaml` y fuera de git (`.gitignore` lo excluye). Si existe, la
+función `dcp` de la sección 3 y el despliegue automático lo añaden con un
+segundo `-f`, y Compose combina los dos ficheros. No edites
+`compose.prod.yaml`: es del repositorio, y un cambio local haría fallar el
+`git checkout` de la primera versión que lo modifique. Por ejemplo, para dar
+más memoria a PHP-FPM y a PostgreSQL:
+
+```yaml
+services:
+  app:
+    deploy:
+      resources:
+        limits: { memory: 2G }
+  postgres:
+    deploy:
+      resources:
+        limits: { cpus: "4", memory: 4G }
+```
+
+Lo que no repites se mantiene (`app` conserva sus 2 CPU). Cómo combina Compose
+las listas y los mapas está en
+[su documentación](https://docs.docker.com/reference/compose-file/merge/), y
+`dcp config` muestra el resultado.
 
 ## 10. Publicar una versión
 
@@ -298,7 +343,11 @@ git push origin v1.2.3
 Registry con los nombres que espera `compose.prod.yaml`
 (`ghcr.io/jaisato/laravel-forum-app`, `-web` y `-ssr`), etiquetadas `1.2.3`,
 `1.2` y `latest` (estas dos, solo en las versiones estables: un `v1.3.0-rc.1`
-publica solo `1.3.0-rc.1`), con procedencia y SBOM. Los paquetes nuevos de
+publica solo `1.3.0-rc.1`), con procedencia y SBOM. Cada imagen sube con su
+número, y `1.2` y `latest` se mueven en un último paso, las tres juntas y solo
+cuando las tres están en el registro: si una construcción falla, todas siguen
+en la versión anterior, en vez de quedar `app` en una versión y `web` en otra
+(`web` sirve los assets cuyo *manifest* lee `app`). Los paquetes nuevos de
 GHCR son privados: hazlos públicos en la configuración de cada paquete o, en
 el servidor, inicia sesión con un *token* que tenga `read:packages`:
 
@@ -309,8 +358,9 @@ echo "<token>" | docker login ghcr.io -u <usuario> --password-stdin
 **El despliegue automático (opcional).** Si el repositorio lo tiene
 configurado, después de publicar las imágenes el *workflow* entra por SSH en el
 servidor y ejecuta los pasos de la [sección 4](#4-actualizar) con ese *tag*:
-`git checkout`, `IMAGE_TAG`, `pull`, `run --rm migrate` y
-`up -d --wait --remove-orphans`. Si las migraciones fallan, el *job* falla y la
+`git checkout`, `IMAGE_TAG`, `pull`, `run --rm migrate`,
+`up -d --wait --remove-orphans` y `caddy reload`, con `compose.prod.local.yaml`
+si el servidor lo tiene. Si las migraciones fallan, el *job* falla y la
 versión anterior sigue en marcha, aunque el servidor ya tenga el código y el
 `IMAGE_TAG` nuevos: para dejarlo como estaba, vuelve al *tag* anterior como en
 la sección 4.

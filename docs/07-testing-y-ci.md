@@ -180,7 +180,8 @@ notarían ([04-despliegue.md](04-despliegue.md#11-actualizar-postgresql-y-meilis
 
 Un *tag* `v*` construye `app`, `web` y `ssr` y las publica en GHCR con los
 nombres que espera `compose.prod.yaml` (`ghcr.io/<propietario>/<repo>-app`…),
-etiquetadas `1.2.3`, `1.2` y `latest`, con procedencia y SBOM:
+etiquetadas `1.2.3` con procedencia y SBOM, y `1.2` y `latest` cuando están
+las tres (un *job* las mueve juntas al final):
 
 ```bash
 git tag -a v1.2.3 -m "Versión 1.2.3"

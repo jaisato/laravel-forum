@@ -1,62 +1,45 @@
-# Build context of the Dockerfile: the sources the images are built from.
-# Whatever the build generates (vendor, node_modules, Wayfinder, Vite, SSR)
-# is made again inside it; secrets and local data never get in.
+# Build context of the Dockerfile: what the images are built from, and
+# nothing else. Everything is left out but the list below, so whatever else
+# a checkout gathers never gets in: secrets (.env.production, the editors'
+# and agents' settings), local data (a SQLite database, a dump, storage) or
+# what the build makes again inside (vendor, node_modules, Wayfinder, Vite,
+# SSR). A new file the build needs goes in the list. The Dockerfile creates
+# storage and bootstrap/cache, empty.
+*
 
-# Repository, tooling and editors
-.git
-.github
-.superpowers
-.idea
-.vscode
+# The application and its PHP dependencies
+!app
+!artisan
+!bootstrap
+!composer.json
+!composer.lock
+!config
+!database
+!lang
+!public
+!resources
+!routes
+
+# The assets (Vite) and the images' own settings (PHP, Nginx, entrypoint)
+!package.json
+!package-lock.json
+!tsconfig.json
+!vite.config.ts
+!docker
+
+# Generated or local even in there, as in .gitignore
 **/.DS_Store
-
-# Secrets and local settings
-.env
-.env.*
-auth.json
-
-# Dependencies and generated files
-vendor
-node_modules
+bootstrap/cache/*.php
+bootstrap/ssr
+database/**/*.sqlite*
 public/build
-public/hot
-public/storage
 public/css/filament
 public/fonts/filament
+public/fonts-manifest.dev.json
+public/hot
 public/js/filament
-bootstrap/ssr
-bootstrap/cache/*.php
+public/storage
+public/vendor
 resources/js/actions
 resources/js/routes
 resources/js/wayfinder
-
-# Runtime data (the directories stay: their .gitignore files go in)
-storage/app/private/*
-storage/app/public/*
-storage/framework/cache/*
-storage/framework/sessions/*
-storage/framework/testing/*
-storage/framework/views/*
-storage/logs/*
-!storage/**/.gitignore
-
-# Not needed to run the forum: docs, tests and the tools of development
-coverage
-docs
-tests
-.phpunit.cache
-.phpunit.result.cache
-.editorconfig
-.hadolint.yaml
-.prettierignore
-.prettierrc.json
-components.json
-eslint.config.js
-phpstan.neon
-phpunit.xml
-pint.json
-vitest.config.ts
-Dockerfile
-.dockerignore
-compose*.yaml
-Makefile

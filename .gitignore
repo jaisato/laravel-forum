@@ -21,6 +21,10 @@
 # compose.yaml: docs/03-desarrollo-local.md.
 /compose.override.yaml
 
+# A server's own production settings (resource limits and the like), loaded
+# on top of compose.prod.yaml: docs/04-despliegue.md, section 9.
+/compose.prod.local.yaml
+
 # Every environment file stays out of git. The exceptions hold no
 # credentials: .env.example and .env.production.example are templates and
 # .env.testing configures the test suite with fixtures that never address a
