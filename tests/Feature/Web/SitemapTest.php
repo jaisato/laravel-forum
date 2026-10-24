@@ -6,6 +6,8 @@ use App\Actions\Forum\DeleteThread;
 use App\Actions\Moderation\HidePost;
 use App\Models\Category;
 use App\Models\User;
+use Illuminate\Database\Events\QueryExecuted;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /**
@@ -96,3 +98,21 @@ it('stops listing a thread the moment it leaves public view, built list or not',
     'held by the AI' => [fn ($thread) => app(HidePost::class)->handle($thread->firstPost, null)],
     'deleted by its author' => [fn ($thread) => app(DeleteThread::class)->handle($thread, $thread->author)],
 ]);
+
+it('never keeps a sitemap that was being built when one of its threads left public view', function () {
+    $thread = forumThread();
+    $moderator = User::factory()->moderator()->create();
+    $hide = true;
+
+    // The thread is hidden, and the sitemap forgotten, while a request is
+    // still building it from the threads it has already read.
+    DB::listen(function (QueryExecuted $query) use (&$hide, $thread, $moderator): void {
+        if ($hide && str_contains($query->sql, 'from "threads"')) {
+            $hide = false;
+            app(HidePost::class)->handle($thread->firstPost, $moderator);
+        }
+    });
+
+    expect(sitemap($this))->toHaveKey(url("/t/{$thread->slug}"))
+        ->and(sitemap($this))->not->toHaveKey(url("/t/{$thread->slug}"));
+});
