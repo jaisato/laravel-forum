@@ -54,7 +54,7 @@ final class ModeratePost implements ShouldBeUniqueUntilProcessing, ShouldQueue
      */
     public function backoff(): array
     {
-        return [10, 60, 300];
+        return [10, 60];
     }
 
     public function handle(ForumAi $ai, ApplyModerationVerdict $applyVerdict): void

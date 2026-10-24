@@ -59,18 +59,20 @@ it('accepts a new report once the previous one is closed', function () {
         ->and($second->status)->toBe(ReportStatus::Open);
 });
 
-it('files one open AI report per post with its confidence', function () {
+it('files one open AI report per post, saying what the latest verdict says', function () {
     $post = Post::factory()->create();
 
     $report = app(ReportPost::class)->forAi($post, ReportReason::Abuse, 'Insults another member.', 0.87);
-    $again = app(ReportPost::class)->forAi($post, ReportReason::Spam, 'Second opinion.', 0.6);
+    // The post was edited and the moderator read it again.
+    $again = app(ReportPost::class)->forAi($post, ReportReason::Spam, 'Now it advertises a shop.', 0.6);
 
     expect($again->id)->toBe($report->id)
         ->and($report->refresh())
         ->reporter_id->toBeNull()
         ->source->toBe(ReportSource::Ai)
-        ->ai_confidence->toBe(0.87)
-        ->details->toBe('Insults another member.');
+        ->reason->toBe(ReportReason::Spam)
+        ->ai_confidence->toBe(0.6)
+        ->details->toBe('Now it advertises a shop.');
 });
 
 it('announces new reports only', function () {

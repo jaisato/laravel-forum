@@ -36,6 +36,7 @@ use Laravel\Scout\Searchable;
  * @property int|null $first_post_id
  * @property int|null $last_post_id
  * @property int|null $solution_post_id
+ * @property int|null $held_solution_post_id
  * @property CarbonImmutable|null $last_posted_at
  * @property int $replies_count
  * @property int $views_count
