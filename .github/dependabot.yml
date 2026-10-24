@@ -32,6 +32,11 @@ updates:
     groups:
       npm:
         update-types: [minor, patch]
+    ignore:
+      # @types/node follows the runtime (Node 24 in the Dockerfile and CI), not
+      # the newest Node: its majors are bumped by hand together with the runtime.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
     commit-message:
       prefix: build(deps)
 
