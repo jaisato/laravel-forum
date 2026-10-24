@@ -37,6 +37,11 @@ updates:
       # the newest Node: its majors are bumped by hand together with the runtime.
       - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
+      # typescript-eslint 8.x declares `peer typescript@">=4.8.4 <6.1.0"`, so
+      # TypeScript 7 cannot even install (#34). Drop this entry once
+      # typescript-eslint supports it.
+      - dependency-name: typescript
+        versions: [">=7.0.0, <8.0.0"]
     commit-message:
       prefix: build(deps)
 
