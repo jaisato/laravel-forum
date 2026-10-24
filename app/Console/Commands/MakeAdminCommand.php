@@ -24,8 +24,7 @@ final class MakeAdminCommand extends Command
 
     public function handle(RecordModerationAction $log): int
     {
-        $argument = $this->argument('email');
-        $email = Str::lower(trim(is_string($argument) ? $argument : ''));
+        $email = Str::lower(trim($this->argument('email')));
         $user = User::query()->where('email', $email)->first();
 
         if ($user === null) {
