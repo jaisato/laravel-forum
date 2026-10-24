@@ -51,6 +51,24 @@ describe('the list', function () {
                 ->where('notifications.data.1.excerpt', 'Prueba con esto'));
     });
 
+    it('keeps notifications of the same second in one order, page after page', function () {
+        $member = User::factory()->create();
+        $thread = forumThread($member);
+        $this->freezeTime();
+        // Ids chosen so that only the id puts the later one first.
+        forumReply($thread);
+        $member->notifications()->sole()->forceFill(['id' => '00000000-0000-4000-8000-000000000001'])->save();
+        forumReply($thread);
+        $member->notifications()->whereKeyNot('00000000-0000-4000-8000-000000000001')->sole()
+            ->forceFill(['id' => 'ffffffff-ffff-4fff-bfff-ffffffffffff'])->save();
+
+        $this->actingAs($member)
+            ->get(route('notifications.index'))
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('notifications.data.0.id', 'ffffffff-ffff-4fff-bfff-ffffffffffff')
+                ->where('notifications.data.1.id', '00000000-0000-4000-8000-000000000001'));
+    });
+
     it('counts the unread ones for the bell', function () {
         $member = User::factory()->create();
         $thread = forumThread($member);

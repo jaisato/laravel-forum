@@ -117,7 +117,7 @@ se le reconozca.
 |---|---|---|
 | General | 120 por minuto | Por miembro (con token) |
 | General | 60 por minuto | Por dirección IP (sin token) |
-| Pedir un token | 5 por minuto | Por login y dirección |
+| Pedir un token | 5 por minuto | Por cuenta y dirección, compartidos con el formulario de inicio de sesión |
 | Segundo factor fallido | 5 por minuto | Por miembro, desde cualquier dirección |
 | Abrir hilos | 3 por minuto | Por miembro |
 | Responder | 6 por minuto | Por miembro |

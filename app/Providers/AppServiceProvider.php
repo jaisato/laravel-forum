@@ -41,7 +41,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\Response;
@@ -168,8 +167,9 @@ class AppServiceProvider extends ServiceProvider
      * The forum's named rate limiters (forum-threads, forum-replies,
      * forum-reactions, forum-reports, forum-messages), shared by the web and
      * the API and counted per member. A web form that hits one goes back with
-     * a toast; an API client gets the usual 429. Then the API's own: "api"
-     * for every route and "api-token" for signing in.
+     * a toast; an API client gets the usual 429. Then the API's own, "api",
+     * for every route; signing in through the API shares the login form's
+     * limiter (FortifyServiceProvider).
      */
     protected function configureRateLimiting(): void
     {
@@ -181,16 +181,6 @@ class AppServiceProvider extends ServiceProvider
             return $member === null
                 ? Limit::perMinute((int) config('forum.rate_limits.api.guest'))->by('address:'.$request->ip())
                 : Limit::perMinute((int) config('forum.rate_limits.api.authenticated'))->by('member:'.$member->getAuthIdentifier());
-        });
-
-        // Asking for a token is signing in: five tries a minute per login and
-        // address, as on the login form (FortifyServiceProvider).
-        RateLimiter::for('api-token', function (Request $request): Limit {
-            $login = $request->input('email') ?: $request->input('username');
-
-            return Limit::perMinute(5)->by(
-                (is_string($login) ? Str::transliterate(Str::lower(trim($login))) : '').'|'.$request->ip(),
-            );
         });
 
         foreach (config('forum.rate_limits') as $name => $limit) {

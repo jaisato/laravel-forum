@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use App\Models\User;
-use Illuminate\Support\Facades\RateLimiter;
 use Laravel\Fortify\Features;
 
 use function Pest\Laravel\actingAs;
@@ -97,13 +96,12 @@ it('logs users out', function () {
     assertGuest();
 });
 
-it('rate limits repeated login attempts', function () {
-    $user = User::factory()->create();
+it('rate limits repeated login attempts on an account, whether its email or its username is typed', function () {
+    User::factory()->create(['email' => 'ana@example.com', 'username' => 'ana']);
 
-    RateLimiter::increment(md5('login'.implode('|', [$user->email, '127.0.0.1'])), amount: 5);
+    foreach (['ana@example.com', 'ana', 'Ana@Example.com', 'ana', ' ana@example.com'] as $attempt => $login) {
+        post(route('login.store'), ['email' => $login, 'password' => "wrong-{$attempt}"])->assertSessionHasErrors('email');
+    }
 
-    post(route('login.store'), [
-        'email' => $user->email,
-        'password' => 'wrong-password',
-    ])->assertTooManyRequests();
+    post(route('login.store'), ['email' => 'ANA', 'password' => 'password'])->assertTooManyRequests();
 });

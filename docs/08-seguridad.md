@@ -38,10 +38,10 @@ Los límites contra la fuerza bruta:
 
 | Qué | Límite | Contado por |
 |---|---|---|
-| Iniciar sesión | 5 por minuto | email o usuario, e IP |
+| Iniciar sesión | 5 por minuto, compartidos con pedir un *token* | cuenta (se escriba su email o su usuario), e IP |
 | Código de la verificación en dos pasos | 5 por minuto | cuenta |
 | *Passkeys* | 10 por minuto | credencial (o sesión), e IP |
-| Pedir un *token* de la API | 5 por minuto | email o usuario, e IP |
+| Pedir un *token* de la API | 5 por minuto, compartidos con iniciar sesión | cuenta (se escriba su email o su usuario), e IP |
 | Cambiar la contraseña | 6 por minuto | miembro |
 
 Los límites contra el spam (hilos, respuestas, reacciones, reportes, mensajes

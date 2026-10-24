@@ -171,13 +171,14 @@ class User extends Authenticatable implements FilamentUser, HasAvatar, HasLocale
 
     /**
      * The member's notifications, newest first, as UserNotification models
-     * (the database channel stores new ones through this relation too).
+     * (the database channel stores new ones through this relation too). The
+     * id settles those of the same second, so pages never repeat or skip one.
      *
      * @return MorphMany<UserNotification, $this>
      */
     public function notifications(): MorphMany
     {
-        return $this->morphMany(UserNotification::class, 'notifiable')->latest();
+        return $this->morphMany(UserNotification::class, 'notifiable')->latest()->orderByDesc('id');
     }
 
     public function isAdmin(): bool

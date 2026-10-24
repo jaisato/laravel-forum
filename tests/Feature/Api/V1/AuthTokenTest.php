@@ -123,6 +123,17 @@ describe('issuing', function () {
         $this->postJson('/api/v1/auth/token', ['email' => 'ana@example.com', 'password' => 'password', 'device_name' => 'x'])
             ->assertTooManyRequests();
     });
+
+    it('counts the guesses on an account together, on the login form and here', function () {
+        User::factory()->create(['email' => 'ana@example.com', 'username' => 'ana']);
+
+        foreach (range(1, 5) as $attempt) {
+            $this->post(route('login.store'), ['email' => 'ana@example.com', 'password' => "wrong-{$attempt}"]);
+        }
+
+        $this->postJson('/api/v1/auth/token', ['username' => 'ana', 'password' => 'password', 'device_name' => 'x'])
+            ->assertTooManyRequests();
+    });
 });
 
 describe('two-factor authentication', function () {
