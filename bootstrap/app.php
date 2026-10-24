@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\AuthenticateOptionalToken;
+use App\Http\Middleware\EnsureUserCanModerate;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\SetLocale;
@@ -43,14 +44,17 @@ return Application::configure(basePath: dirname(__DIR__))
             'abilities' => CheckAbilities::class,
             'ability' => CheckForAnyAbility::class,
             'auth.optional' => AuthenticateOptionalToken::class,
+            'staff' => EnsureUserCanModerate::class,
         ]);
 
-        // A token's abilities are checked before route model binding looks
-        // anything up (and after authentication and the limits): a token
-        // that may not write gets the same 403 for any id, so it cannot tell
-        // which hidden or missing records exist.
+        // A token's abilities, and the web's staff-only routes, are checked
+        // before route model binding looks anything up (and after
+        // authentication and the limits): whoever may not act gets the same
+        // 403 for any id, so they cannot tell which hidden or missing
+        // records exist.
         $middleware->prependToPriorityList(before: SubstituteBindings::class, prepend: CheckAbilities::class);
         $middleware->prependToPriorityList(before: SubstituteBindings::class, prepend: CheckForAnyAbility::class);
+        $middleware->prependToPriorityList(before: SubstituteBindings::class, prepend: EnsureUserCanModerate::class);
 
         $middleware->web(append: [
             HandleAppearance::class,

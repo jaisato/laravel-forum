@@ -124,7 +124,9 @@ Route::middleware('auth')->group(function () {
     Route::post('t/{thread:slug}/solution', [ThreadSolutionController::class, 'store'])->name('threads.solution.store');
     Route::delete('t/{thread:slug}/solution', [ThreadSolutionController::class, 'destroy'])->name('threads.solution.destroy');
 
-    Route::prefix('moderation')->name('moderation.')->group(function () {
+    // Staff only, checked before the thread or post is looked up: anybody
+    // else gets the same 403 for any slug or id (EnsureUserCanModerate).
+    Route::prefix('moderation')->name('moderation.')->middleware('staff')->group(function () {
         Route::controller(ThreadModerationController::class)->prefix('threads/{thread:slug}')->name('threads.')->group(function () {
             Route::post('pin', 'pin')->name('pin');
             Route::post('unpin', 'unpin')->name('unpin');
