@@ -1,4 +1,4 @@
-import { useNow } from '@vueuse/core';
+import { useIntervalFn, useNow } from '@vueuse/core';
 import type { ComputedRef, MaybeRefOrGetter } from 'vue';
 import { computed, toValue } from 'vue';
 
@@ -40,7 +40,10 @@ export function useRelativeTime(
     datetime: MaybeRefOrGetter<string>,
     locale: MaybeRefOrGetter<string>,
 ): { relative: ComputedRef<string>; absolute: ComputedRef<string> } {
-    const now = useNow({ interval: 60_000 });
+    // vueuse 15 took the cadence out of useNow: it is a scheduler now.
+    const now = useNow({
+        scheduler: (update) => useIntervalFn(update, 60_000),
+    });
     const date = computed(() => new Date(toValue(datetime)));
 
     return {
