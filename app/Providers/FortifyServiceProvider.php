@@ -99,18 +99,17 @@ class FortifyServiceProvider extends ServiceProvider
             return Limit::perMinute(5)->by($request->session()->get('login.id'));
         });
 
-        // Five tries a minute per account and address, however the member is
-        // named (their email or their username) and wherever they sign in:
-        // the login form and the API's auth/token share this limiter. A name
-        // that is no account counts on its own.
+        // Five tries a minute per name typed (an email or a username) and
+        // address, wherever the member signs in: the login form and the
+        // API's auth/token share this limiter. Never per account: an email
+        // and a username would then share their tries only when they are the
+        // same account, and the tries left would tell anybody whose email
+        // it is.
         RateLimiter::for('login', function (Request $request): Limit {
             $login = $request->input(Fortify::username()) ?: $request->input('username');
             $login = is_string($login) ? trim($login) : '';
-            $account = $login === '' ? null : User::findByLogin($login);
 
-            return Limit::perMinute(5)->by(
-                ($account !== null ? 'account:'.$account->id : Str::transliterate(Str::lower($login))).'|'.$request->ip(),
-            );
+            return Limit::perMinute(5)->by(Str::transliterate(Str::lower($login)).'|'.$request->ip());
         });
 
         RateLimiter::for('passkeys', function (Request $request) {

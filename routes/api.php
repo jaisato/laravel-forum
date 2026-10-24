@@ -43,8 +43,8 @@ Route::prefix('v1')->name('api.v1.')->where([
     'conversation' => '[0-9]+',
     'report' => '[0-9]+',
 ])->group(function (): void {
-    // Signing in: the login form's limiter (five tries a minute per account
-    // and address, shared with the form), besides the general limit.
+    // Signing in: the login form's limiter (five tries a minute per name
+    // typed and address, shared with the form), besides the general limit.
     Route::post('auth/token', [AuthTokenController::class, 'store'])
         ->middleware('throttle:login')
         ->name('auth.token.store');

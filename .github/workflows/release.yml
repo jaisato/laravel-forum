@@ -75,10 +75,11 @@ jobs:
           secret-envs: composer_auth=COMPOSER_AUTH
 
   # 1.2 and latest move once the three images of the version are in the
-  # registry, and the three together: a leg that failed would otherwise leave
-  # app on the new version and web on the old one, while web serves the
-  # assets whose manifest app reads. A pre-release (v1.3.0-rc.1) moves
-  # neither.
+  # registry, and the three in one step: a leg that failed would otherwise
+  # leave app on the new version and web on the old one, while web serves the
+  # assets whose manifest app reads. The step moves them one after the
+  # other; if the registry fails halfway, re-running the job finishes it (it
+  # builds nothing). A pre-release (v1.3.0-rc.1) moves neither.
   tags:
     name: Etiquetas 1.2 y latest en GHCR
     needs: images

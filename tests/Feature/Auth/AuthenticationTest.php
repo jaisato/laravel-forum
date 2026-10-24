@@ -96,12 +96,24 @@ it('logs users out', function () {
     assertGuest();
 });
 
-it('rate limits repeated login attempts on an account, whether its email or its username is typed', function () {
+it('never tells through the tries left which email belongs to which username', function () {
+    User::factory()->create(['email' => 'ana@example.com', 'username' => 'ana']);
+    User::factory()->create(['email' => 'bea@example.com', 'username' => 'bea']);
+    $triesLeft = fn (string $login): ?string => post(route('login.store'), ['email' => $login, 'password' => 'wrong'])
+        ->headers->get('X-RateLimit-Remaining');
+
+    $triesLeft('ana');
+
+    // Counting per account would leave ana's email one try short.
+    expect($triesLeft('ana@example.com'))->toBe($triesLeft('bea@example.com'));
+});
+
+it('rate limits repeated login attempts with a name, whatever its casing', function () {
     User::factory()->create(['email' => 'ana@example.com', 'username' => 'ana']);
 
-    foreach (['ana@example.com', 'ana', 'Ana@Example.com', 'ana', ' ana@example.com'] as $attempt => $login) {
+    foreach (['ana@example.com', 'Ana@Example.com', ' ana@example.com', 'ANA@EXAMPLE.COM', 'ana@example.com'] as $attempt => $login) {
         post(route('login.store'), ['email' => $login, 'password' => "wrong-{$attempt}"])->assertSessionHasErrors('email');
     }
 
-    post(route('login.store'), ['email' => 'ANA', 'password' => 'password'])->assertTooManyRequests();
+    post(route('login.store'), ['email' => 'Ana@example.com', 'password' => 'password'])->assertTooManyRequests();
 });

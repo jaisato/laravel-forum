@@ -38,11 +38,15 @@ Los límites contra la fuerza bruta:
 
 | Qué | Límite | Contado por |
 |---|---|---|
-| Iniciar sesión | 5 por minuto, compartidos con pedir un *token* | cuenta (se escriba su email o su usuario), e IP |
+| Iniciar sesión | 5 por minuto, compartidos con pedir un *token* | lo que se escribe (el email o el usuario), e IP |
 | Código de la verificación en dos pasos | 5 por minuto | cuenta |
 | *Passkeys* | 10 por minuto | credencial (o sesión), e IP |
-| Pedir un *token* de la API | 5 por minuto, compartidos con iniciar sesión | cuenta (se escriba su email o su usuario), e IP |
+| Pedir un *token* de la API | 5 por minuto, compartidos con iniciar sesión | lo que se escribe (el email o el usuario), e IP |
 | Cambiar la contraseña | 6 por minuto | miembro |
+
+Los intentos de inicio de sesión no se agrupan por cuenta, aunque así el
+email y el usuario de una misma cuenta sumen 10 por minuto: si compartieran
+contador, los intentos que quedan dirían a cualquiera de quién es un email.
 
 Los límites contra el spam (hilos, respuestas, reacciones, reportes, mensajes
 privados y resúmenes) se configuran en `config/forum.php` (`rate_limits`) y

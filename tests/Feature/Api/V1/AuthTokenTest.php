@@ -124,14 +124,27 @@ describe('issuing', function () {
             ->assertTooManyRequests();
     });
 
-    it('counts the guesses on an account together, on the login form and here', function () {
+    it('never tells through its limit which email belongs to which username', function () {
+        User::factory()->create(['email' => 'ana@example.com', 'username' => 'ana']);
+        User::factory()->create(['email' => 'bea@example.com', 'username' => 'bea']);
+        $status = fn (string $login): int => $this->postJson('/api/v1/auth/token', ['username' => $login, 'password' => 'wrong', 'device_name' => 'x'])->status();
+
+        foreach (range(1, 5) as $attempt) {
+            $status('ana');
+        }
+
+        // Counting per account would refuse ana's email, and only hers.
+        expect($status('ana@example.com'))->toBe($status('bea@example.com'));
+    });
+
+    it('counts the guesses on a name together, on the login form and here', function () {
         User::factory()->create(['email' => 'ana@example.com', 'username' => 'ana']);
 
         foreach (range(1, 5) as $attempt) {
             $this->post(route('login.store'), ['email' => 'ana@example.com', 'password' => "wrong-{$attempt}"]);
         }
 
-        $this->postJson('/api/v1/auth/token', ['username' => 'ana', 'password' => 'password', 'device_name' => 'x'])
+        $this->postJson('/api/v1/auth/token', ['username' => 'Ana@example.com', 'password' => 'password', 'device_name' => 'x'])
             ->assertTooManyRequests();
     });
 });

@@ -101,8 +101,9 @@ se le reconozca.
   `404` en JSON, con cualquier método.
 - **Contenido oculto.** Lo que quien pregunta no puede ver (hilos o mensajes
   ocultos, pendientes de revisión o borrados, conversaciones ajenas) responde
-  `404` antes que cualquier otra regla, nunca `403`: así no se revela que
-  existe.
+  `404`, nunca `403`, igual que lo que no existe: así no se revela que existe.
+  Solo se adelanta un *token* sin la *ability* que pide la ruta, que recibe
+  `403` antes de buscar nada, exista o no lo que nombra.
 - **Idempotencia.** Reacciones, suscripciones, solución, fijar y cerrar se
   ponen con `PUT` y se quitan con `DELETE`. Repetir una petición no cambia
   nada ni da error. Reportar dos veces un mismo mensaje mantiene el reporte
@@ -117,7 +118,7 @@ se le reconozca.
 |---|---|---|
 | General | 120 por minuto | Por miembro (con token) |
 | General | 60 por minuto | Por dirección IP (sin token) |
-| Pedir un token | 5 por minuto | Por cuenta y dirección, compartidos con el formulario de inicio de sesión |
+| Pedir un token | 5 por minuto | Por lo que se escribe (email o usuario) y dirección, compartidos con el formulario de inicio de sesión |
 | Segundo factor fallido | 5 por minuto | Por miembro, desde cualquier dirección |
 | Abrir hilos | 3 por minuto | Por miembro |
 | Responder | 6 por minuto | Por miembro |

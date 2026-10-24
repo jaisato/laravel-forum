@@ -347,7 +347,9 @@ publica solo `1.3.0-rc.1`), con procedencia y SBOM. Cada imagen sube con su
 número, y `1.2` y `latest` se mueven en un último paso, las tres juntas y solo
 cuando las tres están en el registro: si una construcción falla, todas siguen
 en la versión anterior, en vez de quedar `app` en una versión y `web` en otra
-(`web` sirve los assets cuyo *manifest* lee `app`). Los paquetes nuevos de
+(`web` sirve los assets cuyo *manifest* lee `app`). Ese paso las mueve una
+tras otra en unos segundos; si se corta a medias (un fallo del registro),
+basta con volver a lanzar el *job*, que no construye nada. Los paquetes nuevos de
 GHCR son privados: hazlos públicos en la configuración de cada paquete o, en
 el servidor, inicia sesión con un *token* que tenga `read:packages`:
 
