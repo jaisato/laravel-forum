@@ -2,7 +2,9 @@
 
 declare(strict_types=1);
 
+use App\Actions\Forum\DeletePost;
 use App\Actions\Forum\MarkSolution;
+use App\Actions\Forum\RestorePost;
 use App\Actions\Forum\UnmarkSolution;
 use App\Actions\Moderation\ApprovePost;
 use App\Actions\Moderation\HidePost;
@@ -172,6 +174,44 @@ it('leaves to the thread author an answer a moderator hid, even once it is publi
     expect($thread->fresh()->solution_post_id)->toBeNull()
         ->and($answer->author->fresh()->reputation)->toBe(0);
 })->with(['hidden at once' => false, 'held by the AI, then hidden' => true]);
+
+it('lets an answer the AI held solve nothing once deleted, even if the staff approve it', function (Closure $delete) {
+    $thread = forumThread();
+    $answer = forumReply($thread);
+    app(MarkSolution::class)->handle($thread, $answer, $thread->author);
+    app(HidePost::class)->handle($answer, null);
+    // The staff's approval loaded the answer before its author deleted it.
+    $loaded = Post::query()->findOrFail($answer->id);
+
+    $delete($answer);
+    app(ApprovePost::class)->handle($loaded, User::factory()->moderator()->create());
+
+    // As with the solution itself (DeletePost): a deleted answer solves
+    // nothing and earns no bonus.
+    expect($thread->fresh()->solution_post_id)->toBeNull()
+        ->and($thread->fresh()->held_solution_post_id)->toBeNull()
+        ->and($answer->author->fresh()->reputation)->toBe(0);
+})->with([
+    'deleted by its author' => fn (Post $answer) => app(DeletePost::class)->handle($answer, $answer->author),
+    // Whatever deleted it: approving never puts the mark on a deleted post.
+    'deleted any other way' => fn (Post $answer) => $answer->delete(),
+]);
+
+it('does not solve the thread again with a held answer deleted and then restored', function () {
+    $thread = forumThread();
+    $answer = forumReply($thread);
+    app(MarkSolution::class)->handle($thread, $answer, $thread->author);
+    app(HidePost::class)->handle($answer, null);
+    $moderator = User::factory()->moderator()->create();
+
+    app(DeletePost::class)->handle($answer, $answer->author);
+    app(RestorePost::class)->handle(Post::withTrashed()->findOrFail($answer->id), $moderator);
+    app(ApprovePost::class)->handle($answer, $moderator);
+
+    // Deleting it settled it, as for a solution: the thread author decides.
+    expect($thread->fresh()->solution_post_id)->toBeNull()
+        ->and($answer->author->fresh()->reputation)->toBe(0);
+});
 
 it('refuses the author once the thread was locked after the request was authorised', function () {
     $thread = forumThread();

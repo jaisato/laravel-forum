@@ -66,10 +66,13 @@ final class DeletePost
             }
 
             // A deleted answer no longer solves the thread, and its author
-            // loses the bonus the solution earned.
+            // loses the bonus the solution earned. One the AI held will not
+            // solve it again when approved (ApprovePost), restored or not.
             if ((int) $thread->solution_post_id === $post->id) {
                 $thread->forceFill(['solution_post_id' => null])->save();
                 $this->reputation->solution($thread, $post, -1);
+            } elseif ((int) $thread->held_solution_post_id === $post->id) {
+                $thread->forceFill(['held_solution_post_id' => null])->save();
             }
 
             if ((int) $thread->last_post_id === $post->id) {

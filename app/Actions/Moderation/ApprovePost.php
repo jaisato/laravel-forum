@@ -51,8 +51,10 @@ final class ApprovePost
                 $this->counters->applyReply($post, $thread, 1);
             }
 
+            // Never once deleted (DeletePost forgets it, and the request may
+            // have loaded the answer before its deletion).
             if ((int) $thread->held_solution_post_id === $post->id) {
-                $solvesAgain = $thread->solution_post_id === null;
+                $solvesAgain = $thread->solution_post_id === null && ! $post->trashed();
 
                 $thread->forceFill([
                     'held_solution_post_id' => null,
