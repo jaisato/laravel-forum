@@ -14,7 +14,7 @@
 
 FROM composer:2 AS composer
 
-FROM node:24-alpine3.24 AS node
+FROM node:26-alpine3.24 AS node
 
 # ----------------------------------------------------------------------------
 FROM php:8.4-fpm-alpine3.24 AS base
