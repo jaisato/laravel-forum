@@ -73,6 +73,12 @@ updates:
       docker:
         patterns: ["*"]
         update-types: [minor, patch]
+    ignore:
+      # The Node base image follows the runtime the project targets (Node 24,
+      # the current LTS; CI and @types/node are pinned to it). A new Node major
+      # is adopted by hand, in one change with CI and @types/node, once it is LTS.
+      - dependency-name: node
+        update-types: ["version-update:semver-major"]
     commit-message:
       prefix: build(docker)
 
