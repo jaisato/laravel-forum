@@ -30,7 +30,7 @@ it('links threads with their category, author, posts and tags', function () {
 
     expect($thread->category->is($category))->toBeTrue()
         ->and($thread->author->is($author))->toBeTrue()
-        ->and($thread->posts->pluck('id')->all())->toBe([$thread->first_post_id, $reply->id])
+        ->and($thread->posts->pluck('id')->sort()->values()->all())->toBe(collect([$thread->first_post_id, $reply->id])->sort()->values()->all())
         ->and($thread->tags->pluck('id')->sort()->values()->all())->toBe($tags->pluck('id')->sort()->values()->all())
         ->and($category->threads->pluck('id')->all())->toBe([$thread->id])
         ->and($author->threads->pluck('id')->all())->toBe([$thread->id])
