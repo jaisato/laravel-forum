@@ -22,7 +22,7 @@
         "@inertiajs/vite": "^3.9.1",
         "@inertiajs/vue3": "^3.9.1",
         "@laravel/passkeys": "^0.4.0",
-        "@lucide/vue": "^1.17.0",
+        "@lucide/vue": "^1.64.0",
         "@vueuse/core": "^15.0.0",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
@@ -47,15 +47,15 @@
         "@vue/test-utils": "^2.5.1",
         "eslint": "^10.13.0",
         "eslint-config-prettier": "^10.1.8",
-        "eslint-plugin-vue": "^10.11.1",
+        "eslint-plugin-vue": "^10.12.0",
         "happy-dom": "^21.0.4",
         "prettier": "^3.9.10",
         "prettier-plugin-tailwindcss": "^0.8.1",
         "typescript": "~6.0.3",
-        "typescript-eslint": "^8.72.0",
+        "typescript-eslint": "^8.72.1",
         "vite": "^8.3.5",
         "vitest": "^5.0.5",
-        "vue-tsc": "^3.3.13"
+        "vue-tsc": "3.3.13"
     },
     "overrides": {
         "@tailwindcss/typography": {
@@ -63,5 +63,13 @@
         },
         "minimatch": "^11.0.3",
         "glob": "^14.0.3"
-    }
+    },
+    "//": [
+        "devDependencies.vue-tsc is pinned to 3.3.13. 3.3.14 generates invalid code",
+        "for a template attribute value that contains `//` (placeholder=\"https://\" in",
+        "resources/js/pages/settings/Profile.vue) and then fails with TS2339",
+        "\"Property 'value' does not exist\" on the bindings the template reads after",
+        "it: vuejs/language-tools#6322. Go back to a caret range with the first",
+        "release that fixes it; .github/dependabot.yml skips 3.3.14 until then."
+    ]
 }
