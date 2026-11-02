@@ -42,6 +42,12 @@ updates:
       # typescript-eslint supports it.
       - dependency-name: typescript
         versions: [">=7.0.0, <8.0.0"]
+      # vue-tsc 3.3.14 generates invalid code for a template attribute value
+      # that contains `//` (placeholder="https://" in the profile settings
+      # page) and fails with TS2339 (vuejs/language-tools#6322). package.json
+      # pins 3.3.13; drop this entry and the pin with the release that fixes it.
+      - dependency-name: vue-tsc
+        versions: ["3.3.14"]
     commit-message:
       prefix: build(deps)
 
