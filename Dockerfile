@@ -17,7 +17,7 @@ FROM composer:2 AS composer
 FROM node:24-alpine3.24 AS node
 
 # ----------------------------------------------------------------------------
-FROM php:8.4-fpm-alpine3.24 AS base
+FROM php:8.5-fpm-alpine3.24 AS base
 
 # The PHP extensions the forum needs (OPcache comes enabled with the image);
 # the build toolchain goes away in the same layer. icu-data-full gives intl
