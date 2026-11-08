@@ -34,7 +34,8 @@ describe('issuing', function () {
             ->assertCreated()
             ->assertJsonPath('abilities', ['read', 'write', 'messages'])
             ->assertJsonPath('user.username', 'ana')
-            ->assertJsonPath('user.email', 'ana@example.com');
+            ->assertJsonPath('user.email', 'ana@example.com')
+            ->assertJsonPath('user.unread_conversations', 0);
 
         $token = PersonalAccessToken::findToken($response->json('token'));
 
@@ -76,7 +77,9 @@ describe('issuing', function () {
 
         $this->postJson('/api/v1/auth/token', ['email' => 'ana@example.com', 'password' => 'password', 'device_name' => 'Lector', 'abilities' => ['read']])
             ->assertCreated()
-            ->assertJsonPath('abilities', ['read']);
+            ->assertJsonPath('abilities', ['read'])
+            // The account comes as the new token sees it: no private messages.
+            ->assertJsonPath('user.unread_conversations', null);
 
         $this->postJson('/api/v1/auth/token', ['email' => 'ana@example.com', 'password' => 'password', 'device_name' => 'Moderación', 'abilities' => ['read', 'moderate']])
             ->assertJsonValidationErrors('abilities.1');

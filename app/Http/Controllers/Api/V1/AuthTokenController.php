@@ -35,6 +35,8 @@ final class AuthTokenController extends Controller
 
         $abilities = $request->abilitiesFor($user);
         $token = $user->createToken($request->string('device_name')->value(), $abilities);
+        // The account below is shown as the new token will see it.
+        $user->withAccessToken($token->accessToken);
 
         return response()->json([
             'token' => $token->plainTextToken,
