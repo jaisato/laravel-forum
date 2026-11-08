@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 use App\Models\User;
 use Illuminate\Auth\Notifications\ResetPassword;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Notification;
 use Laravel\Fortify\Features;
 
+use function Pest\Laravel\actingAs;
+use function Pest\Laravel\assertGuest;
 use function Pest\Laravel\get;
 use function Pest\Laravel\post;
 
@@ -80,6 +83,34 @@ it('revokes the API tokens of an account whose password is reset', function () {
 
     // Whoever took the account and minted a token is out with the password.
     expect($user->tokens()->count())->toBe(0);
+});
+
+it('signs out the sessions opened before the password was reset', function () {
+    Notification::fake();
+    $user = User::factory()->create();
+    // What a session opened with the old password keeps of it.
+    $opened = Auth::guard('web')->hashPasswordForCookie($user->password);
+
+    post(route('password.email'), ['email' => $user->email]);
+
+    Notification::assertSentTo($user, ResetPassword::class, function (ResetPassword $notification) use ($user) {
+        post(route('password.update'), [
+            'token' => $notification->token,
+            'email' => $user->email,
+            'password' => 'otra-password',
+            'password_confirmation' => 'otra-password',
+        ])->assertSessionHasNoErrors();
+
+        return true;
+    });
+
+    // Whoever was signed in with the stolen password is out at their next page.
+    actingAs($user->refresh())
+        ->withSession(['password_hash_web' => $opened])
+        ->get(route('profile.edit'))
+        ->assertRedirect(route('login'));
+
+    assertGuest();
 });
 
 it('refuses to reset the password with an invalid token', function () {

@@ -107,7 +107,8 @@ class User extends Authenticatable implements FilamentUser, HasAvatar, HasLocale
     /**
      * A new password locks out whoever had the old one: API tokens never
      * expire, so they go with it, whether the password was reset (after it
-     * was stolen, say) or changed from the settings.
+     * was stolen, say) or changed from the settings. The other web sessions
+     * end at their next request (auth.session, bootstrap/app.php).
      */
     protected static function booted(): void
     {
