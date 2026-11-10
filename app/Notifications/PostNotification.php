@@ -27,6 +27,22 @@ abstract class PostNotification extends ForumNotification
         return $this->post->id;
     }
 
+    /**
+     * Whether the member already has a notification of this kind about this
+     * post, besides this one (both channels of a delivery share its id): for
+     * the ones a post gives once, however often the event behind them comes
+     * back, as when a mention is removed and written again, or an answer is
+     * unmarked and marked again as the solution.
+     */
+    protected function alreadyNotified(User $notifiable): bool
+    {
+        return $notifiable->notifications()
+            ->where('type', $this->type())
+            ->where('post_id', $this->post->id)
+            ->where('id', '!=', $this->id)
+            ->exists();
+    }
+
     protected function thread(): Thread
     {
         return $this->post->thread ?? Thread::withTrashed()->findOrFail($this->post->thread_id);

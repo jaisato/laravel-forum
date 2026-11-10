@@ -3,11 +3,14 @@
 declare(strict_types=1);
 
 use App\Models\User;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Inertia\Testing\AssertableInertia as Assert;
 use Laravel\Fortify\Features;
 
 use function Pest\Laravel\actingAs;
+use function Pest\Laravel\assertAuthenticatedAs;
+use function Pest\Laravel\assertGuest;
 
 it('displays the security page with two-factor and passkeys management', function () {
     $this->skipUnlessFortifyHas(Features::twoFactorAuthentication());
@@ -92,6 +95,46 @@ it('revokes the API tokens when the password changes', function () {
         ->assertSessionHasNoErrors();
 
     expect($user->tokens()->count())->toBe(0);
+});
+
+it('signs the other sessions out when the password changes', function () {
+    $user = User::factory()->create();
+    // What a session opened elsewhere before the change keeps of the password.
+    $elsewhere = Auth::guard('web')->hashPasswordForCookie($user->password);
+
+    actingAs($user)
+        ->from(route('security.edit'))
+        ->put(route('user-password.update'), [
+            'current_password' => 'password',
+            'password' => 'new-password',
+            'password_confirmation' => 'new-password',
+        ])
+        ->assertSessionHasNoErrors();
+
+    actingAs($user->refresh())
+        ->withSession(['password_hash_web' => $elsewhere])
+        ->get(route('profile.edit'))
+        ->assertRedirect(route('login'));
+
+    assertGuest();
+});
+
+it('keeps the session that changed the password', function () {
+    $user = User::factory()->create();
+
+    actingAs($user)
+        ->from(route('security.edit'))
+        ->put(route('user-password.update'), [
+            'current_password' => 'password',
+            'password' => 'new-password',
+            'password_confirmation' => 'new-password',
+        ])
+        ->assertSessionHasNoErrors()
+        ->assertSessionHas('password_hash_web', Auth::guard('web')->hashPasswordForCookie($user->refresh()->password));
+
+    actingAs($user)->get(route('profile.edit'))->assertOk();
+
+    assertAuthenticatedAs($user);
 });
 
 it('requires the current password to update the password', function () {

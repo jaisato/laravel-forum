@@ -13,6 +13,15 @@ final class UserMentioned extends PostNotification
         return 'user_mentioned';
     }
 
+    /**
+     * Once per post: a mention removed in an edit and written again in the
+     * next one does not tell the member twice.
+     */
+    public function shouldSend(User $notifiable, string $channel): bool
+    {
+        return parent::shouldSend($notifiable, $channel) && ! $this->alreadyNotified($notifiable);
+    }
+
     protected function emailPreference(): string
     {
         return 'email_mentions';

@@ -20,12 +20,16 @@ final class SolutionAccepted extends PostNotification
     }
 
     /**
-     * Also dropped when another reply became the solution in the meantime.
+     * Also dropped when another reply became the solution in the meantime,
+     * and when its author already heard that this answer solved the thread:
+     * unmarking it and marking it again (nothing limits how often) must not
+     * send them a notification, and an email, every time.
      */
     public function shouldSend(User $notifiable, string $channel): bool
     {
         return parent::shouldSend($notifiable, $channel)
-            && (int) $this->thread()->fresh()?->solution_post_id === $this->post->id;
+            && (int) $this->thread()->fresh()?->solution_post_id === $this->post->id
+            && ! $this->alreadyNotified($notifiable);
     }
 
     protected function emailPreference(): string

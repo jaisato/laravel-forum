@@ -37,6 +37,13 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
 
+        // A new password, changed in the settings or reset by email, signs
+        // every other session out at its next request (auth.session): each
+        // session keeps a fingerprint of the password it was opened with, and
+        // the request that changed it takes the new one. The API tokens go
+        // with the password too (User::booted()).
+        $middleware->authenticateSessions();
+
         // Every API route counts against the "api" limiter (AppServiceProvider).
         $middleware->throttleApi();
 
