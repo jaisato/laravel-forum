@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Actions\Forum\MarkSolution;
 use App\Actions\Forum\ReplyToThread;
+use App\Actions\Forum\UnmarkSolution;
 use App\Actions\Forum\UpdatePost;
 use App\Actions\Messaging\LeaveConversation;
 use App\Actions\Messaging\SendMessage;
@@ -73,6 +74,16 @@ it('only tells the members newly mentioned in an edit', function () {
 
     Notification::assertSentTo($luis, UserMentioned::class);
     Notification::assertNotSentTo($ana, UserMentioned::class);
+});
+
+it('tells a member of a mention in a post once, even when it is removed and written again', function () {
+    $ana = User::factory()->create(['username' => 'ana']);
+    $reply = forumReply(forumThread(), body: 'Hola @ana');
+
+    app(UpdatePost::class)->handle($reply, $reply->author, 'Hola a todos');
+    app(UpdatePost::class)->handle($reply, $reply->author, 'Hola otra vez, @ana');
+
+    expect($ana->notifications()->where('type', 'user_mentioned')->count())->toBe(1);
 });
 
 /**
@@ -158,6 +169,21 @@ it('tells authors when their answer becomes the solution, unless they chose it',
 
     Notification::assertSentTo($answer->author, SolutionAccepted::class);
     Notification::assertNotSentTo($starter, SolutionAccepted::class);
+});
+
+it('tells the author of an answer once, however often it is marked again', function () {
+    $starter = User::factory()->create();
+    $thread = forumThread($starter);
+    $answer = forumReply($thread);
+
+    foreach (range(1, 3) as $time) {
+        app(MarkSolution::class)->handle($thread, $answer, $starter);
+        app(UnmarkSolution::class)->handle($thread, $starter);
+    }
+
+    app(MarkSolution::class)->handle($thread, $answer, $starter);
+
+    expect($answer->author->notifications()->where('type', 'solution_accepted')->count())->toBe(1);
 });
 
 it('tells authors when their post is moderated', function () {

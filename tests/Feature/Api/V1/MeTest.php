@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Actions\Messaging\StartConversation;
 use App\Models\User;
 
 it('shows the members themselves: their profile, their email and their counters', function () {
@@ -13,7 +14,7 @@ it('shows the members themselves: their profile, their email and their counters'
         'locale' => 'es',
     ]);
 
-    $this->withToken($user->createToken('cli', ['read'])->plainTextToken)
+    $this->withToken($user->createToken('cli', ['read', 'messages'])->plainTextToken)
         ->getJson('/api/v1/me')
         ->assertOk()
         ->assertJsonPath('data.username', 'ana')
@@ -23,6 +24,33 @@ it('shows the members themselves: their profile, their email and their counters'
         ->assertJsonPath('data.email_verified', true)
         ->assertJsonPath('data.unread_notifications', 0)
         ->assertJsonPath('data.unread_conversations', 0);
+});
+
+it('counts only what the token may list', function () {
+    $member = User::factory()->create();
+    app(StartConversation::class)->handle(User::factory()->create(), collect([$member]), 'Asunto privado', 'Un secreto.');
+    forumReply(forumThread($member), body: 'Una respuesta pública');
+    $readOnly = apiToken($member, ['read']);
+
+    // Without the messages ability the private message is out of its reach,
+    // its notification included.
+    $this->withToken($readOnly)
+        ->getJson('/api/v1/me')
+        ->assertOk()
+        ->assertJsonPath('data.unread_notifications', 1)
+        ->assertJsonPath('data.unread_conversations', null);
+
+    // So marking everything it sees as read brings the count down to zero.
+    $this->withToken($readOnly)->putJson('/api/v1/notifications/read')->assertNoContent();
+
+    $this->withToken($readOnly)
+        ->getJson('/api/v1/me')
+        ->assertJsonPath('data.unread_notifications', 0);
+
+    $this->withToken(apiToken($member, ['read', 'messages']))
+        ->getJson('/api/v1/me')
+        ->assertJsonPath('data.unread_notifications', 1)
+        ->assertJsonPath('data.unread_conversations', 1);
 });
 
 it('needs a token', function () {

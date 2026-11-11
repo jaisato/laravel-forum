@@ -8,7 +8,6 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\NotificationResource;
 use App\Models\User;
 use App\Models\UserNotification;
-use App\Notifications\NewPrivateMessage;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -56,19 +55,13 @@ final class NotificationController extends Controller
 
     /**
      * The member's notifications this token may reach: those about private
-     * messages (their subject, sender and first words) need the messages
-     * ability, as the conversations themselves do.
+     * messages need the messages ability (User::notificationsForToken()).
      *
      * @return Builder<UserNotification>
      */
     private function reachable(Request $request): Builder
     {
-        $member = $this->member($request);
-        $notifications = $member->notifications()->getQuery();
-
-        return $member->tokenCan('messages')
-            ? $notifications
-            : $notifications->where('type', '!=', NewPrivateMessage::TYPE);
+        return $this->member($request)->notificationsForToken();
     }
 
     private function member(Request $request): User
