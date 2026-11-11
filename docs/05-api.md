@@ -141,7 +141,7 @@ responde `429` con `Retry-After`.
 |---|---|---|
 | `POST /auth/token` | — | Emite un token (email o usuario, contraseña, `device_name`, `abilities`, `code` o `recovery_code`) |
 | `DELETE /auth/token` | cualquiera | Revoca el token de la petición |
-| `GET /me` | `read` | El perfil propio, con email, idioma y contadores de no leídos |
+| `GET /me` | `read` | El perfil propio, con email, idioma y contadores de no leídos: los de lo que el token puede listar (sin `messages`, las notificaciones de mensajes privados no cuentan y `unread_conversations` es `null`) |
 | `PATCH /me` | `write` | Cambia nombre, usuario, biografía, ubicación, web o idioma (solo lo que se envía) |
 
 ### Foro: lectura (token opcional)

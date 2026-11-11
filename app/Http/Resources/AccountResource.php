@@ -11,7 +11,8 @@ use Illuminate\Http\Resources\Json\JsonResource;
 /**
  * A member's own account as the API shows it to them (GET /api/v1/me and
  * the new token's response): their public profile and what only they see,
- * their email, standing, language and unread counters.
+ * their email, standing, language and unread counters, as far as the token
+ * of the request may see them.
  *
  * @mixin User
  */
@@ -45,8 +46,11 @@ final class AccountResource extends JsonResource
             'is_staff' => $user->isStaff(),
             'is_banned' => $user->isBanned(),
             'email_verified' => $user->hasVerifiedEmail(),
-            'unread_notifications' => $user->unreadNotifications()->count(),
-            'unread_conversations' => $user->unreadConversationsCount(),
+            // What the token may list: without the messages ability, the
+            // notifications about private messages are out of its reach,
+            // and so is how many conversations are unread (null).
+            'unread_notifications' => $user->notificationsForToken()->whereNull('read_at')->count(),
+            'unread_conversations' => $user->tokenCan('messages') ? $user->unreadConversationsCount() : null,
             'locale' => $user->locale,
         ];
     }

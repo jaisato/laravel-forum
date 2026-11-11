@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\Role;
+use App\Notifications\NewPrivateMessage;
 use Carbon\CarbonImmutable;
 use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
@@ -107,7 +108,8 @@ class User extends Authenticatable implements FilamentUser, HasAvatar, HasLocale
     /**
      * A new password locks out whoever had the old one: API tokens never
      * expire, so they go with it, whether the password was reset (after it
-     * was stolen, say) or changed from the settings.
+     * was stolen, say) or changed from the settings. The other web sessions
+     * end at their next request (auth.session, bootstrap/app.php).
      */
     protected static function booted(): void
     {
@@ -242,6 +244,24 @@ class User extends Authenticatable implements FilamentUser, HasAvatar, HasLocale
     public function preferredLocale(): ?string
     {
         return $this->locale;
+    }
+
+    /**
+     * The member's notifications the API token of the request may reach:
+     * those about private messages (their subject, sender and first words)
+     * need the messages ability, as the conversations themselves do. The
+     * notifications endpoints and the unread count of /api/v1/me go by it,
+     * so a token without that ability can bring its count down to zero.
+     *
+     * @return Builder<UserNotification>
+     */
+    public function notificationsForToken(): Builder
+    {
+        $notifications = $this->notifications()->getQuery();
+
+        return $this->tokenCan('messages')
+            ? $notifications
+            : $notifications->where('type', '!=', NewPrivateMessage::TYPE);
     }
 
     /**

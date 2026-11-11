@@ -29,7 +29,12 @@ con códigos de recuperación) y las *passkeys* (WebAuthn).
 - **Sesiones.** En Redis, con cookies `HttpOnly`, `SameSite=Lax` y, en
   producción, `Secure` (`SESSION_SECURE_COOKIE=true` en la plantilla); caducan
   tras 120 minutos sin actividad. Laravel cifra todas las cookies salvo
-  `appearance` y `sidebar_state`, dos preferencias de la interfaz.
+  `appearance` y `sidebar_state`, dos preferencias de la interfaz. Cambiar
+  la contraseña desde los ajustes, o restablecerla por email, cierra las
+  demás sesiones abiertas en su siguiente petición: cada sesión guarda una
+  huella de la contraseña con la que se abrió (`authenticateSessions()` en
+  `bootstrap/app.php`) y la que hizo el cambio se queda con la nueva. La
+  cookie de «Recordarme» lleva esa misma huella, así que tampoco sirve ya.
 - **CSRF.** Laravel deja el token en la cookie `XSRF-TOKEN` e Inertia lo
   devuelve en la cabecera `X-XSRF-TOKEN` de cada petición. La API no usa
   cookies: se autentica con *tokens* Bearer.
