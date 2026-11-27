@@ -56,10 +56,6 @@ final class MentionParser
     }
 
     /**
-     * Whether the mention may become a profile link: it has the shape of a
-     * username and is not part of another link or of an image description.
-     */
-    /**
      * The usernames a revision of a post mentioned for the first time that
      * its current body still mentions. Queued listeners can run after later
      * edits, so each works from the mentions of its own revision instead of
@@ -74,6 +70,10 @@ final class MentionParser
         return array_values(array_intersect(array_diff($mentioned, $before), $this->extract($currentBody)));
     }
 
+    /**
+     * Whether the mention may become a profile link: it has the shape of a
+     * username and is not part of another link or of an image description.
+     */
     public function isLinkable(Mention $mention): bool
     {
         $length = strlen($mention->getIdentifier());
