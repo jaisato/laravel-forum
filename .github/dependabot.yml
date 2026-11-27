@@ -85,6 +85,14 @@ updates:
       # is adopted by hand, in one change with CI and @types/node, once it is LTS.
       - dependency-name: node
         update-types: ["version-update:semver-major"]
+      # PHP 8.6 cannot build the images yet (#63): the latest phpredis (6.3.0)
+      # and pcov (1.0.12) do not compile on it and Xdebug 3.5.3 refuses it;
+      # their 8.6 support is only in phpredis 6.4.0RC1, Xdebug 3.6.0alpha1 and
+      # pcov's develop branch. Drop this entry once the three have stable
+      # releases, and adopt 8.6 by hand: its images lose pecl (PIE instead,
+      # docker-library/php#1654) and mbstring, and their FPM is always ZTS.
+      - dependency-name: php
+        versions: [">= 8.6, < 8.7"]
     commit-message:
       prefix: build(docker)
 
